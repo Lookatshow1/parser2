@@ -4,14 +4,33 @@ from sqlalchemy.orm import Session
 from app.api.schemas import (
     ExperimentCloseResponse,
     ExperimentCreateRequest,
+    ExperimentListResponse,
+    ExperimentListItem,
     ExperimentReportResponse,
     ExperimentResponse,
 )
+from app.db.models import Experiment as ExperimentModel, MetricSnapshot
 from app.db.session import get_db
 from app.services.experiment_service import ExperimentService
 from app.workers.experiment_tasks import close_round_task
 
 router = APIRouter(prefix="/experiments")
+
+
+@router.get("", response_model=ExperimentListResponse)
+def list_experiments(session: Session = Depends(get_db)):
+    experiments = session.query(ExperimentModel).all()
+    return ExperimentListResponse(
+        items=[
+            ExperimentListItem(
+                id=item.id,
+                status=item.status.value,
+                project_id=item.project_id,
+                total_budget=item.total_budget,
+            )
+            for item in experiments
+        ]
+    )
 
 
 @router.post("/create", response_model=ExperimentResponse)
@@ -49,4 +68,15 @@ def report(experiment_id: int, session: Session = Depends(get_db)):
         report_data = service.report(session, experiment_id)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    metrics = session.query(MetricSnapshot).all()
+    report_data["metrics"] = [
+        {
+            "date": metric.date.isoformat(),
+            "platform": metric.platform.value,
+            "impressions": metric.impressions,
+            "clicks": metric.clicks,
+            "spend": metric.spend,
+        }
+        for metric in metrics
+    ]
     return ExperimentReportResponse(**report_data)

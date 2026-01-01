@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.connections import router as connections_router
 from app.api.connectors import router as connectors_router
@@ -11,12 +12,22 @@ from app.api.health import router as health_router
 from app.api.integrations import router as integrations_router
 from app.api.plans import router as plans_router
 from app.api.schemas import ApiCapabilitiesResponse, ApiVersionResponse
+from app.core.config import get_settings
 from app.core.logging import configure_logging
 
 
 def create_app() -> FastAPI:
     configure_logging()
     app = FastAPI(title="Ads Aggregator API")
+    settings = get_settings()
+    origins = [origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()]
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins or ["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
     app.include_router(health_router)
     app.include_router(connections_router)
     app.include_router(connectors_router)

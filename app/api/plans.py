@@ -2,12 +2,26 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from app.api.schemas import PlanCreateRequest, PlanResponse, StartTestRequest, StartTestResponse
+from app.api.schemas import (
+    PlanCreateRequest,
+    PlanListResponse,
+    PlanResponse,
+    StartTestRequest,
+    StartTestResponse,
+)
 from app.db.models import CampaignPlan
 from app.db.session import get_db
 from app.services.experiment_engine import ExperimentEngine
 
 router = APIRouter(prefix="/plans")
+
+
+@router.get("", response_model=PlanListResponse)
+def list_plans(session: Session = Depends(get_db)):
+    plans = session.query(CampaignPlan).all()
+    return PlanListResponse(
+        items=[PlanResponse(id=plan.id, url=plan.url, internal_code=plan.internal_code) for plan in plans]
+    )
 
 
 @router.post("", response_model=PlanResponse, status_code=status.HTTP_201_CREATED)

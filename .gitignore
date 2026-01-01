@@ -10,3 +10,6 @@ dist/
 build/
 *.egg-info/
 .mypy_cache/
+node_modules/
+.next/
+*.tsbuildinfo

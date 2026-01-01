@@ -8,6 +8,18 @@ docker compose up --build
 docker compose run --rm api alembic upgrade head
 ```
 
+## Frontend (Next.js)
+
+```bash
+cd apps/web
+cp .env.example .env
+npm install
+npm run generate:types
+npm run dev
+```
+
+Frontend reads `NEXT_PUBLIC_API_BASE_URL` for backend base URL.
+
 ## Health checks
 
 ```bash

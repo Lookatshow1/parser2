@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     yandex_reports_skip_header: bool = True
 
     dev_mode: bool = False
+    cors_origins: str = "*"
 
 
 @lru_cache

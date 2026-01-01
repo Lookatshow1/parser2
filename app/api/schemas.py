@@ -15,6 +15,23 @@ class ConnectionTestResponse(BaseModel):
     ok: bool
 
 
+class ConnectionCreateRequest(BaseModel):
+    advertiser_id: int | None = None
+    platform: Platform
+    credentials_json: dict
+
+
+class ConnectionResponse(BaseModel):
+    id: int
+    advertiser_id: int | None = None
+    platform: Platform
+    status: str
+
+
+class ConnectionListResponse(BaseModel):
+    items: list[ConnectionResponse]
+
+
 class HealthResponse(BaseModel):
     status: str
 
@@ -65,6 +82,10 @@ class PlanResponse(BaseModel):
     id: int
     url: str
     internal_code: str | None = None
+
+
+class PlanListResponse(BaseModel):
+    items: list[PlanResponse]
 
 
 class StartTestResponse(BaseModel):
@@ -152,6 +173,17 @@ class ExperimentResponse(BaseModel):
     status: str
 
 
+class ExperimentListItem(BaseModel):
+    id: int
+    status: str
+    project_id: int | None
+    total_budget: int | None
+
+
+class ExperimentListResponse(BaseModel):
+    items: list[ExperimentListItem]
+
+
 class ExperimentCloseResponse(BaseModel):
     job_id: str
 
@@ -160,3 +192,4 @@ class ExperimentReportResponse(BaseModel):
     experiment_id: int
     status: str
     rounds: list[dict]
+    metrics: list[dict]
