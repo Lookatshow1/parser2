@@ -1,24 +1,32 @@
 # parser2
 
-## Run backend
+## Quick start
 
 ```bash
 cp .env.example .env
 docker compose up --build
-```
-
-Apply migrations:
-
-```bash
 docker compose run --rm api alembic upgrade head
 ```
 
-Health checks:
+## Health checks
 
 ```bash
 curl http://localhost:8000/health
 curl http://localhost:8000/healthz
 curl http://localhost:8000/openapi.json
+```
+
+## Tests
+
+```bash
+pytest
+```
+
+## Helper scripts
+
+```bash
+./scripts/self_test.sh
+./scripts/smoke_test.sh
 ```
 
 ## Event endpoints examples
@@ -60,22 +68,4 @@ curl -X POST http://localhost:8000/events/purchase \\
       "phone": "+79990000000"
     }
   }'
-```
-
-## Experiment self-test
-
-```bash
-./scripts/self_test.sh
-```
-
-## Smoke test
-
-```bash
-./scripts/smoke_test.sh
-```
-
-Manual start test:
-
-```bash
-curl -X POST "http://localhost:8000/plans/1/start_test?budget=10000"
 ```
