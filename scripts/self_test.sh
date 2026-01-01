@@ -13,8 +13,9 @@ PLAN_ID=$(curl -sS -X POST http://localhost:8000/plans \
     "kpi": "leads"
   }' | python -c "import json,sys; print(json.load(sys.stdin)['id'])")
 
-curl -sS -X POST "http://localhost:8000/plans/${PLAN_ID}/start_test?budget=10000" \
-  -H "Content-Type: application/json"
+curl -sS -X POST "http://localhost:8000/plans/${PLAN_ID}/start_test" \
+  -H "Content-Type: application/json" \
+  -d '{"budget": 10000}'
 
 docker compose exec -T db psql -U postgres -d ads -c \
   "SELECT COUNT(*) AS experiments FROM experiments;"

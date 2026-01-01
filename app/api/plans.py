@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from app.api.schemas import PlanCreateRequest, PlanResponse, StartTestResponse
+from app.api.schemas import PlanCreateRequest, PlanResponse, StartTestRequest, StartTestResponse
 from app.db.models import CampaignPlan
 from app.db.session import get_db
 from app.services.experiment_engine import ExperimentEngine
@@ -27,12 +27,12 @@ def create_plan(payload: PlanCreateRequest, session: Session = Depends(get_db)):
 @router.post("/{plan_id}/start_test", response_model=StartTestResponse)
 def start_test(
     plan_id: int,
-    budget: int = Query(..., gt=0),
+    payload: StartTestRequest,
     session: Session = Depends(get_db),
 ):
     engine = ExperimentEngine()
     try:
-        experiment = engine.start_test(session, plan_id=plan_id, budget=budget)
+        experiment = engine.start_test(session, plan_id=plan_id, budget=payload.budget)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 

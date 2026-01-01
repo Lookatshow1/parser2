@@ -2,21 +2,22 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.api.schemas import HealthResponse, HealthzResponse
 from app.db.session import get_db
 
 router = APIRouter()
 
 
-@router.get("/health")
+@router.get("/health", response_model=HealthResponse)
 def health_check():
-    return {"status": "ok"}
+    return HealthResponse(status="ok")
 
 
-@router.get("/healthz")
+@router.get("/healthz", response_model=HealthzResponse)
 def health_check_db(session: Session = Depends(get_db)):
     try:
         session.execute(text("SELECT 1"))
         session.execute(text("SELECT 1 FROM advertisers LIMIT 1"))
     except Exception:
-        return {"status": "error", "db": "unavailable"}
-    return {"status": "ok", "db": "ok"}
+        return HealthzResponse(status="error", db="unavailable")
+    return HealthzResponse(status="ok", db="ok")

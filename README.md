@@ -27,6 +27,7 @@ pytest
 ```bash
 ./scripts/self_test.sh
 ./scripts/smoke_test.sh
+./scripts/seed_dev.sh
 ```
 
 ## Event endpoints examples

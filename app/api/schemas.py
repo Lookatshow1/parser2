@@ -15,6 +15,15 @@ class ConnectionTestResponse(BaseModel):
     ok: bool
 
 
+class HealthResponse(BaseModel):
+    status: str
+
+
+class HealthzResponse(BaseModel):
+    status: str
+    db: str
+
+
 class ContactInfo(BaseModel):
     phone: str | None = None
     email: str | None = None
@@ -64,6 +73,10 @@ class StartTestResponse(BaseModel):
     budgets_count: int
 
 
+class StartTestRequest(BaseModel):
+    budget: int = Field(..., gt=0)
+
+
 class ComplianceRegisterRequest(BaseModel):
     platform: Platform
     creative_variant_id: int
@@ -98,6 +111,34 @@ class VkStatsSyncRequest(BaseModel):
 class VkStatsSyncResponse(BaseModel):
     rows: int
     saved: int
+
+
+class YandexSyncMetricsResponse(BaseModel):
+    job_id: str
+
+
+class YandexSyncMetricsRequest(BaseModel):
+    date_from: datetime
+    date_to: datetime
+
+
+class VkFetchRawRequest(BaseModel):
+    connection_id: int
+    method: str
+    params: dict | None = None
+
+
+class VkFetchRawResponse(BaseModel):
+    data: dict
+
+
+class ApiVersionResponse(BaseModel):
+    version: str
+
+
+class ApiCapabilitiesResponse(BaseModel):
+    platforms: list[str]
+    operations: dict[str, bool]
 
 
 class ExperimentCreateRequest(BaseModel):
