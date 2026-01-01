@@ -1,1 +1,81 @@
 # parser2
+
+## Run backend
+
+```bash
+cp .env.example .env
+docker compose up --build
+```
+
+Apply migrations:
+
+```bash
+docker compose run --rm api alembic upgrade head
+```
+
+Health checks:
+
+```bash
+curl http://localhost:8000/health
+curl http://localhost:8000/healthz
+curl http://localhost:8000/openapi.json
+```
+
+## Event endpoints examples
+
+Lead:
+
+```bash
+curl -X POST http://localhost:8000/events/lead \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "event_id": "11111111-1111-1111-1111-111111111111",
+    "occurred_at": "2024-01-01T12:00:00Z",
+    "landing_url": "https://example.com/landing",
+    "utm_source": "yandex",
+    "utm_medium": "cpc",
+    "utm_campaign": "campaign-123",
+    "utm_content": "banner",
+    "utm_term": "ads",
+    "contact": {
+      "email": "lead@example.com"
+    }
+  }'
+```
+
+Purchase:
+
+```bash
+curl -X POST http://localhost:8000/events/purchase \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "event_id": "22222222-2222-2222-2222-222222222222",
+    "occurred_at": "2024-01-01T12:05:00Z",
+    "landing_url": "https://example.com/landing",
+    "utm_source": "vk",
+    "utm_medium": "cpc",
+    "utm_campaign": "campaign-123",
+    "value": 1500,
+    "contact": {
+      "phone": "+79990000000"
+    }
+  }'
+```
+
+## Experiment self-test
+
+```bash
+./scripts/self_test.sh
+```
+
+## Smoke test
+
+```bash
+./scripts/smoke_test.sh
+```
+
+Manual start test:
+
+```bash
+curl -X POST "http://localhost:8000/plans/1/start_test?budget=10000"
+```
