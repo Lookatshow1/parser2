@@ -10,13 +10,18 @@ type ApiError = {
 };
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`${apiBase}${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(options?.headers || {})
-    },
-    ...options
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${apiBase}${path}`, {
+      headers: {
+        "Content-Type": "application/json",
+        ...(options?.headers || {})
+      },
+      ...options
+    });
+  } catch {
+    throw new Error("Backend is unavailable. Check API base URL and server status.");
+  }
 
   if (!response.ok) {
     let error: ApiError | null = null;
@@ -63,7 +68,7 @@ export type ExperimentReport = {
   metrics: Array<{ date: string; platform: string; impressions: number; clicks: number; spend: number }>;
 };
 
-export async function getConnections() {
+export async function listConnections() {
   return request<{ items: ConnectionResponse[] }>("/connections");
 }
 
@@ -95,10 +100,20 @@ export async function listPlans() {
   return request<{ items: PlanResponse[] }>("/plans");
 }
 
-export async function startExperiment(payload: { plan_id: number; budget: number; platforms?: string[] }) {
+export async function getPlan(planId: number) {
+  return request<PlanResponse>(`/plans/${planId}`);
+}
+
+export async function createExperiment(payload: { plan_id: number; budget: number; platforms?: string[] }) {
   return request<{ id: number; status: string }>("/experiments", {
     method: "POST",
     body: JSON.stringify(payload)
+  });
+}
+
+export async function startExperiment(experimentId: number) {
+  return request<{ id: number; status: string }>(`/experiments/${experimentId}/start`, {
+    method: "POST"
   });
 }
 
@@ -106,12 +121,16 @@ export async function listExperiments() {
   return request<{ items: ExperimentListItem[] }>("/experiments");
 }
 
-export async function getExperimentReport(id: number) {
-  return request<ExperimentReport>(`/experiments/${id}/report`);
+export async function getExperiment(experimentId: number) {
+  return request<ExperimentListItem & { platforms?: string[] }>(`/experiments/${experimentId}`);
 }
 
-export async function startExperimentRun(id: number) {
-  return request<{ id: number; status: string }>(`/experiments/${id}/start`, {
+export async function getExperimentReport(experimentId: number) {
+  return request<ExperimentReport>(`/experiments/${experimentId}/report`);
+}
+
+export async function seedDev() {
+  return request<{ advertiser_id: number; plan_id: number; experiment_id: number }>("/dev/seed", {
     method: "POST"
   });
 }

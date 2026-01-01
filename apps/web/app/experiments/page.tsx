@@ -2,10 +2,18 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { listExperiments, startExperiment, startExperimentRun, ExperimentListItem } from "../../lib/api";
+import {
+  createExperiment,
+  listExperiments,
+  listPlans,
+  startExperiment,
+  ExperimentListItem,
+  PlanResponse
+} from "../../lib/api";
 
 export default function ExperimentsPage() {
   const [items, setItems] = useState<ExperimentListItem[]>([]);
+  const [plans, setPlans] = useState<PlanResponse[]>([]);
   const [planId, setPlanId] = useState("");
   const [budget, setBudget] = useState("10000");
   const [platforms, setPlatforms] = useState("yandex,ozon,vk");
@@ -14,8 +22,9 @@ export default function ExperimentsPage() {
 
   const load = async () => {
     try {
-      const data = await listExperiments();
-      setItems(data.items);
+      const [experimentsData, plansData] = await Promise.all([listExperiments(), listPlans()]);
+      setItems(experimentsData.items);
+      setPlans(plansData.items);
     } catch (err) {
       setError((err as Error).message);
     }
@@ -29,12 +38,16 @@ export default function ExperimentsPage() {
     setError(null);
     setNotice(null);
     try {
-      const experiment = await startExperiment({
+      if (!planId) {
+        setError("Select a plan before starting an experiment.");
+        return;
+      }
+      const experiment = await createExperiment({
         plan_id: Number(planId),
         budget: Number(budget),
         platforms: platforms.split(",").map((item) => item.trim())
       });
-      await startExperimentRun(experiment.id);
+      await startExperiment(experiment.id);
       setNotice(`Experiment ${experiment.id} started`);
       await load();
     } catch (err) {
@@ -49,11 +62,14 @@ export default function ExperimentsPage() {
         {error && <div className="text-red-400 mb-2">{error}</div>}
         {notice && <div className="text-green-400 mb-2">{notice}</div>}
         <div className="grid gap-3 md:grid-cols-3">
-          <input
-            value={planId}
-            onChange={(event) => setPlanId(event.target.value)}
-            placeholder="Plan ID"
-          />
+          <select value={planId} onChange={(event) => setPlanId(event.target.value)}>
+            <option value="">Select plan</option>
+            {plans.map((plan) => (
+              <option key={plan.id} value={plan.id}>
+                {plan.id} - {plan.url}
+              </option>
+            ))}
+          </select>
           <input value={budget} onChange={(event) => setBudget(event.target.value)} placeholder="Total budget" />
           <input
             value={platforms}

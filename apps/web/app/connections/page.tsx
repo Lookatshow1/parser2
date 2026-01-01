@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createConnection, getConnections, testConnection, ConnectionResponse } from "../../lib/api";
+import { createConnection, listConnections, testConnection, ConnectionResponse } from "../../lib/api";
 
 const platforms = ["yandex", "ozon", "vk"];
 
@@ -14,7 +14,7 @@ export default function ConnectionsPage() {
 
   const load = async () => {
     try {
-      const data = await getConnections();
+      const data = await listConnections();
       setItems(data.items);
     } catch (err) {
       setError((err as Error).message);
