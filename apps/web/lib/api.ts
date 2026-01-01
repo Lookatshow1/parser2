@@ -1,4 +1,5 @@
 const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+const apiBase = `${baseUrl}/api`;
 
 type ApiError = {
   error: {
@@ -9,7 +10,7 @@ type ApiError = {
 };
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`${baseUrl}${path}`, {
+  const response = await fetch(`${apiBase}${path}`, {
     headers: {
       "Content-Type": "application/json",
       ...(options?.headers || {})
@@ -77,10 +78,9 @@ export async function createConnection(payload: {
   });
 }
 
-export async function testConnection(payload: { platform: string; credentials_json: Record<string, unknown> }) {
-  return request<{ ok: boolean }>("/connections/test", {
+export async function testConnection(connectionId: number) {
+  return request<{ ok: boolean }>(`/connections/${connectionId}/test`, {
     method: "POST",
-    body: JSON.stringify(payload)
   });
 }
 
@@ -95,8 +95,8 @@ export async function listPlans() {
   return request<{ items: PlanResponse[] }>("/plans");
 }
 
-export async function startExperiment(payload: { project_id: number; total_budget: number; platforms: string[] }) {
-  return request<{ id: number; status: string }>("/experiments/create", {
+export async function startExperiment(payload: { plan_id: number; budget: number; platforms?: string[] }) {
+  return request<{ id: number; status: string }>("/experiments", {
     method: "POST",
     body: JSON.stringify(payload)
   });

@@ -19,10 +19,16 @@ from app.db.models import (
 
 
 class ExperimentService:
-    def create_experiment(self, session: Session, project_id: int, total_budget: int, platforms: list[str]) -> Experiment:
+    def create_experiment(
+        self,
+        session: Session,
+        plan_id: int,
+        total_budget: int,
+        platforms: list[str] | None,
+    ) -> Experiment:
         existing = session.scalar(
             select(Experiment).where(
-                Experiment.project_id == project_id,
+                Experiment.plan_id == plan_id,
                 Experiment.status.in_([ExperimentStatus.planned, ExperimentStatus.running]),
             )
         )
@@ -30,10 +36,10 @@ class ExperimentService:
             return existing
 
         experiment = Experiment(
-            plan_id=None,
-            project_id=project_id,
+            plan_id=plan_id,
+            project_id=None,
             total_budget=total_budget,
-            platforms=platforms,
+            platforms=platforms or ["yandex", "ozon", "vk"],
             status=ExperimentStatus.planned,
         )
         session.add(experiment)

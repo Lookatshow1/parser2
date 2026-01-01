@@ -162,10 +162,16 @@ class ApiCapabilitiesResponse(BaseModel):
     operations: dict[str, bool]
 
 
+class DevSeedResponse(BaseModel):
+    advertiser_id: int
+    plan_id: int
+    experiment_id: int
+
+
 class ExperimentCreateRequest(BaseModel):
-    project_id: int
-    total_budget: int
-    platforms: list[Platform]
+    plan_id: int
+    budget: int
+    platforms: list[Platform] | None = None
 
 
 class ExperimentResponse(BaseModel):
@@ -176,7 +182,7 @@ class ExperimentResponse(BaseModel):
 class ExperimentListItem(BaseModel):
     id: int
     status: str
-    project_id: int | None
+    plan_id: int | None
     total_budget: int | None
 
 
@@ -192,4 +198,17 @@ class ExperimentReportResponse(BaseModel):
     experiment_id: int
     status: str
     rounds: list[dict]
+    metrics: list[dict]
+
+
+class ExperimentDetailResponse(BaseModel):
+    id: int
+    status: str
+    plan_id: int | None
+    total_budget: int | None
+    platforms: list[str] | None
+
+
+class MetricsSummaryResponse(BaseModel):
+    experiment_id: int
     metrics: list[dict]

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, APIRouter
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -6,14 +6,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.connections import router as connections_router
 from app.api.connectors import router as connectors_router
 from app.api.compliance import router as compliance_router
+from app.api.dev import router as dev_router
 from app.api.events import router as events_router
 from app.api.experiments import router as experiments_router
 from app.api.health import router as health_router
 from app.api.integrations import router as integrations_router
+from app.api.metrics import router as metrics_router
 from app.api.plans import router as plans_router
-from app.api.schemas import ApiCapabilitiesResponse, ApiVersionResponse
+from app.api.schemas import ApiCapabilitiesResponse, ApiVersionResponse, YandexSyncMetricsRequest
 from app.core.config import get_settings
 from app.core.logging import configure_logging
+from app.workers.yandex_tasks import sync_yandex_metrics
 
 
 def create_app() -> FastAPI:
@@ -29,19 +32,23 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     app.include_router(health_router)
-    app.include_router(connections_router)
-    app.include_router(connectors_router)
-    app.include_router(compliance_router)
-    app.include_router(events_router)
-    app.include_router(experiments_router)
-    app.include_router(integrations_router)
-    app.include_router(plans_router)
+    api_router = APIRouter(prefix="/api")
+    api_router.include_router(connections_router)
+    api_router.include_router(connectors_router)
+    api_router.include_router(compliance_router)
+    api_router.include_router(events_router)
+    api_router.include_router(experiments_router)
+    api_router.include_router(integrations_router)
+    api_router.include_router(metrics_router)
+    api_router.include_router(plans_router)
+    api_router.include_router(dev_router)
+    app.include_router(api_router)
 
-    @app.get("/api/version", response_model=ApiVersionResponse)
+    @api_router.get("/version", response_model=ApiVersionResponse)
     def api_version():
         return ApiVersionResponse(version="0.1.0")
 
-    @app.get("/api/capabilities", response_model=ApiCapabilitiesResponse)
+    @api_router.get("/capabilities", response_model=ApiCapabilitiesResponse)
     def api_capabilities():
         return ApiCapabilitiesResponse(
             platforms=["yandex", "ozon", "vk"],
@@ -52,6 +59,11 @@ def create_app() -> FastAPI:
                 "validate_connection": True,
             },
         )
+
+    @app.post("/connectors/yandex/sync_metrics", deprecated=True)
+    def sync_metrics_alias(payload: YandexSyncMetricsRequest):
+        result = sync_yandex_metrics.delay(payload.date_from.date().isoformat(), payload.date_to.date().isoformat())
+        return {"job_id": result.id}
 
     @app.exception_handler(HTTPException)
     async def http_exception_handler(request: Request, exc: HTTPException):

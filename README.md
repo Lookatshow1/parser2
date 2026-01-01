@@ -23,7 +23,6 @@ Frontend reads `NEXT_PUBLIC_API_BASE_URL` for backend base URL.
 ## Health checks
 
 ```bash
-curl http://localhost:8000/health
 curl http://localhost:8000/healthz
 curl http://localhost:8000/openapi.json
 ```
@@ -47,7 +46,7 @@ pytest
 Lead:
 
 ```bash
-curl -X POST http://localhost:8000/events/lead \\
+curl -X POST http://localhost:8000/api/events/lead \\
   -H "Content-Type: application/json" \\
   -d '{
     "event_id": "11111111-1111-1111-1111-111111111111",
@@ -67,7 +66,7 @@ curl -X POST http://localhost:8000/events/lead \\
 Purchase:
 
 ```bash
-curl -X POST http://localhost:8000/events/purchase \\
+curl -X POST http://localhost:8000/api/events/purchase \\
   -H "Content-Type: application/json" \\
   -d '{
     "event_id": "22222222-2222-2222-2222-222222222222",

@@ -24,6 +24,14 @@ def list_plans(session: Session = Depends(get_db)):
     )
 
 
+@router.get("/{plan_id}", response_model=PlanResponse)
+def get_plan(plan_id: int, session: Session = Depends(get_db)):
+    plan = session.get(CampaignPlan, plan_id)
+    if plan is None:
+        raise HTTPException(status_code=404, detail="Plan not found")
+    return PlanResponse(id=plan.id, url=plan.url, internal_code=plan.internal_code)
+
+
 @router.post("", response_model=PlanResponse, status_code=status.HTTP_201_CREATED)
 def create_plan(payload: PlanCreateRequest, session: Session = Depends(get_db)):
     plan = CampaignPlan(

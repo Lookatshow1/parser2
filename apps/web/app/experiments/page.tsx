@@ -6,7 +6,7 @@ import { listExperiments, startExperiment, startExperimentRun, ExperimentListIte
 
 export default function ExperimentsPage() {
   const [items, setItems] = useState<ExperimentListItem[]>([]);
-  const [projectId, setProjectId] = useState("");
+  const [planId, setPlanId] = useState("");
   const [budget, setBudget] = useState("10000");
   const [platforms, setPlatforms] = useState("yandex,ozon,vk");
   const [error, setError] = useState<string | null>(null);
@@ -30,8 +30,8 @@ export default function ExperimentsPage() {
     setNotice(null);
     try {
       const experiment = await startExperiment({
-        project_id: Number(projectId),
-        total_budget: Number(budget),
+        plan_id: Number(planId),
+        budget: Number(budget),
         platforms: platforms.split(",").map((item) => item.trim())
       });
       await startExperimentRun(experiment.id);
@@ -50,9 +50,9 @@ export default function ExperimentsPage() {
         {notice && <div className="text-green-400 mb-2">{notice}</div>}
         <div className="grid gap-3 md:grid-cols-3">
           <input
-            value={projectId}
-            onChange={(event) => setProjectId(event.target.value)}
-            placeholder="Project ID"
+            value={planId}
+            onChange={(event) => setPlanId(event.target.value)}
+            placeholder="Plan ID"
           />
           <input value={budget} onChange={(event) => setBudget(event.target.value)} placeholder="Total budget" />
           <input
@@ -71,7 +71,7 @@ export default function ExperimentsPage() {
             <div key={item.id} className="flex justify-between border-b border-slate-800 pb-2">
               <span>#{item.id}</span>
               <span>{item.status}</span>
-              <span>Project {item.project_id ?? "-"}</span>
+              <span>Plan {item.plan_id ?? "-"}</span>
               <Link className="text-blue-400" href={`/experiments/${item.id}`}>
                 Report
               </Link>

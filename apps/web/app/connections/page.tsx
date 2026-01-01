@@ -38,12 +38,11 @@ export default function ConnectionsPage() {
     }
   };
 
-  const handleTest = async () => {
+  const handleTest = async (connectionId: number) => {
     setError(null);
     setNotice(null);
     try {
-      const credentials = JSON.parse(credentialsJson);
-      const result = await testConnection({ platform, credentials_json: credentials });
+      const result = await testConnection(connectionId);
       setNotice(result.ok ? "Connection OK" : "Connection failed");
     } catch (err) {
       setError((err as Error).message);
@@ -86,6 +85,12 @@ export default function ConnectionsPage() {
               <span>#{item.id}</span>
               <span>{item.platform}</span>
               <span>{item.status}</span>
+              <button
+                onClick={() => handleTest(item.id)}
+                className="bg-slate-700 hover:bg-slate-600 text-xs px-3 py-1 rounded"
+              >
+                Test
+              </button>
             </div>
           ))}
           {items.length === 0 && <div className="text-slate-400">No connections yet.</div>}

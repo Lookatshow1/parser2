@@ -9,6 +9,8 @@ from app.api.schemas import (
     VkStatsSyncResponse,
     YandexReportsSyncRequest,
     YandexReportsSyncResponse,
+    YandexSyncMetricsRequest,
+    YandexSyncMetricsResponse,
 )
 from app.connectors.vk_ads import VkAdsConnector
 from app.connectors.vk_ads_client import VkApiError
@@ -20,6 +22,7 @@ from app.connectors.yandex_direct_reports import (
 from app.core.config import get_settings
 from app.db.models import Connection, Platform
 from app.db.session import get_db
+from app.workers.yandex_tasks import sync_yandex_metrics
 
 router = APIRouter(prefix="/integrations")
 
@@ -91,3 +94,9 @@ def sync_vk_stats(payload: VkStatsSyncRequest, session: Session = Depends(get_db
     session.add_all(metrics)
     session.commit()
     return VkStatsSyncResponse(rows=len(metrics), saved=len(metrics))
+
+
+@router.post("/yandex/sync-metrics", response_model=YandexSyncMetricsResponse)
+def sync_yandex_metrics_job(payload: YandexSyncMetricsRequest):
+    result = sync_yandex_metrics.delay(payload.date_from.date().isoformat(), payload.date_to.date().isoformat())
+    return YandexSyncMetricsResponse(job_id=result.id)

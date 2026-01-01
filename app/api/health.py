@@ -2,15 +2,10 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from app.api.schemas import HealthResponse, HealthzResponse
+from app.api.schemas import HealthzResponse
 from app.db.session import get_db
 
 router = APIRouter()
-
-
-@router.get("/health", response_model=HealthResponse)
-def health_check():
-    return HealthResponse(status="ok")
 
 
 @router.get("/healthz", response_model=HealthzResponse)

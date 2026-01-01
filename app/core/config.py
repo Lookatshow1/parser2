@@ -22,6 +22,7 @@ class Settings(BaseSettings):
 
     dev_mode: bool = False
     cors_origins: str = "*"
+    env: str = "dev"
 
 
 @lru_cache

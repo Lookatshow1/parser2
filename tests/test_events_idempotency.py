@@ -54,8 +54,8 @@ def test_lead_event_idempotent():
         "contact": {"email": "lead@example.com"},
     }
 
-    response_first = client.post("/events/lead", json=payload)
-    response_second = client.post("/events/lead", json=payload)
+    response_first = client.post("/api/events/lead", json=payload)
+    response_second = client.post("/api/events/lead", json=payload)
 
     assert response_first.status_code == 200
     assert response_first.json()["idempotent"] is False
@@ -82,8 +82,8 @@ def test_purchase_event_idempotent():
         "contact": {"phone": "+79990000000"},
     }
 
-    response_first = client.post("/events/purchase", json=payload)
-    response_second = client.post("/events/purchase", json=payload)
+    response_first = client.post("/api/events/purchase", json=payload)
+    response_second = client.post("/api/events/purchase", json=payload)
 
     assert response_first.status_code == 200
     assert response_first.json()["idempotent"] is False

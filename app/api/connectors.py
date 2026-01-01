@@ -17,7 +17,7 @@ from app.workers.yandex_tasks import sync_yandex_metrics
 router = APIRouter(prefix="/connectors")
 
 
-@router.post("/yandex/sync_metrics", response_model=YandexSyncMetricsResponse)
+@router.post("/yandex/sync_metrics", response_model=YandexSyncMetricsResponse, deprecated=True)
 def sync_yandex(payload: YandexSyncMetricsRequest):
     result = sync_yandex_metrics.delay(payload.date_from.date().isoformat(), payload.date_to.date().isoformat())
     return YandexSyncMetricsResponse(job_id=result.id)

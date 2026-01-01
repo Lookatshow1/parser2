@@ -59,7 +59,7 @@ def test_register_compliance_token():
         "token": "compliance-token-123",
     }
 
-    response = client.post("/compliance/register", json=payload)
+    response = client.post("/api/compliance/register", json=payload)
 
     assert response.status_code == 200
     assert response.json() == {"ok": True}
