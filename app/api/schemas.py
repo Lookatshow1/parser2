@@ -1,4 +1,5 @@
-from datetime import datetime
+from datetime import datetime, date
+from decimal import Decimal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -72,20 +73,33 @@ class EventResponse(BaseModel):
 
 
 class PlanCreateRequest(BaseModel):
-    url: str
-    business_description: str | None = None
-    kpi: str | None = None
-    internal_code: str | None = None
+    advertiser_id: int = Field(..., gt=0)
+    name: str = Field(..., min_length=1, max_length=255)
+    platform: Platform
+    budget: Decimal | None = Field(default=None, ge=0)
+    currency: str = Field(default="RUB", min_length=1, max_length=10)
+    start_date: date | None = None
+    end_date: date | None = None
+    internal_code: str | None = Field(default=None, max_length=64)
 
 
 class PlanResponse(BaseModel):
     id: int
-    url: str
+    advertiser_id: int
+    name: str
+    platform: Platform
+    budget: Decimal | None = None
+    currency: str
+    start_date: date | None = None
+    end_date: date | None = None
     internal_code: str | None = None
+    created_at: datetime
+    updated_at: datetime
 
 
 class PlanListResponse(BaseModel):
     items: list[PlanResponse]
+
 
 
 class StartTestResponse(BaseModel):

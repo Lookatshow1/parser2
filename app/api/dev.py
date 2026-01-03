@@ -18,7 +18,7 @@ def seed_dev(session: Session = Depends(get_db)):
     advertiser = Advertiser(name="Dev Advertiser")
     session.add(advertiser)
     session.flush()
-    plan = CampaignPlan(advertiser_id=advertiser.id, url="https://example.com")
+    plan = CampaignPlan(advertiser_id=advertiser.id, name="Dev Plan", platform="yandex")
     session.add(plan)
     session.flush()
     experiment = Experiment(plan_id=plan.id, total_budget=10000, platforms=["yandex", "ozon", "vk"])
