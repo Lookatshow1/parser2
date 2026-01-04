@@ -2,7 +2,7 @@ import enum
 from decimal import Decimal
 from datetime import datetime, date
 
-from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint, func
+from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint, func, Index
 from sqlalchemy import JSON
 from sqlalchemy.types import TypeDecorator
 
@@ -268,3 +268,35 @@ class ConversionEvent(Base):
 
     plan: Mapped[CampaignPlan | None] = relationship()
     experiment: Mapped[Experiment | None] = relationship()
+
+
+class JobStatus(str, enum.Enum):
+    queued = "queued"
+    running = "running"
+    succeeded = "succeeded"
+    failed = "failed"
+
+
+class JobRun(Base):
+    __tablename__ = "job_runs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    job_type: Mapped[str] = mapped_column(String, nullable=False)
+    status: Mapped[JobStatus] = mapped_column(
+        Enum(JobStatus, name="job_status_enum"), default=JobStatus.queued, nullable=False
+    )
+    context_json: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default='{}')
+    result_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    error_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        Index("idx_job_runs_status", "status"),
+        Index("idx_job_runs_job_type", "job_type"),
+        Index("idx_job_runs_created_at_desc", created_at.desc()),
+    )

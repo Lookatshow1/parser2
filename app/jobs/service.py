@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from app.db.models import JobRun, JobStatus
 
@@ -37,7 +37,7 @@ def mark_running(db: Session, job_id: int) -> JobRun:
     job = db.query(JobRun).get(job_id)
     if job:
         job.status = JobStatus.running
-        job.started_at = datetime.now()
+        job.started_at = datetime.now(timezone.utc)
         db.commit()
         db.refresh(job)
     return job
@@ -46,7 +46,7 @@ def mark_succeeded(db: Session, job_id: int, result: dict) -> JobRun:
     job = db.query(JobRun).get(job_id)
     if job:
         job.status = JobStatus.succeeded
-        job.finished_at = datetime.now()
+        job.finished_at = datetime.now(timezone.utc)
         job.result_json = sanitize_payload(result)
         db.commit()
         db.refresh(job)
@@ -56,7 +56,7 @@ def mark_failed(db: Session, job_id: int, error_text: str) -> JobRun:
     job = db.query(JobRun).get(job_id)
     if job:
         job.status = JobStatus.failed
-        job.finished_at = datetime.now()
+        job.finished_at = datetime.now(timezone.utc)
         job.error_text = error_text
         db.commit()
         db.refresh(job)
