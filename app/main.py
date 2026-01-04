@@ -13,7 +13,7 @@ from app.api.health import router as health_router
 from app.api.integrations import router as integrations_router
 from app.api.metrics import router as metrics_router
 from app.api.plans import router as plans_router
-from app.api.schemas import ApiCapabilitiesResponse, ApiVersionResponse, YandexSyncMetricsRequest
+from app.api.schemas import ApiCapabilitiesResponse, ApiVersionResponse, HealthResponse, YandexSyncMetricsRequest
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.workers.yandex_tasks import sync_yandex_metrics
@@ -42,7 +42,10 @@ def create_app() -> FastAPI:
     api_router.include_router(metrics_router)
     api_router.include_router(plans_router)
     api_router.include_router(dev_router)
-    app.include_router(api_router)
+
+    @api_router.get("/health", response_model=HealthResponse)
+    def api_health():
+        return HealthResponse(status="ok")
 
     @api_router.get("/version", response_model=ApiVersionResponse)
     def api_version():
@@ -59,6 +62,8 @@ def create_app() -> FastAPI:
                 "validate_connection": True,
             },
         )
+    
+    app.include_router(api_router)
 
     @app.post("/connectors/yandex/sync_metrics", deprecated=True)
     def sync_metrics_alias(payload: YandexSyncMetricsRequest):

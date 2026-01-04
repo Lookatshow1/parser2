@@ -23,6 +23,7 @@ Frontend reads `NEXT_PUBLIC_API_BASE_URL` for backend base URL.
 ## Health checks
 
 ```bash
+curl http://localhost:8000/api/health
 curl http://localhost:8000/healthz
 curl http://localhost:8000/openapi.json
 ```

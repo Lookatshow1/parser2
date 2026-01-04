@@ -13,3 +13,6 @@ build/
 node_modules/
 .next/
 *.tsbuildinfo
+
+.DS_Store
+**/.DS_Store

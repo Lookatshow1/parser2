@@ -22,10 +22,11 @@ class ConnectionStatus(str, enum.Enum):
 
 
 class ExperimentStatus(str, enum.Enum):
-    planned = "draft"
+    draft = "draft"
     running = "running"
     stopped = "stopped"
     completed = "completed"
+
 
 
 class Advertiser(Base):
@@ -100,7 +101,7 @@ class Experiment(Base):
     platforms: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)
     processing: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     status: Mapped[ExperimentStatus] = mapped_column(
-        Enum(ExperimentStatus, name="experiment_status_enum"), default=ExperimentStatus.planned, nullable=False
+        Enum(ExperimentStatus, name="experiment_status_enum"), default=ExperimentStatus.draft, nullable=False
     )
     start_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     end_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
@@ -179,6 +180,8 @@ class MetricSnapshot(Base):
     date: Mapped[date] = mapped_column(Date, nullable=False)
     platform: Mapped[Platform] = mapped_column(Enum(Platform, name="platform_enum"), nullable=False)
     campaign_external_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    plan_id: Mapped[int | None] = mapped_column(ForeignKey("campaign_plans.id"), nullable=True)
+    connection_id: Mapped[int | None] = mapped_column(ForeignKey("connections.id"), nullable=True)
     clicks: Mapped[int] = mapped_column(Integer, default=0)
     impressions: Mapped[int] = mapped_column(Integer, default=0)
     spend: Mapped[int] = mapped_column(Integer, default=0)

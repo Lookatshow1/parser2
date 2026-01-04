@@ -90,6 +90,9 @@ def sync_vk_stats(payload: VkStatsSyncRequest, session: Session = Depends(get_db
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except VkApiError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+    for m in metrics:
+        m.plan_id = payload.plan_id
+        m.connection_id = payload.connection_id
 
     session.add_all(metrics)
     session.commit()
@@ -98,5 +101,16 @@ def sync_vk_stats(payload: VkStatsSyncRequest, session: Session = Depends(get_db
 
 @router.post("/yandex/sync-metrics", response_model=YandexSyncMetricsResponse)
 def sync_yandex_metrics_job(payload: YandexSyncMetricsRequest):
-    result = sync_yandex_metrics.delay(payload.date_from.date().isoformat(), payload.date_to.date().isoformat())
+    if payload.date_from > payload.date_to:
+        raise HTTPException(
+            status_code=400,
+            detail="date_from must be less than or equal to date_to"
+        )
+    
+    result = sync_yandex_metrics.delay(
+        payload.connection_id,
+        payload.plan_id,
+        payload.date_from.date().isoformat(),
+        payload.date_to.date().isoformat(),
+    )
     return YandexSyncMetricsResponse(job_id=result.id)

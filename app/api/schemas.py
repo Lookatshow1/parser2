@@ -136,11 +136,13 @@ class YandexReportsSyncResponse(BaseModel):
 
 class VkStatsSyncRequest(BaseModel):
     connection_id: int
+    plan_id: int
     account_id: int
     ids: list[int]
     ids_type: str
     date_from: datetime
     date_to: datetime
+
 
 
 class VkStatsSyncResponse(BaseModel):
@@ -153,8 +155,11 @@ class YandexSyncMetricsResponse(BaseModel):
 
 
 class YandexSyncMetricsRequest(BaseModel):
+    connection_id: int
+    plan_id: int
     date_from: datetime
     date_to: datetime
+
 
 
 class VkFetchRawRequest(BaseModel):
@@ -212,7 +217,7 @@ class ExperimentReportResponse(BaseModel):
     experiment_id: int
     status: str
     rounds: list[dict]
-    metrics: list[dict]
+    metrics: dict
 
 
 class ExperimentDetailResponse(BaseModel):
@@ -224,5 +229,15 @@ class ExperimentDetailResponse(BaseModel):
 
 
 class MetricsSummaryResponse(BaseModel):
-    experiment_id: int
-    metrics: list[dict]
+    plan_id: int
+    date_from: str
+    date_to: str
+    impressions: int
+    clicks: int
+    spend: int
+    leads: int
+    purchases: int
+    revenue: int
+    cpc: float | None = None
+    cpl: float | None = None
+    cpa: float | None = None
