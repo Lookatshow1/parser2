@@ -1,33 +1,10 @@
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import text
 
-from app.db.base import Base
 from app.db.models import CampaignPlan, CreativeVariant, Experiment, Platform
-from app.db.session import get_db
-from app.main import create_app
-
-
-def build_client():
-    engine = create_engine("sqlite+pysqlite:///:memory:", connect_args={"check_same_thread": False})
-    TestingSessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
-
-    Base.metadata.create_all(bind=engine)
-
-    def override_get_db():
-        db = TestingSessionLocal()
-        try:
-            yield db
-        finally:
-            db.close()
-
-    app = create_app()
-    app.dependency_overrides[get_db] = override_get_db
-    return TestClient(app), TestingSessionLocal
 
 
 def seed_creative(session):
-    plan = CampaignPlan(url="https://example.com")
+    plan = CampaignPlan(url="https://example.com", advertiser_id=1)
     session.add(plan)
     session.commit()
     session.refresh(plan)
@@ -40,7 +17,7 @@ def seed_creative(session):
         platform=Platform.ozon,
         text="Test creative",
         image_url=None,
-        meta_json=None,
+        meta_json={},
     )
     session.add(creative)
     session.commit()
@@ -48,10 +25,8 @@ def seed_creative(session):
     return creative
 
 
-def test_register_compliance_token():
-    client, session_factory = build_client()
-    with session_factory() as session:
-        creative = seed_creative(session)
+def test_register_compliance_token(client, db_session):
+    creative = seed_creative(db_session)
 
     payload = {
         "platform": "ozon",
@@ -64,9 +39,8 @@ def test_register_compliance_token():
     assert response.status_code == 200
     assert response.json() == {"ok": True}
 
-    with session_factory() as session:
-        token = session.execute(
-            text("SELECT compliance_token FROM creative_variants WHERE id = :id"),
-            {"id": creative.id},
-        ).scalar_one()
+    token = db_session.execute(
+        text("SELECT compliance_token FROM creative_variants WHERE id = :id"),
+        {"id": creative.id},
+    ).scalar_one()
     assert token == "compliance-token-123"

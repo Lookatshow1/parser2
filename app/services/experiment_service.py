@@ -15,6 +15,7 @@ from app.db.models import (
     MetricSnapshot,
     Platform,
     CreativeVariant,
+    ExperimentCampaign,
 )
 
 
@@ -223,10 +224,34 @@ class ExperimentService:
         platforms = [Platform(value) for value in (experiment.platforms or [])]
         total_budget = sum(round_item.budget_plan.values())
         scores: dict[str, float] = {}
+
+        # load experiment campaigns and map platform -> list of campaign_external_id
+        campaign_rows = session.query(ExperimentCampaign).filter(ExperimentCampaign.experiment_id == experiment.id).all()
+        campaign_map: dict[str, list[str]] = {}
+        for c in campaign_rows:
+            campaign_map.setdefault(c.platform.value, []).append(c.campaign_external_id)
         for platform in platforms:
-            metrics = session.scalars(
-                select(MetricSnapshot).where(MetricSnapshot.platform == platform)
-            ).all()
+            # if campaigns specified for experiment, filter metrics by plan_id, platform and campaign_external_id list
+            if campaign_map:
+                ids = campaign_map.get(platform.value, [])
+                if ids:
+                    metrics = session.scalars(
+                        select(MetricSnapshot).where(
+                            MetricSnapshot.plan_id == experiment.plan_id,
+                            MetricSnapshot.platform == platform,
+                            MetricSnapshot.campaign_external_id.in_(ids),
+                        )
+                    ).all()
+                else:
+                    metrics = []
+            else:
+                # fallback: filter by plan_id and platform
+                metrics = session.scalars(
+                    select(MetricSnapshot).where(
+                        MetricSnapshot.plan_id == experiment.plan_id,
+                        MetricSnapshot.platform == platform,
+                    )
+                ).all()
             clicks = sum(metric.clicks for metric in metrics)
             spend = sum(metric.spend for metric in metrics)
             if clicks > 0:

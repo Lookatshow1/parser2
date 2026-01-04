@@ -1,36 +1,16 @@
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker
+from datetime import datetime, timezone
+from uuid import uuid4
 
-from app.db.base import Base
+from sqlalchemy import text
+
 from app.db.models import CampaignPlan, Experiment
-from app.db.session import get_db
-from app.main import create_app
-
-
-def build_client():
-    engine = create_engine("sqlite+pysqlite:///:memory:", connect_args={"check_same_thread": False})
-    TestingSessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
-
-    Base.metadata.create_all(bind=engine)
-
-    def override_get_db():
-        db = TestingSessionLocal()
-        try:
-            yield db
-        finally:
-            db.close()
-
-    app = create_app()
-    app.dependency_overrides[get_db] = override_get_db
-    return TestClient(app), TestingSessionLocal
 
 
 def seed_plan(session):
-    plan = CampaignPlan(internal_code="campaign-123", url="https://example.com")
+    plan = CampaignPlan(internal_code="campaign-123", url="https://example.com", advertiser_id=1)
     session.add(plan)
     session.commit()
     session.refresh(plan)
@@ -40,10 +20,8 @@ def seed_plan(session):
     return plan
 
 
-def test_lead_event_idempotent():
-    client, session_factory = build_client()
-    with session_factory() as session:
-        seed_plan(session)
+def test_lead_event_idempotent(client, db_session):
+    seed_plan(db_session)
 
     payload = {
         "event_id": str(uuid4()),
@@ -62,15 +40,12 @@ def test_lead_event_idempotent():
     assert response_second.status_code == 200
     assert response_second.json()["idempotent"] is True
 
-    with session_factory() as session:
-        count = session.execute(text("SELECT COUNT(*) FROM conversion_events")).scalar_one()
+    count = db_session.execute(text("SELECT COUNT(*) FROM conversion_events")).scalar_one()
     assert count == 1
 
 
-def test_purchase_event_idempotent():
-    client, session_factory = build_client()
-    with session_factory() as session:
-        seed_plan(session)
+def test_purchase_event_idempotent(client, db_session):
+    seed_plan(db_session)
 
     payload = {
         "event_id": str(uuid4()),
@@ -90,6 +65,5 @@ def test_purchase_event_idempotent():
     assert response_second.status_code == 200
     assert response_second.json()["idempotent"] is True
 
-    with session_factory() as session:
-        count = session.execute(text("SELECT COUNT(*) FROM conversion_events")).scalar_one()
+    count = db_session.execute(text("SELECT COUNT(*) FROM conversion_events")).scalar_one()
     assert count == 1

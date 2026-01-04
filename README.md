@@ -34,6 +34,14 @@ curl http://localhost:8000/openapi.json
 pytest
 ```
 
+## Самопроверка
+
+Запустите быстрый набор самопроверок (поднимет БД и Redis, применит миграции и запустит тесты):
+
+```bash
+./scripts/self_test.sh
+```
+
 ## Helper scripts
 
 ```bash

@@ -12,8 +12,11 @@ from app.api.schemas import (
     ExperimentListItem,
     ExperimentReportResponse,
     ExperimentResponse,
+    ExperimentCampaignsRequest,
+    ExperimentCampaignsResponse,
+    ExperimentCampaignItem,
 )
-from app.db.models import Experiment as ExperimentModel, MetricSnapshot
+from app.db.models import Experiment as ExperimentModel, MetricSnapshot, ExperimentCampaign
 from app.db.session import get_db
 from app.services.experiment_service import ExperimentService
 from app.workers.experiment_tasks import close_round_task
@@ -118,20 +121,39 @@ def report(
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
-    # Запрос метрик с фильтрами по plan_id эксперимента и датам
-    query = (
-        session.query(
-            func.sum(MetricSnapshot.impressions).label("impressions_sum"),
-            func.sum(MetricSnapshot.clicks).label("clicks_sum"),
-            func.sum(MetricSnapshot.spend).label("spend_sum"),
-            func.sum(MetricSnapshot.leads).label("leads_sum"),
-            func.sum(MetricSnapshot.purchases).label("purchases_sum"),
-            func.sum(MetricSnapshot.revenue).label("revenue_sum"),
-        )
-        .filter(MetricSnapshot.plan_id == experiment.plan_id)
-        .filter(MetricSnapshot.date >= date_from)
-        .filter(MetricSnapshot.date <= date_to)
-    )
+    # build campaign-aware filters: if experiment has ExperimentCampaigns, filter by platform-specific campaign_external_id lists
+    campaigns = session.query(ExperimentCampaign).filter(ExperimentCampaign.experiment_id == experiment.id).all()
+    campaign_map: dict[str, list[str]] = {}
+    for c in campaigns:
+        campaign_map.setdefault(c.platform.value, []).append(c.campaign_external_id)
+
+    base_cols = [
+        func.sum(MetricSnapshot.impressions).label("impressions_sum"),
+        func.sum(MetricSnapshot.clicks).label("clicks_sum"),
+        func.sum(MetricSnapshot.spend).label("spend_sum"),
+        func.sum(MetricSnapshot.leads).label("leads_sum"),
+        func.sum(MetricSnapshot.purchases).label("purchases_sum"),
+        func.sum(MetricSnapshot.revenue).label("revenue_sum"),
+    ]
+
+    query = session.query(*base_cols)
+    # always filter by date range
+    query = query.filter(MetricSnapshot.date >= date_from, MetricSnapshot.date <= date_to)
+
+    if campaign_map:
+        # build OR of (platform == X AND campaign_external_id IN (...)) for each platform present
+        or_clauses = []
+        from sqlalchemy import or_, and_
+
+        for platform_name, ids in campaign_map.items():
+            or_clauses.append(
+                and_(MetricSnapshot.platform == platform_name, MetricSnapshot.campaign_external_id.in_(ids))
+            )
+        if or_clauses:
+            query = query.filter(or_(*or_clauses))
+    else:
+        # fallback: filter only by plan_id
+        query = query.filter(MetricSnapshot.plan_id == experiment.plan_id)
 
     result = query.first()
 
@@ -188,3 +210,46 @@ def report(
     }
     
     return ExperimentReportResponse(**report_data)
+
+
+
+@router.get("/{experiment_id}/campaigns", response_model=ExperimentCampaignsResponse)
+def list_experiment_campaigns(experiment_id: int, session: Session = Depends(get_db)):
+    experiment = session.get(ExperimentModel, experiment_id)
+    if experiment is None:
+        raise HTTPException(status_code=404, detail="Experiment not found")
+
+    items = [
+        ExperimentCampaignItem(platform=camp.platform, campaign_external_id=camp.campaign_external_id)
+        for camp in session.query(ExperimentCampaign).filter(ExperimentCampaign.experiment_id == experiment_id).all()
+    ]
+    return ExperimentCampaignsResponse(items=items)
+
+
+@router.put("/{experiment_id}/campaigns", response_model=ExperimentCampaignsResponse)
+def replace_experiment_campaigns(payload: ExperimentCampaignsRequest, experiment_id: int, session: Session = Depends(get_db)):
+    # check experiment exists
+    experiment = session.get(ExperimentModel, experiment_id)
+    if experiment is None:
+        raise HTTPException(status_code=404, detail="Experiment not found")
+
+    # validate campaign_external_id non-empty
+    for item in payload.items:
+        if not item.campaign_external_id or not item.campaign_external_id.strip():
+            raise HTTPException(status_code=400, detail="campaign_external_id must be non-empty")
+
+    # perform transactional replace
+    with session.begin():
+        session.query(ExperimentCampaign).filter(ExperimentCampaign.experiment_id == experiment_id).delete(synchronize_session=False)
+        objects = [
+            ExperimentCampaign(
+                experiment_id=experiment_id,
+                platform=item.platform,
+                campaign_external_id=item.campaign_external_id,
+            )
+            for item in payload.items
+        ]
+        session.add_all(objects)
+
+    items = [ExperimentCampaignItem(platform=obj.platform, campaign_external_id=obj.campaign_external_id) for obj in objects]
+    return ExperimentCampaignsResponse(items=items)

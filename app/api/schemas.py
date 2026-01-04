@@ -241,3 +241,16 @@ class MetricsSummaryResponse(BaseModel):
     cpc: float | None = None
     cpl: float | None = None
     cpa: float | None = None
+
+
+class ExperimentCampaignItem(BaseModel):
+    platform: Platform
+    campaign_external_id: str
+
+
+class ExperimentCampaignsRequest(BaseModel):
+    items: list[ExperimentCampaignItem]
+
+
+class ExperimentCampaignsResponse(BaseModel):
+    items: list[ExperimentCampaignItem]

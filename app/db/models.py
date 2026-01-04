@@ -3,7 +3,22 @@ from decimal import Decimal
 from datetime import datetime, date
 
 from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint, func
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import JSON
+from sqlalchemy.types import TypeDecorator
+
+
+class JSONB(TypeDecorator):
+    """Platform-adaptive JSONB type: uses native JSONB on Postgres, JSON elsewhere."""
+    impl = JSON
+    cache_ok = True
+    __visit_name__ = "JSON"
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == "postgresql":
+            from sqlalchemy.dialects.postgresql import JSONB as PGJSONB
+
+            return dialect.type_descriptor(PGJSONB())
+        return dialect.type_descriptor(JSON())
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -111,6 +126,7 @@ class Experiment(Base):
 
     plan: Mapped[CampaignPlan] = relationship(back_populates="experiments")
     creatives: Mapped[list["CreativeVariant"]] = relationship(back_populates="experiment")
+    campaigns: Mapped[list["ExperimentCampaign"]] = relationship(back_populates="experiment")
 
 
 class ExperimentRound(Base):
@@ -171,6 +187,21 @@ class CreativeVariant(Base):
 
     experiment: Mapped[Experiment] = relationship(back_populates="creatives")
     hypothesis: Mapped[Hypothesis | None] = relationship()
+
+
+class ExperimentCampaign(Base):
+    __tablename__ = "experiment_campaigns"
+    __table_args__ = (
+        UniqueConstraint("experiment_id", "platform", "campaign_external_id", name="uq_experiment_campaign"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    experiment_id: Mapped[int] = mapped_column(ForeignKey("experiments.id", ondelete="CASCADE"), nullable=False)
+    platform: Mapped[Platform] = mapped_column(Enum(Platform, name="platform_enum"), nullable=False)
+    campaign_external_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    experiment: Mapped[Experiment] = relationship(back_populates="campaigns")
 
 
 class MetricSnapshot(Base):
