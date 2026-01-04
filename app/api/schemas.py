@@ -33,8 +33,20 @@ class ConnectionListResponse(BaseModel):
     items: list[ConnectionResponse]
 
 
+class HealthDb(BaseModel):
+    ok: bool
+
+
+class HealthMigrations(BaseModel):
+    ok: bool
+    current: str | None = None
+    head: str | None = None
+
+
 class HealthResponse(BaseModel):
     status: str
+    db: HealthDb
+    migrations: HealthMigrations
 
 
 class HealthzResponse(BaseModel):
