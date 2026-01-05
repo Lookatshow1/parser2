@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.connections import router as connections_router
 from app.api.connectors import router as connectors_router
 from app.api.compliance import router as compliance_router
+from app.api.dashboard import router as dashboard_router
 from app.api.dev import router as dev_router
 from app.api.events import router as events_router
 from app.api.experiments import router as experiments_router
@@ -38,6 +39,7 @@ def create_app() -> FastAPI:
     api_router.include_router(connections_router)
     api_router.include_router(connectors_router)
     api_router.include_router(compliance_router)
+    api_router.include_router(dashboard_router)
     api_router.include_router(events_router)
     api_router.include_router(experiments_router)
     api_router.include_router(integrations_router)
@@ -58,7 +60,7 @@ def create_app() -> FastAPI:
     @api_router.get("/capabilities", response_model=ApiCapabilitiesResponse)
     def api_capabilities():
         return ApiCapabilitiesResponse(
-            platforms=["yandex", "ozon", "vk"],
+            platforms=["yandex", "ozon", "vk", "stub"],
             operations={
                 "create_campaign": False,
                 "fetch_metrics": True,

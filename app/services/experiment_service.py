@@ -30,7 +30,7 @@ class ExperimentService:
         existing = session.scalar(
             select(Experiment).where(
                 Experiment.plan_id == plan_id,
-                Experiment.status.in_([ExperimentStatus.planned, ExperimentStatus.running]),
+                Experiment.status.in_([ExperimentStatus.draft, ExperimentStatus.running]),
             )
         )
         if existing:
@@ -41,7 +41,7 @@ class ExperimentService:
             project_id=None,
             total_budget=total_budget,
             platforms=platforms or ["yandex", "ozon", "vk"],
-            status=ExperimentStatus.planned,
+            status=ExperimentStatus.draft,
         )
         session.add(experiment)
         session.commit()

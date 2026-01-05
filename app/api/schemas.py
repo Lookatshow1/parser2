@@ -3,14 +3,33 @@ from decimal import Decimal
 from uuid import UUID
 from typing import Optional, Any, List
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app.db.models import Platform, SyncRunType, SyncRunStatus, ConnectionStatus
+
+
+def validate_credentials_for_platform(platform: Platform, credentials_json: dict) -> None:
+    if platform == Platform.yandex:
+        if not credentials_json.get("token"):
+            raise ValueError("Yandex credentials require 'token'")
+    elif platform == Platform.ozon:
+        if not credentials_json.get("client_id") or not credentials_json.get("client_secret"):
+            raise ValueError("Ozon credentials require 'client_id' and 'client_secret'")
+    elif platform == Platform.vk:
+        if not credentials_json.get("access_token") or not credentials_json.get("version"):
+            raise ValueError("VK credentials require 'access_token' and 'version'")
+    elif platform == Platform.stub:
+        return
 
 
 class ConnectionTestRequest(BaseModel):
     platform: Platform
     credentials_json: dict
+
+    @model_validator(mode="after")
+    def _validate_credentials(self):
+        validate_credentials_for_platform(self.platform, self.credentials_json)
+        return self
 
 
 class ConnectionTestResponse(BaseModel):
@@ -18,14 +37,21 @@ class ConnectionTestResponse(BaseModel):
 
 
 class ConnectionCreateRequest(BaseModel):
+    organization_id: int | None = None
     advertiser_id: int | None = None
     platform: Platform
     name: str | None = None
     credentials_json: dict
 
+    @model_validator(mode="after")
+    def _validate_credentials(self):
+        validate_credentials_for_platform(self.platform, self.credentials_json)
+        return self
+
 
 class ConnectionOut(BaseModel):
     id: int
+    organization_id: int
     advertiser_id: int | None = None
     platform: Platform
     name: str | None = None
@@ -39,6 +65,12 @@ class ConnectionOut(BaseModel):
 
 class ConnectionListResponse(BaseModel):
     items: list[ConnectionOut]
+
+
+class ConnectionSyncRequest(BaseModel):
+    date_from: date
+    date_to: date
+    force: bool = False
 
 
 class HealthDb(BaseModel):
@@ -207,6 +239,33 @@ class DevSeedResponse(BaseModel):
     experiment_id: int
 
 
+class DashboardTotals(BaseModel):
+    impressions: int
+    clicks: int
+    spend: int
+    leads: int
+    purchases: int
+    revenue: int
+
+
+class DashboardDailyItem(BaseModel):
+    date: date
+    impressions: int
+    clicks: int
+    spend: int
+    leads: int
+    purchases: int
+    revenue: int
+
+
+class DashboardSummaryResponse(BaseModel):
+    advertiser_id: int
+    date_from: date
+    date_to: date
+    totals: DashboardTotals
+    daily: list[DashboardDailyItem]
+
+
 class ExperimentCreateRequest(BaseModel):
     plan_id: int
     budget: int
@@ -314,18 +373,29 @@ class SyncRunCreateRequest(BaseModel):
     date_to: date | None = None
 
 
+class ConnectionSyncRunCreateRequest(BaseModel):
+    connection_id: int
+    params_json: dict | None = None
+
+
 class SyncRunResponse(BaseModel):
     id: int
-    experiment_id: int
+    organization_id: int
+    experiment_id: int | None = None
+    connection_id: int | None = None
     platform: Platform
     run_type: SyncRunType
     status: SyncRunStatus
     params_json: dict
+    result_json: dict | None = None
     started_at: datetime | None = None
     finished_at: datetime | None = None
     error_text: str | None = None
     created_at: datetime
     updated_at: datetime
+
+    class Config:
+        from_attributes = True
 
 
 class SyncRunListResponse(BaseModel):

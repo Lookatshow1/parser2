@@ -62,6 +62,10 @@ def sync_yandex_reports(
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
     metrics = parse_tsv_metrics(report_text, skip_header=False)
+    for metric in metrics:
+        metric.organization_id = connection.organization_id
+        metric.connection_id = connection.id
+        metric.level = "campaign"
     session.add_all(metrics)
     session.commit()
     return YandexReportsSyncResponse(rows=len(metrics), saved=len(metrics))
@@ -91,8 +95,10 @@ def sync_vk_stats(payload: VkStatsSyncRequest, session: Session = Depends(get_db
     except VkApiError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     for m in metrics:
+        m.organization_id = connection.organization_id
         m.plan_id = payload.plan_id
         m.connection_id = payload.connection_id
+        m.level = "campaign"
 
     session.add_all(metrics)
     session.commit()

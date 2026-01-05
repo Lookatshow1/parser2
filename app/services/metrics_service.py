@@ -41,7 +41,8 @@ def get_experiment_metrics(
         MetricSnapshot.experiment_id == experiment_id,
         MetricSnapshot.platform == platform,
         MetricSnapshot.date >= date_from,
-        MetricSnapshot.date <= date_to
+        MetricSnapshot.date <= date_to,
+        MetricSnapshot.level == "campaign",
     )
 
     if campaign_external_id:
@@ -113,7 +114,8 @@ def get_experiment_summary(
         MetricSnapshot.experiment_id == experiment_id,
         MetricSnapshot.platform == platform,
         MetricSnapshot.date >= date_from,
-        MetricSnapshot.date <= date_to
+        MetricSnapshot.date <= date_to,
+        MetricSnapshot.level == "campaign",
     )
 
     row = db.execute(query).first()
@@ -136,3 +138,72 @@ def get_experiment_summary(
         "cpc": (spend / clicks) if clicks > 0 else 0,
         "cpm": (spend / impressions * 1000) if impressions > 0 else 0,
     }
+
+
+def get_connection_metrics(
+    db: Session,
+    connection_id: int,
+    date_from: date,
+    date_to: date,
+    group_by: str = "day",
+    campaign_external_id: Optional[str] = None,
+):
+    query = select(
+        func.sum(MetricSnapshot.impressions).label("impressions"),
+        func.sum(MetricSnapshot.clicks).label("clicks"),
+        func.sum(MetricSnapshot.spend).label("spend"),
+        func.sum(MetricSnapshot.leads).label("leads"),
+        func.sum(MetricSnapshot.purchases).label("purchases"),
+        func.sum(MetricSnapshot.revenue).label("revenue"),
+    ).filter(
+        MetricSnapshot.connection_id == connection_id,
+        MetricSnapshot.date >= date_from,
+        MetricSnapshot.date <= date_to,
+        MetricSnapshot.level == "campaign",
+    )
+
+    if campaign_external_id:
+        query = query.filter(MetricSnapshot.campaign_external_id == campaign_external_id)
+
+    if group_by == "day":
+        query = query.add_columns(MetricSnapshot.date).group_by(MetricSnapshot.date).order_by(MetricSnapshot.date)
+    elif group_by == "campaign":
+        query = query.add_columns(MetricSnapshot.campaign_external_id).group_by(MetricSnapshot.campaign_external_id)
+    elif group_by == "day_campaign":
+        query = query.add_columns(MetricSnapshot.date, MetricSnapshot.campaign_external_id).group_by(
+            MetricSnapshot.date, MetricSnapshot.campaign_external_id
+        ).order_by(MetricSnapshot.date)
+
+    results = db.execute(query).all()
+    items = []
+    for row in results:
+        impressions = row.impressions or 0
+        clicks = row.clicks or 0
+        spend = row.spend or 0
+        leads = row.leads or 0
+        purchases = row.purchases or 0
+        revenue = row.revenue or 0
+
+        item = {
+            "impressions": impressions,
+            "clicks": clicks,
+            "spend": spend,
+            "leads": leads,
+            "purchases": purchases,
+            "revenue": revenue,
+            "ctr": (clicks / impressions * 100) if impressions > 0 else 0,
+            "cpc": (spend / clicks) if clicks > 0 else 0,
+            "cpm": (spend / impressions * 1000) if impressions > 0 else 0,
+        }
+
+        if group_by == "day":
+            item["date"] = row.date
+        elif group_by == "campaign":
+            item["campaign_external_id"] = row.campaign_external_id
+        elif group_by == "day_campaign":
+            item["date"] = row.date
+            item["campaign_external_id"] = row.campaign_external_id
+
+        items.append(item)
+
+    return items

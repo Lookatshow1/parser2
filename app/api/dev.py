@@ -14,6 +14,7 @@ def seed_dev(session: Session = Depends(get_db)):
     settings = get_settings()
     if settings.env != "dev":
         raise HTTPException(status_code=404, detail="Not found")
+    organization_id = settings.default_organization_id
 
     advertiser = Advertiser(name="Dev Advertiser")
     session.add(advertiser)
@@ -21,6 +22,7 @@ def seed_dev(session: Session = Depends(get_db)):
 
     # Create connection
     connection = Connection(
+        organization_id=organization_id,
         advertiser_id=advertiser.id,
         platform=Platform.yandex,
         name="Dev Connection",
@@ -30,6 +32,7 @@ def seed_dev(session: Session = Depends(get_db)):
     session.flush()
 
     plan = CampaignPlan(
+        organization_id=organization_id,
         advertiser_id=advertiser.id,
         name="Dev Plan",
         platform=Platform.yandex,
@@ -38,7 +41,12 @@ def seed_dev(session: Session = Depends(get_db)):
     session.add(plan)
     session.flush()
 
-    experiment = Experiment(plan_id=plan.id, total_budget=10000, platforms=["yandex", "ozon", "vk"])
+    experiment = Experiment(
+        plan_id=plan.id,
+        total_budget=10000,
+        platforms=["yandex", "ozon", "vk"],
+        organization_id=organization_id,
+    )
     session.add(experiment)
     session.commit()
 

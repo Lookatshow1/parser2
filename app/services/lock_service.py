@@ -23,3 +23,9 @@ def get_sync_lock_key(experiment_id: int, platform: str) -> int:
     # Convert to signed 64-bit integer (Postgres bigint range)
     key = int.from_bytes(hash_bytes[:8], byteorder='big', signed=True)
     return key
+
+
+def get_connection_sync_lock_key(connection_id: int, platform: str) -> int:
+    raw_str = f"sync:connection:{connection_id}:{platform}"
+    hash_bytes = hashlib.sha256(raw_str.encode("utf-8")).digest()
+    return int.from_bytes(hash_bytes[:8], byteorder="big", signed=True)

@@ -4,11 +4,32 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.api.schemas import MetricsSummaryResponse
+from app.api.schemas import MetricAggregateResponse, MetricsSummaryResponse
 from app.db.models import MetricSnapshot
 from app.db.session import get_db
+from app.services.metrics_service import get_connection_metrics
 
 router = APIRouter(prefix="/metrics")
+
+
+@router.get("", response_model=MetricAggregateResponse)
+def metrics_by_connection(
+    connection_id: int = Query(..., description="ID подключения"),
+    date_from: date = Query(..., description="Начало периода"),
+    date_to: date = Query(..., description="Конец периода"),
+    group_by: str = Query("day", regex="^(day|campaign|day_campaign)$"),
+    campaign_external_id: str | None = Query(None),
+    session: Session = Depends(get_db),
+):
+    items = get_connection_metrics(
+        session,
+        connection_id=connection_id,
+        date_from=date_from,
+        date_to=date_to,
+        group_by=group_by,
+        campaign_external_id=campaign_external_id,
+    )
+    return {"items": items}
 
 
 @router.get("/summary", response_model=MetricsSummaryResponse)

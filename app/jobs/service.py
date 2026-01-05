@@ -22,8 +22,16 @@ def sanitize_payload(data: dict | None) -> dict:
             cleaned[k] = v
     return cleaned
 
-def create_job(db: Session, job_type: str, context: dict) -> JobRun:
+def create_job(
+    db: Session,
+    job_type: str,
+    context: dict,
+    organization_id: int | None = None,
+    connection_id: int | None = None,
+) -> JobRun:
     job = JobRun(
+        organization_id=organization_id,
+        connection_id=connection_id,
         job_type=job_type,
         status=JobStatus.queued,
         context_json=sanitize_payload(context)

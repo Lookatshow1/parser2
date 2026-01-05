@@ -3,6 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.connectors.vk_ads import VkAdsConnector
+from app.connectors.stub import StubConnector
 from app.core.config import get_settings
 from app.db.models import Connection, Platform
 from app.db.session import get_db
@@ -19,7 +20,12 @@ router = APIRouter(prefix="/connectors")
 
 @router.post("/yandex/sync_metrics", response_model=YandexSyncMetricsResponse, deprecated=True)
 def sync_yandex(payload: YandexSyncMetricsRequest):
-    result = sync_yandex_metrics.delay(payload.date_from.date().isoformat(), payload.date_to.date().isoformat())
+    result = sync_yandex_metrics.delay(
+        payload.connection_id,
+        payload.plan_id,
+        payload.date_from.date().isoformat(),
+        payload.date_to.date().isoformat(),
+    )
     return YandexSyncMetricsResponse(job_id=result.id)
 
 
@@ -39,3 +45,9 @@ def fetch_vk_raw(payload: VkFetchRawRequest, session: Session = Depends(get_db))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return VkFetchRawResponse(data=data)
+
+
+@router.post("/stub/fetch_raw", response_model=VkFetchRawResponse)
+def fetch_stub_raw(payload: VkFetchRawRequest):
+    connector = StubConnector()
+    return VkFetchRawResponse(data=connector.fetch_raw(payload.method, payload.params))

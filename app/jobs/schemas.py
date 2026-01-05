@@ -5,6 +5,8 @@ from app.db.models import JobStatus
 
 class JobRunOut(BaseModel):
     id: int
+    organization_id: int | None = None
+    connection_id: int | None = None
     job_type: str
     status: JobStatus
     context_json: Dict[str, Any]

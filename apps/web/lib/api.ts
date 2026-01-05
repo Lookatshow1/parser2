@@ -43,6 +43,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 export type ConnectionResponse = {
   id: number;
+  organization_id: number;
   advertiser_id: number | null;
   platform: string;
   status: string;
@@ -84,9 +85,55 @@ export async function createConnection(payload: {
 }
 
 export async function testConnection(connectionId: number) {
-  return request<{ ok: boolean }>(`/connections/${connectionId}/test`, {
+  return request<{ ok: boolean }>(`/connections/${connectionId}/check`, {
     method: "POST",
   });
+}
+
+export async function syncConnection(payload: { connection_id: number; date_from: string; date_to: string; force?: boolean }) {
+  return request<{ id: number; status: string }>(`/connections/${payload.connection_id}/sync`, {
+    method: "POST",
+    body: JSON.stringify({
+      date_from: payload.date_from,
+      date_to: payload.date_to,
+      force: payload.force ?? false,
+    }),
+  });
+}
+
+export async function getSyncRun(runId: number) {
+  return request<{
+    id: number;
+    status: string;
+    platform: string;
+    run_type: string;
+    connection_id: number | null;
+    experiment_id: number | null;
+    created_at: string;
+    updated_at: string;
+    error_text?: string | null;
+  }>(`/sync-runs/${runId}`);
+}
+
+export async function listConnectionSyncRuns(connectionId: number) {
+  return request<{ items: Array<{ id: number; status: string; run_type: string; created_at: string }> }>(
+    `/connections/${connectionId}/sync-runs`
+  );
+}
+
+export async function getMetrics(payload: {
+  connection_id: number;
+  date_from: string;
+  date_to: string;
+  group_by?: string;
+}) {
+  const params = new URLSearchParams({
+    connection_id: String(payload.connection_id),
+    date_from: payload.date_from,
+    date_to: payload.date_to,
+    group_by: payload.group_by || "day",
+  });
+  return request<{ items: Array<Record<string, unknown>> }>(`/metrics?${params.toString()}`);
 }
 
 export async function createPlan(payload: { url: string; business_description?: string | null; kpi?: string | null; internal_code?: string | null }) {

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from datetime import date
+import os
+from datetime import date, timedelta
 
 from app.connectors.base import AdsConnector
 from app.connectors.vk_ads_client import VkAdsClient
@@ -10,6 +11,7 @@ from app.db.models import MetricSnapshot, Platform
 class VkAdsConnector(AdsConnector):
     def __init__(self, credentials_json: dict | None = None) -> None:
         self._credentials = credentials_json
+        self.is_mock = os.getenv("VK_ADS_MOCK", "0") == "1"
 
     def validate_connection(self, credentials_json: dict) -> bool:
         access_token = credentials_json.get("access_token")
@@ -43,6 +45,33 @@ class VkAdsConnector(AdsConnector):
 
     def stop(self, external_ids: dict) -> None:
         return None
+
+    def list_campaigns(self):
+        if self.is_mock:
+            return [
+                {"id": "vk_111", "name": "VK Mock 1", "status": "ACTIVE"},
+                {"id": "vk_222", "name": "VK Mock 2", "status": "PAUSED"},
+            ]
+        raise NotImplementedError("VK list_campaigns not implemented yet")
+
+    def get_daily_stats(self, campaign_ids, date_from: date, date_to: date):
+        if self.is_mock:
+            results = []
+            delta = date_to - date_from
+            for i in range(delta.days + 1):
+                current_date = date_from + timedelta(days=i)
+                for cid in campaign_ids:
+                    results.append(
+                        {
+                            "Date": current_date.isoformat(),
+                            "CampaignId": cid,
+                            "Impressions": 200,
+                            "Clicks": 20,
+                            "Cost": 400.0,
+                        }
+                    )
+            return results
+        raise NotImplementedError("VK get_daily_stats not implemented yet")
 
     def fetch_raw(self, method_name: str, credentials_json: dict, params: dict | None = None) -> dict:
         client = self._build_client(credentials_json)

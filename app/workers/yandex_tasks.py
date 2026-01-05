@@ -3,6 +3,7 @@ from datetime import date, datetime
 
 from sqlalchemy.orm import Session
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy import text
 
 from app.connectors.yandex_direct import YandexDirectConnector
 from app.db.models import Connection, MetricSnapshot
@@ -41,8 +42,10 @@ def sync_yandex_metrics(self, connection_id: int, plan_id: int, date_from: str, 
         for m in metrics:
             rows.append(
                 {
+                    "organization_id": connection.organization_id,
                     "date": m.date,
                     "platform": m.platform,
+                    "level": "campaign",
                     "campaign_external_id": m.campaign_external_id,
                     "clicks": m.clicks,
                     "impressions": m.impressions,
@@ -60,7 +63,8 @@ def sync_yandex_metrics(self, connection_id: int, plan_id: int, date_from: str, 
         if rows:
             stmt = insert(MetricSnapshot).values(rows)
             stmt = stmt.on_conflict_do_update(
-                constraint="uq_metric_snapshots_conn_plan_date_campaign",
+                index_elements=["organization_id", "connection_id", "platform", "date", "campaign_external_id"],
+                index_where=text("level = 'campaign' AND connection_id IS NOT NULL"),
                 set_={
                     "clicks": stmt.excluded.clicks,
                     "impressions": stmt.excluded.impressions,

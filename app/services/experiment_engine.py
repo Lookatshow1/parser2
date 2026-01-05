@@ -21,7 +21,8 @@ class ExperimentEngine:
         now = datetime.utcnow()
         experiment = Experiment(
             plan_id=plan.id,
-            status=ExperimentStatus.planned,
+            organization_id=plan.organization_id,
+            status=ExperimentStatus.draft,
             start_at=now,
             end_at=now + timedelta(days=7),
         )

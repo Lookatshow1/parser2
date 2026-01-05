@@ -23,6 +23,7 @@ from app.db.models import Platform, Experiment, ExperimentStatus, CampaignPlan, 
 from app.db.session import get_db
 from app.services.sync_service import sync_yandex_campaigns, sync_yandex_metrics
 from app.services.metrics_service import get_experiment_campaigns, get_experiment_metrics, get_experiment_summary
+from app.core.config import get_settings
 from app.workers.sync_tasks import execute_sync_run
 
 router = APIRouter(prefix="/experiments", tags=["experiments"])
@@ -34,11 +35,13 @@ def create_experiment(item: ExperimentCreateRequest, db: Session = Depends(get_d
     if not plan:
         raise HTTPException(status_code=404, detail="Plan not found")
 
+    settings = get_settings()
     exp = Experiment(
         plan_id=item.plan_id,
         total_budget=item.budget,
         platforms=item.platforms or [],
-        status=ExperimentStatus.draft
+        status=ExperimentStatus.draft,
+        organization_id=plan.organization_id or settings.default_organization_id,
     )
     db.add(exp)
     db.commit()
@@ -76,6 +79,7 @@ def create_sync_run(
         params["date_to"] = item.date_to.isoformat()
 
     run = SyncRun(
+        organization_id=exp.organization_id,
         experiment_id=experiment_id,
         platform=item.platform,
         run_type=item.run_type,

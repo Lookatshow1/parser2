@@ -51,12 +51,18 @@ class EventService:
         session.refresh(event)
 
         if plan:
-            self._update_metrics(session, event, plan.internal_code)
+            self._update_metrics(session, event, plan, experiment)
 
         return event, False
 
-    def _update_metrics(self, session: Session, event: ConversionEvent, campaign_code: str | None) -> None:
-        if not campaign_code:
+    def _update_metrics(
+        self,
+        session: Session,
+        event: ConversionEvent,
+        plan: CampaignPlan,
+        experiment: Experiment | None,
+    ) -> None:
+        if not plan.internal_code:
             return
 
         platform = self._resolve_platform(event.utm_source)
@@ -67,15 +73,22 @@ class EventService:
             select(MetricSnapshot).where(
                 MetricSnapshot.date == event.occurred_at.date(),
                 MetricSnapshot.platform == platform,
-                MetricSnapshot.campaign_external_id == campaign_code,
+                MetricSnapshot.campaign_external_id == plan.internal_code,
+                MetricSnapshot.organization_id == plan.organization_id,
+                MetricSnapshot.level == "campaign",
             )
         )
 
         if snapshot is None:
             snapshot = MetricSnapshot(
+                organization_id=plan.organization_id,
+                connection_id=plan.connection_id,
+                plan_id=plan.id,
+                experiment_id=experiment.id if experiment else None,
                 date=event.occurred_at.date(),
                 platform=platform,
-                campaign_external_id=campaign_code,
+                level="campaign",
+                campaign_external_id=plan.internal_code,
                 clicks=0,
                 impressions=0,
                 spend=0,

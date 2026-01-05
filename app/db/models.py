@@ -2,7 +2,7 @@ import enum
 from decimal import Decimal
 from datetime import datetime, date
 
-from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint, func, Index
+from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, Integer, LargeBinary, Numeric, String, Text, UniqueConstraint, func, Index, text
 from sqlalchemy import JSON
 from sqlalchemy.dialects.postgresql import JSONB as PGJSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -16,6 +16,7 @@ class Platform(str, enum.Enum):
     yandex = "yandex"
     ozon = "ozon"
     vk = "vk"
+    stub = "stub"
 
 
 class ConnectionStatus(str, enum.Enum):
@@ -31,13 +32,27 @@ class ExperimentStatus(str, enum.Enum):
     completed = "completed"
 
 
+class Organization(Base):
+    __tablename__ = "organizations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+
 
 class Advertiser(Base):
     __tablename__ = "advertisers"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
 
     connections: Mapped[list["Connection"]] = relationship(back_populates="advertiser")
     plans: Mapped[list["CampaignPlan"]] = relationship(back_populates="advertiser")
@@ -49,7 +64,7 @@ class Project(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     advertiser_id: Mapped[int | None] = mapped_column(ForeignKey("advertisers.id"), nullable=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
 
     advertiser: Mapped[Advertiser | None] = relationship()
 
@@ -58,13 +73,20 @@ class Connection(Base):
     __tablename__ = "connections"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id"), nullable=False)
     advertiser_id: Mapped[int | None] = mapped_column(ForeignKey("advertisers.id"), nullable=True)
     platform: Mapped[Platform] = mapped_column(Enum(Platform, name="platform_enum"), nullable=False)
     name: Mapped[str | None] = mapped_column(String, nullable=True)
     credentials_json: Mapped[dict] = mapped_column(JSONType, nullable=False)
+    credentials_encrypted: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    credentials_version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     status: Mapped[ConnectionStatus] = mapped_column(
-        Enum(ConnectionStatus, name="connection_status_enum"), default=ConnectionStatus.active, nullable=False
+        Enum(ConnectionStatus, name="connection_status_enum", native_enum=False),
+        default=ConnectionStatus.active,
+        server_default=ConnectionStatus.active.value,
+        nullable=False
     )
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
@@ -79,13 +101,14 @@ class CampaignPlan(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     advertiser_id: Mapped[int] = mapped_column(ForeignKey("advertisers.id"), nullable=False)
+    organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id"), nullable=False)
     connection_id: Mapped[int | None] = mapped_column(ForeignKey("connections.id"), nullable=True)
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     platform: Mapped[Platform] = mapped_column(Enum(Platform, name="platform_enum"), nullable=False)
 
     budget: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
-    currency: Mapped[str] = mapped_column(String(10), nullable=False, default="RUB")
+    currency: Mapped[str] = mapped_column(String(10), nullable=False, default="RUB", server_default="RUB")
     start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
 
@@ -107,6 +130,7 @@ class Experiment(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     plan_id: Mapped[int | None] = mapped_column(ForeignKey("campaign_plans.id"), nullable=True)
     project_id: Mapped[int | None] = mapped_column(ForeignKey("projects.id"), nullable=True)
+    organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id"), nullable=False)
     total_budget: Mapped[int | None] = mapped_column(Integer, nullable=True)
     platforms: Mapped[list[str] | None] = mapped_column(JSONType, nullable=True)
     processing: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
@@ -191,6 +215,7 @@ class ExperimentCampaign(Base):
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
     experiment_id: Mapped[int] = mapped_column(ForeignKey("experiments.id", ondelete="CASCADE"), nullable=False)
     platform: Mapped[Platform] = mapped_column(Enum(Platform, name="platform_enum"), nullable=False)
     campaign_external_id: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -203,9 +228,13 @@ class MetricSnapshot(Base):
     __tablename__ = "metric_snapshots"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
     date: Mapped[date] = mapped_column(Date, nullable=False)
     platform: Mapped[Platform] = mapped_column(Enum(Platform, name="platform_enum"), nullable=False)
+    level: Mapped[str] = mapped_column(String, default="campaign", server_default="campaign", nullable=False)
     campaign_external_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    ad_group_external_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    ad_external_id: Mapped[str | None] = mapped_column(String, nullable=True)
     plan_id: Mapped[int | None] = mapped_column(ForeignKey("campaign_plans.id"), nullable=True)
     connection_id: Mapped[int | None] = mapped_column(ForeignKey("connections.id"), nullable=True)
     experiment_id: Mapped[int | None] = mapped_column(ForeignKey("experiments.id"), nullable=True)
@@ -215,12 +244,54 @@ class MetricSnapshot(Base):
     leads: Mapped[int] = mapped_column(Integer, default=0)
     purchases: Mapped[int] = mapped_column(Integer, default=0)
     revenue: Mapped[int] = mapped_column(Integer, default=0)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
 
     __table_args__ = (
-        UniqueConstraint("experiment_id", "platform", "date", "campaign_external_id", name="uq_metric_snapshot"),
         Index("idx_metric_snapshots_experiment_platform_date", "experiment_id", "platform", "date"),
         Index("idx_metric_snapshots_campaign", "campaign_external_id"),
+        Index(
+            "uq_metric_campaign",
+            "organization_id",
+            "experiment_id",
+            "platform",
+            "date",
+            "campaign_external_id",
+            unique=True,
+            postgresql_where=text("level = 'campaign'"),
+        ),
+        Index(
+            "uq_metric_connection_campaign",
+            "organization_id",
+            "connection_id",
+            "platform",
+            "date",
+            "campaign_external_id",
+            unique=True,
+            postgresql_where=text("level = 'campaign' AND connection_id IS NOT NULL"),
+        ),
+        Index(
+            "uq_metric_ad_group",
+            "organization_id",
+            "experiment_id",
+            "platform",
+            "date",
+            "campaign_external_id",
+            "ad_group_external_id",
+            unique=True,
+            postgresql_where=text("level = 'ad_group'"),
+        ),
+        Index(
+            "uq_metric_ad",
+            "organization_id",
+            "experiment_id",
+            "platform",
+            "date",
+            "campaign_external_id",
+            "ad_group_external_id",
+            "ad_external_id",
+            unique=True,
+            postgresql_where=text("level = 'ad'"),
+        ),
     )
 
 
@@ -266,7 +337,7 @@ class ConversionEvent(Base):
     value: Mapped[int | None] = mapped_column(Integer, nullable=True)
     plan_id: Mapped[int | None] = mapped_column(ForeignKey("campaign_plans.id"), nullable=True)
     experiment_id: Mapped[int | None] = mapped_column(ForeignKey("experiments.id"), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
 
     plan: Mapped[CampaignPlan | None] = relationship()
     experiment: Mapped[Experiment | None] = relationship()
@@ -284,6 +355,8 @@ class JobRun(Base):
     __tablename__ = "job_runs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organization_id: Mapped[int | None] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True)
+    connection_id: Mapped[int | None] = mapped_column(ForeignKey("connections.id", ondelete="SET NULL"), nullable=True)
     job_type: Mapped[str] = mapped_column(String, nullable=False)
     status: Mapped[JobStatus] = mapped_column(
         Enum(JobStatus, name="job_status_enum"), default=JobStatus.queued, nullable=False
@@ -299,6 +372,8 @@ class JobRun(Base):
     )
 
     __table_args__ = (
+        Index("idx_job_runs_organization_id", "organization_id"),
+        Index("idx_job_runs_connection_id", "connection_id"),
         Index("idx_job_runs_status", "status"),
         Index("idx_job_runs_job_type", "job_type"),
         Index("idx_job_runs_created_at_desc", created_at.desc()),
@@ -323,16 +398,24 @@ class SyncRun(Base):
     __tablename__ = "sync_runs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    experiment_id: Mapped[int] = mapped_column(ForeignKey("experiments.id", ondelete="CASCADE"), nullable=False)
+    organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    experiment_id: Mapped[int | None] = mapped_column(ForeignKey("experiments.id", ondelete="CASCADE"), nullable=True)
+    connection_id: Mapped[int | None] = mapped_column(ForeignKey("connections.id", ondelete="SET NULL"), nullable=True)
     platform: Mapped[Platform] = mapped_column(Enum(Platform, name="platform_enum"), nullable=False)
-    run_type: Mapped[SyncRunType] = mapped_column(Enum(SyncRunType, name="sync_run_type_enum"), nullable=False)
+    run_type: Mapped[SyncRunType] = mapped_column(
+        Enum(SyncRunType, name="sync_run_type_enum", native_enum=False), nullable=False
+    )
     status: Mapped[SyncRunStatus] = mapped_column(
-        Enum(SyncRunStatus, name="sync_run_status_enum"), default=SyncRunStatus.queued, nullable=False
+        Enum(SyncRunStatus, name="sync_run_status_enum", native_enum=False),
+        default=SyncRunStatus.queued,
+        nullable=False
     )
     params_json: Mapped[dict] = mapped_column(JSONType, nullable=False, server_default='{}')
+    result_json: Mapped[dict | None] = mapped_column(JSONType, nullable=True)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     error_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    has_warnings: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
@@ -340,5 +423,6 @@ class SyncRun(Base):
 
     __table_args__ = (
         Index("idx_sync_runs_experiment_platform_created_at", "experiment_id", "platform", created_at.desc()),
+        Index("idx_sync_runs_connection_created_at", "connection_id", created_at.desc()),
         Index("idx_sync_runs_status", "status"),
     )
