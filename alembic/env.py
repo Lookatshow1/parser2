@@ -12,7 +12,6 @@ import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 
-from app.core.config import get_settings
 from app.db.base import Base
 from app.db import models  # noqa: F401
 
@@ -25,7 +24,10 @@ target_metadata = Base.metadata
 
 
 def get_url() -> str:
-    return get_settings().database_url
+    url = os.getenv("DATABASE_URL")
+    if not url:
+        raise RuntimeError("DATABASE_URL is not set. Run Alembic inside docker compose with DATABASE_URL configured.")
+    return url
 
 
 def run_migrations_offline() -> None:

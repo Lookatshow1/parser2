@@ -48,7 +48,7 @@ def upgrade() -> None:
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('organization_id', sa.Integer(), nullable=False),
         sa.Column('user_id', sa.Integer(), nullable=False),
-        sa.Column('role', sa.String(length=50), nullable=False),
+        sa.Column('role', sa.String(length=50), nullable=False), # owner, admin, analyst, viewer
         sa.ForeignKeyConstraint(['organization_id'], ['organizations.id'], ondelete='CASCADE'),
         sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id'),
@@ -77,14 +77,14 @@ def upgrade() -> None:
     # 5. Connections
     op.create_table('connections',
         sa.Column('id', sa.Integer(), nullable=False),
-        sa.Column('organization_id', sa.Integer(), nullable=False),
+        sa.Column('organization_id', sa.Integer(), nullable=False), # Backfilled later? No, new table.
         sa.Column('advertiser_id', sa.Integer(), nullable=True),
-        sa.Column('platform', sa.Enum('yandex', 'ozon', 'vk', name='platform_enum'), nullable=False),
+        sa.Column('platform', sa.Enum('yandex', 'ozon', 'vk', 'stub', name='platform_enum'), nullable=False),
         sa.Column('name', sa.String(), nullable=True),
         sa.Column('credentials_json', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
         sa.Column('credentials_encrypted', postgresql.BYTEA(), nullable=True),
         sa.Column('credentials_version', sa.Integer(), server_default='1', nullable=False),
-        sa.Column('status', sa.String(length=50), server_default='active', nullable=False),
+        sa.Column('status', sa.Enum('active', 'inactive', 'error', name='connection_status_enum', native_enum=False), server_default='active', nullable=False),
         sa.Column('notes', sa.Text(), nullable=True),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
         sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
@@ -101,9 +101,9 @@ def upgrade() -> None:
         sa.Column('organization_id', sa.Integer(), nullable=False),
         sa.Column('connection_id', sa.Integer(), nullable=True),
         sa.Column('name', sa.String(length=255), nullable=False),
-        sa.Column('platform', sa.Enum('yandex', 'ozon', 'vk', name='platform_enum'), nullable=False),
+        sa.Column('platform', sa.Enum('yandex', 'ozon', 'vk', 'stub', name='platform_enum'), nullable=False),
         sa.Column('budget', sa.Numeric(precision=14, scale=2), nullable=True),
-        sa.Column('currency', sa.String(length=10), nullable=False),
+        sa.Column('currency', sa.String(length=10), server_default='RUB', nullable=False),
         sa.Column('start_date', sa.Date(), nullable=True),
         sa.Column('end_date', sa.Date(), nullable=True),
         sa.Column('internal_code', sa.String(length=64), nullable=True),
@@ -168,7 +168,7 @@ def upgrade() -> None:
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('experiment_id', sa.Integer(), nullable=False),
         sa.Column('hypothesis_id', sa.Integer(), nullable=True),
-        sa.Column('platform', sa.Enum('yandex', 'ozon', 'vk', name='platform_enum'), nullable=False),
+        sa.Column('platform', sa.Enum('yandex', 'ozon', 'vk', 'stub', name='platform_enum'), nullable=False),
         sa.Column('text', sa.Text(), nullable=True),
         sa.Column('title', sa.String(length=255), nullable=True),
         sa.Column('image_url', sa.String(length=2048), nullable=True),
@@ -188,7 +188,7 @@ def upgrade() -> None:
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('experiment_id', sa.Integer(), nullable=False),
         sa.Column('experiment_round_id', sa.Integer(), nullable=True),
-        sa.Column('platform', sa.Enum('yandex', 'ozon', 'vk', name='platform_enum'), nullable=False),
+        sa.Column('platform', sa.Enum('yandex', 'ozon', 'vk', 'stub', name='platform_enum'), nullable=False),
         sa.Column('creative_variant_id', sa.Integer(), nullable=True),
         sa.Column('amount', sa.Integer(), nullable=False),
         sa.Column('created_at', sa.DateTime(), nullable=False),
@@ -240,9 +240,9 @@ def upgrade() -> None:
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('organization_id', sa.Integer(), nullable=False),
         sa.Column('experiment_id', sa.Integer(), nullable=False),
-        sa.Column('platform', sa.Enum('yandex', 'ozon', 'vk', name='platform_enum'), nullable=False),
-        sa.Column('run_type', sa.String(length=50), nullable=False),
-        sa.Column('status', sa.String(length=50), nullable=False),
+        sa.Column('platform', sa.Enum('yandex', 'ozon', 'vk', 'stub', name='platform_enum'), nullable=False),
+        sa.Column('run_type', sa.Enum('campaigns', 'metrics', 'full', name='sync_run_type_enum', native_enum=False), nullable=False),
+        sa.Column('status', sa.Enum('queued', 'running', 'success', 'failed', 'canceled', name='sync_run_status_enum', native_enum=False), nullable=False),
         sa.Column('params_json', postgresql.JSONB(astext_type=sa.Text()), server_default='{}', nullable=False),
         sa.Column('started_at', sa.DateTime(timezone=True), nullable=True),
         sa.Column('finished_at', sa.DateTime(timezone=True), nullable=True),
@@ -275,7 +275,7 @@ def upgrade() -> None:
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('organization_id', sa.Integer(), nullable=False),
         sa.Column('experiment_id', sa.Integer(), nullable=False),
-        sa.Column('platform', sa.Enum('yandex', 'ozon', 'vk', name='platform_enum'), nullable=False),
+        sa.Column('platform', sa.Enum('yandex', 'ozon', 'vk', 'stub', name='platform_enum'), nullable=False),
         sa.Column('campaign_external_id', sa.String(), nullable=False),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
         sa.ForeignKeyConstraint(['experiment_id'], ['experiments.id'], ondelete='CASCADE'),
@@ -289,7 +289,7 @@ def upgrade() -> None:
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('organization_id', sa.Integer(), nullable=False),
         sa.Column('experiment_id', sa.Integer(), nullable=False),
-        sa.Column('platform', sa.Enum('yandex', 'ozon', 'vk', name='platform_enum'), nullable=False),
+        sa.Column('platform', sa.Enum('yandex', 'ozon', 'vk', 'stub', name='platform_enum'), nullable=False),
         sa.Column('campaign_external_id', sa.String(), nullable=False),
         sa.Column('ad_group_external_id', sa.String(), nullable=False),
         sa.Column('name', sa.String(), nullable=True),
@@ -308,7 +308,7 @@ def upgrade() -> None:
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('organization_id', sa.Integer(), nullable=False),
         sa.Column('experiment_id', sa.Integer(), nullable=False),
-        sa.Column('platform', sa.Enum('yandex', 'ozon', 'vk', name='platform_enum'), nullable=False),
+        sa.Column('platform', sa.Enum('yandex', 'ozon', 'vk', 'stub', name='platform_enum'), nullable=False),
         sa.Column('campaign_external_id', sa.String(), nullable=False),
         sa.Column('ad_group_external_id', sa.String(), nullable=False),
         sa.Column('ad_external_id', sa.String(), nullable=False),
@@ -331,7 +331,7 @@ def upgrade() -> None:
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('organization_id', sa.Integer(), nullable=False),
         sa.Column('experiment_id', sa.Integer(), nullable=False),
-        sa.Column('platform', sa.Enum('yandex', 'ozon', 'vk', name='platform_enum'), nullable=False),
+        sa.Column('platform', sa.Enum('yandex', 'ozon', 'vk', 'stub', name='platform_enum'), nullable=False),
         sa.Column('creative_external_id', sa.String(), nullable=False),
         sa.Column('ad_external_id', sa.String(), nullable=True),
         sa.Column('name', sa.String(), nullable=True),
@@ -392,9 +392,10 @@ def upgrade() -> None:
         sa.Column('organization_id', sa.Integer(), nullable=False),
         sa.Column('connection_id', sa.Integer(), nullable=True),
         sa.Column('plan_id', sa.Integer(), nullable=True),
+        sa.Column('experiment_id', sa.Integer(), nullable=True),
         sa.Column('date', sa.Date(), nullable=False),
         sa.Column('platform', sa.Enum('yandex', 'ozon', 'vk', name='platform_enum'), nullable=False),
-        sa.Column('level', sa.String(), nullable=False),
+        sa.Column('level', sa.String(), server_default='campaign', nullable=False),
         sa.Column('campaign_external_id', sa.String(length=255), nullable=False),
         sa.Column('ad_group_external_id', sa.String(), nullable=True),
         sa.Column('ad_external_id', sa.String(), nullable=True),
@@ -408,20 +409,16 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(['connection_id'], ['connections.id'], ondelete='SET NULL'),
         sa.ForeignKeyConstraint(['organization_id'], ['organizations.id'], ondelete='CASCADE'),
         sa.ForeignKeyConstraint(['plan_id'], ['campaign_plans.id'], ),
+        sa.ForeignKeyConstraint(['experiment_id'], ['experiments.id'], ),
         sa.PrimaryKeyConstraint('id')
     )
     op.create_index('idx_metric_snapshots_campaign', 'metric_snapshots', ['campaign_external_id'], unique=False)
-    op.create_index('idx_metric_snapshots_experiment_platform_date', 'metric_snapshots', ['platform', 'date'], unique=False)
-    # Note: experiment_id removed from metric_snapshots in this schema version as per models.py analysis,
-    # but if it was there, it should be added. Assuming it's linked via plan or we missed it.
-    # Let's check models.py... MetricSnapshot has experiment_id. Adding it back.
-    op.add_column('metric_snapshots', sa.Column('experiment_id', sa.Integer(), nullable=True))
-    op.create_foreign_key(None, 'metric_snapshots', 'experiments', ['experiment_id'], ['id'])
+    op.create_index('idx_metric_snapshots_experiment_platform_date', 'metric_snapshots', ['experiment_id', 'platform', 'date'], unique=False)
 
     # Partial unique indexes
-    op.create_unique_constraint('uq_metric_campaign', 'metric_snapshots', ['organization_id', 'experiment_id', 'platform', 'date', 'campaign_external_id'], postgresql_where=sa.text("level = 'campaign'"))
-    op.create_unique_constraint('uq_metric_ad_group', 'metric_snapshots', ['organization_id', 'experiment_id', 'platform', 'date', 'campaign_external_id', 'ad_group_external_id'], postgresql_where=sa.text("level = 'ad_group'"))
-    op.create_unique_constraint('uq_metric_ad', 'metric_snapshots', ['organization_id', 'experiment_id', 'platform', 'date', 'campaign_external_id', 'ad_group_external_id', 'ad_external_id'], postgresql_where=sa.text("level = 'ad'"))
+    op.create_index('uq_metric_campaign', 'metric_snapshots', ['organization_id', 'experiment_id', 'platform', 'date', 'campaign_external_id'], unique=True, postgresql_where=sa.text("level = 'campaign'"))
+    op.create_index('uq_metric_ad_group', 'metric_snapshots', ['organization_id', 'experiment_id', 'platform', 'date', 'campaign_external_id', 'ad_group_external_id'], unique=True, postgresql_where=sa.text("level = 'ad_group'"))
+    op.create_index('uq_metric_ad', 'metric_snapshots', ['organization_id', 'experiment_id', 'platform', 'date', 'campaign_external_id', 'ad_group_external_id', 'ad_external_id'], unique=True, postgresql_where=sa.text("level = 'ad'"))
 
     # 23. Conversion Events
     op.create_table('conversion_events',
@@ -478,7 +475,5 @@ def downgrade() -> None:
     op.execute("DROP TYPE IF EXISTS platform_enum")
     op.execute("DROP TYPE IF EXISTS experiment_status_enum")
     op.execute("DROP TYPE IF EXISTS hypothesis_status_enum")
-    op.execute("DROP TYPE IF EXISTS experiment_round_status_enum")
-    op.execute("DROP TYPE IF EXISTS creative_status_enum")
     op.execute("DROP TYPE IF EXISTS job_status_enum")
     op.execute("DROP TYPE IF EXISTS conversioneventtype")

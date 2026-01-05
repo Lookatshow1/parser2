@@ -14,6 +14,7 @@ from app.api.integrations import router as integrations_router
 from app.api.metrics import router as metrics_router
 from app.api.plans import router as plans_router
 from app.api.jobs import router as jobs_router
+from app.api.sync_runs import router as sync_runs_router
 from app.api.schemas import ApiCapabilitiesResponse, ApiVersionResponse, HealthResponse, YandexSyncMetricsRequest
 from app.core.config import get_settings
 from app.core.logging import configure_logging
@@ -44,6 +45,7 @@ def create_app() -> FastAPI:
     api_router.include_router(plans_router)
     api_router.include_router(dev_router)
     api_router.include_router(jobs_router)
+    api_router.include_router(sync_runs_router)
 
     @api_router.get("/health", response_model=HealthResponse)
     def api_health():

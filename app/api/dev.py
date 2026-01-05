@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.api.schemas import DevSeedResponse
 from app.core.config import get_settings
-from app.db.models import Advertiser, CampaignPlan, Experiment
+from app.db.models import Advertiser, CampaignPlan, Experiment, Connection, Platform
 from app.db.session import get_db
 
 router = APIRouter(prefix="/dev")
@@ -18,9 +18,26 @@ def seed_dev(session: Session = Depends(get_db)):
     advertiser = Advertiser(name="Dev Advertiser")
     session.add(advertiser)
     session.flush()
-    plan = CampaignPlan(advertiser_id=advertiser.id, name="Dev Plan", platform="yandex")
+
+    # Create connection
+    connection = Connection(
+        advertiser_id=advertiser.id,
+        platform=Platform.yandex,
+        name="Dev Connection",
+        credentials_json={"token": "dev_token"}
+    )
+    session.add(connection)
+    session.flush()
+
+    plan = CampaignPlan(
+        advertiser_id=advertiser.id,
+        name="Dev Plan",
+        platform=Platform.yandex,
+        connection_id=connection.id
+    )
     session.add(plan)
     session.flush()
+
     experiment = Experiment(plan_id=plan.id, total_budget=10000, platforms=["yandex", "ozon", "vk"])
     session.add(experiment)
     session.commit()

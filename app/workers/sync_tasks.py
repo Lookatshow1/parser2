@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.db.session import SessionLocal
 from app.db.models import SyncRun, SyncRunStatus, SyncRunType
 from app.services.lock_service import acquire_advisory_lock, get_sync_lock_key
-from app.services.sync_service import sync_yandex_campaigns, sync_yandex_metrics
+from app.services.sync_service import sync_campaigns, sync_metrics
 
 def _run_sync_logic(db: Session, run: SyncRun):
     """
@@ -17,8 +17,7 @@ def _run_sync_logic(db: Session, run: SyncRun):
     params = run.params_json
 
     if run.run_type == SyncRunType.campaigns:
-        if platform == "yandex":
-            sync_yandex_campaigns(db, experiment_id)
+        sync_campaigns(db, experiment_id, platform)
 
     elif run.run_type == SyncRunType.metrics:
         date_from = params.get("date_from")
@@ -26,30 +25,23 @@ def _run_sync_logic(db: Session, run: SyncRun):
         if not date_from or not date_to:
             raise ValueError("date_from and date_to are required for metrics sync")
 
-        if platform == "yandex":
-            # Convert strings to date objects if needed, sync_yandex_metrics expects dates or strings?
-            # Looking at sync_service.py, it expects date objects or strings that can be parsed.
-            # Let's pass as is, assuming service handles it or they are strings.
-            # Actually sync_yandex_metrics type hint says date, so let's parse.
-            from datetime import date
-            d_from = date.fromisoformat(str(date_from))
-            d_to = date.fromisoformat(str(date_to))
-            sync_yandex_metrics(db, experiment_id, d_from, d_to)
+        from datetime import date
+        d_from = date.fromisoformat(str(date_from))
+        d_to = date.fromisoformat(str(date_to))
+        sync_metrics(db, experiment_id, platform, d_from, d_to)
 
     elif run.run_type == SyncRunType.full:
         # First campaigns
-        if platform == "yandex":
-            sync_yandex_campaigns(db, experiment_id)
+        sync_campaigns(db, experiment_id, platform)
 
         # Then metrics
         date_from = params.get("date_from")
         date_to = params.get("date_to")
         if date_from and date_to:
-            if platform == "yandex":
-                from datetime import date
-                d_from = date.fromisoformat(str(date_from))
-                d_to = date.fromisoformat(str(date_to))
-                sync_yandex_metrics(db, experiment_id, d_from, d_to)
+            from datetime import date
+            d_from = date.fromisoformat(str(date_from))
+            d_to = date.fromisoformat(str(date_to))
+            sync_metrics(db, experiment_id, platform, d_from, d_to)
 
 @shared_task(bind=True, max_retries=3)
 def execute_sync_run(self, run_id: int):

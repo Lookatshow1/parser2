@@ -1,255 +1,169 @@
-from datetime import date, datetime, timedelta
-
+from datetime import date
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import desc
 
 from app.api.schemas import (
-    ExperimentCloseResponse,
-    ExperimentCreateRequest,
-    ExperimentDetailResponse,
-    ExperimentListResponse,
-    ExperimentListItem,
-    ExperimentReportResponse,
-    ExperimentResponse,
-    ExperimentCampaignsRequest,
     ExperimentCampaignsResponse,
     ExperimentCampaignItem,
+    MetricAggregateResponse,
+    ExperimentSummaryResponse,
+    ExperimentCreateRequest,
+    ExperimentResponse,
+    ExperimentListResponse,
+    ExperimentDetailResponse,
+    ExperimentCloseResponse,
+    ExperimentReportResponse,
+    SyncRunCreateRequest,
+    SyncRunResponse,
+    SyncRunListResponse
 )
-from app.db.models import Experiment as ExperimentModel, MetricSnapshot, ExperimentCampaign
+from app.db.models import Platform, Experiment, ExperimentStatus, CampaignPlan, SyncRun, SyncRunStatus
 from app.db.session import get_db
-from app.services.experiment_service import ExperimentService
-from app.workers.experiment_tasks import close_round_task
+from app.services.sync_service import sync_yandex_campaigns, sync_yandex_metrics
+from app.services.metrics_service import get_experiment_campaigns, get_experiment_metrics, get_experiment_summary
+from app.workers.sync_tasks import execute_sync_run
 
-router = APIRouter(prefix="/experiments")
+router = APIRouter(prefix="/experiments", tags=["experiments"])
 
+@router.post("/", response_model=ExperimentResponse)
+def create_experiment(item: ExperimentCreateRequest, db: Session = Depends(get_db)):
+    # Basic creation logic
+    plan = db.query(CampaignPlan).get(item.plan_id)
+    if not plan:
+        raise HTTPException(status_code=404, detail="Plan not found")
 
-@router.get("", response_model=ExperimentListResponse)
-def list_experiments(session: Session = Depends(get_db)):
-    experiments = session.query(ExperimentModel).all()
-    return ExperimentListResponse(
-        items=[
-            ExperimentListItem(
-                id=item.id,
-                status=item.status.value,
-                plan_id=item.plan_id,
-                total_budget=item.total_budget,
-            )
-            for item in experiments
-        ]
+    exp = Experiment(
+        plan_id=item.plan_id,
+        total_budget=item.budget,
+        platforms=item.platforms or [],
+        status=ExperimentStatus.draft
     )
+    db.add(exp)
+    db.commit()
+    db.refresh(exp)
+    return exp
 
-
-@router.post("", response_model=ExperimentResponse)
-def create_experiment(payload: ExperimentCreateRequest, session: Session = Depends(get_db)):
-    service = ExperimentService()
-    experiment = service.create_experiment(
-        session,
-        plan_id=payload.plan_id,
-        total_budget=payload.budget,
-        platforms=[platform.value for platform in payload.platforms] if payload.platforms else None,
-    )
-    return ExperimentResponse(id=experiment.id, status=experiment.status.value)
-
-
-@router.post("/create", response_model=ExperimentResponse, deprecated=True)
-def create_experiment_legacy(payload: ExperimentCreateRequest, session: Session = Depends(get_db)):
-    service = ExperimentService()
-    experiment = service.create_experiment(
-        session,
-        plan_id=payload.plan_id,
-        total_budget=payload.budget,
-        platforms=[platform.value for platform in payload.platforms] if payload.platforms else None,
-    )
-    return ExperimentResponse(id=experiment.id, status=experiment.status.value)
-
-
-@router.post("/{experiment_id}/start", response_model=ExperimentResponse)
-def start_experiment(experiment_id: int, session: Session = Depends(get_db)):
-    service = ExperimentService()
-    try:
-        experiment = service.start_experiment(session, experiment_id)
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    return ExperimentResponse(id=experiment.id, status=experiment.status.value)
-
-
-@router.post("/{experiment_id}/close_round", response_model=ExperimentCloseResponse)
-def close_round(experiment_id: int):
-    result = close_round_task.delay(experiment_id)
-    return ExperimentCloseResponse(job_id=result.id)
-
+@router.get("/", response_model=ExperimentListResponse)
+def list_experiments(db: Session = Depends(get_db)):
+    items = db.query(Experiment).all()
+    return {"items": items}
 
 @router.get("/{experiment_id}", response_model=ExperimentDetailResponse)
-def get_experiment(experiment_id: int, session: Session = Depends(get_db)):
-    experiment = session.get(ExperimentModel, experiment_id)
-    if experiment is None:
+def get_experiment(experiment_id: int, db: Session = Depends(get_db)):
+    exp = db.query(Experiment).get(experiment_id)
+    if not exp:
         raise HTTPException(status_code=404, detail="Experiment not found")
-    return ExperimentDetailResponse(
-        id=experiment.id,
-        status=experiment.status.value,
-        plan_id=experiment.plan_id,
-        total_budget=experiment.total_budget,
-        platforms=experiment.platforms,
-    )
+    return exp
 
+# --- Sync APIs ---
 
-@router.get("/{experiment_id}/report", response_model=ExperimentReportResponse)
-def report(
+@router.post("/{experiment_id}/sync", response_model=SyncRunResponse)
+def create_sync_run(
     experiment_id: int,
-    date_from: date | None = Query(None, description="Начало периода (по умолчанию: 7 дней назад)"),
-    date_to: date | None = Query(None, description="Конец периода (по умолчанию: сегодня UTC)"),
-    session: Session = Depends(get_db),
+    item: SyncRunCreateRequest,
+    db: Session = Depends(get_db)
 ):
-    # Получаем эксперимент и проверяем наличие plan_id
-    experiment = session.get(ExperimentModel, experiment_id)
-    if experiment is None:
+    exp = db.query(Experiment).get(experiment_id)
+    if not exp:
         raise HTTPException(status_code=404, detail="Experiment not found")
-    
-    if experiment.plan_id is None:
-        raise HTTPException(status_code=400, detail="Experiment has no plan_id")
 
-    # Устанавливаем дефолтные значения дат (последние 7 дней)
-    if date_to is None:
-        date_to = datetime.utcnow().date()
-    if date_from is None:
-        date_from = date_to - timedelta(days=7)
+    params = {}
+    if item.date_from:
+        params["date_from"] = item.date_from.isoformat()
+    if item.date_to:
+        params["date_to"] = item.date_to.isoformat()
 
-    service = ExperimentService()
-    try:
-        report_data = service.report(session, experiment_id)
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    run = SyncRun(
+        experiment_id=experiment_id,
+        platform=item.platform,
+        run_type=item.run_type,
+        status=SyncRunStatus.queued,
+        params_json=params
+    )
+    db.add(run)
+    db.commit()
+    db.refresh(run)
 
-    # build campaign-aware filters: if experiment has ExperimentCampaigns, filter by platform-specific campaign_external_id lists
-    campaigns = session.query(ExperimentCampaign).filter(ExperimentCampaign.experiment_id == experiment.id).all()
-    campaign_map: dict[str, list[str]] = {}
-    for c in campaigns:
-        campaign_map.setdefault(c.platform.value, []).append(c.campaign_external_id)
+    # Enqueue task
+    execute_sync_run.delay(run.id)
 
-    base_cols = [
-        func.sum(MetricSnapshot.impressions).label("impressions_sum"),
-        func.sum(MetricSnapshot.clicks).label("clicks_sum"),
-        func.sum(MetricSnapshot.spend).label("spend_sum"),
-        func.sum(MetricSnapshot.leads).label("leads_sum"),
-        func.sum(MetricSnapshot.purchases).label("purchases_sum"),
-        func.sum(MetricSnapshot.revenue).label("revenue_sum"),
-    ]
+    return run
 
-    query = session.query(*base_cols)
-    # always filter by date range
-    query = query.filter(MetricSnapshot.date >= date_from, MetricSnapshot.date <= date_to)
+@router.get("/{experiment_id}/sync-runs", response_model=SyncRunListResponse)
+def list_sync_runs(
+    experiment_id: int,
+    platform: Optional[Platform] = None,
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db)
+):
+    query = db.query(SyncRun).filter(SyncRun.experiment_id == experiment_id)
+    if platform:
+        query = query.filter(SyncRun.platform == platform)
 
-    if campaign_map:
-        # build OR of (platform == X AND campaign_external_id IN (...)) for each platform present
-        or_clauses = []
-        from sqlalchemy import or_, and_
+    total = query.count()
+    items = query.order_by(desc(SyncRun.created_at)).limit(limit).offset(offset).all()
 
-        for platform_name, ids in campaign_map.items():
-            or_clauses.append(
-                and_(MetricSnapshot.platform == platform_name, MetricSnapshot.campaign_external_id.in_(ids))
-            )
-        if or_clauses:
-            query = query.filter(or_(*or_clauses))
-    else:
-        # fallback: filter only by plan_id
-        query = query.filter(MetricSnapshot.plan_id == experiment.plan_id)
+    return {"items": items, "total": total}
 
-    result = query.first()
+# --- Legacy Sync APIs (Thin Wrappers) ---
 
-    # Если данных нет, возвращаем нули
-    if result is None or all(v is None or v == 0 for v in [result.impressions_sum, result.clicks_sum, result.spend_sum]):
-        impressions = 0
-        clicks = 0
-        spend = 0
-        leads = 0
-        purchases = 0
-        revenue = 0
-    else:
-        impressions = result.impressions_sum or 0
-        clicks = result.clicks_sum or 0
-        spend = result.spend_sum or 0
-        leads = result.leads_sum or 0
-        purchases = result.purchases_sum or 0
-        revenue = result.revenue_sum or 0
+@router.post("/{experiment_id}/sync/yandex/campaigns")
+def api_sync_campaigns(experiment_id: int, db: Session = Depends(get_db)):
+    # Thin wrapper: create sync run and execute immediately (or enqueue)
+    # For backward compatibility, we can just call the service directly
+    # OR create a SyncRun and wait.
+    # Let's call service directly to not break existing tests that expect immediate result
+    return sync_yandex_campaigns(db, experiment_id)
 
-    # Вычисляем производные показатели (безопасное деление на ноль)
-    cpc = float(spend / clicks) if clicks > 0 else None
-    cpl = float(spend / leads) if leads > 0 else None
-    cpa = float(spend / purchases) if purchases > 0 else None
+@router.post("/{experiment_id}/sync/yandex/metrics")
+def api_sync_metrics(experiment_id: int, date_from: date, date_to: date, db: Session = Depends(get_db)):
+    return sync_yandex_metrics(db, experiment_id, date_from, date_to)
 
-    # Преобразуем rounds для сериализации (datetime -> isoformat)
-    rounds_serialized = []
-    for round_item in report_data["rounds"]:
-        round_dict = round_item.copy() if isinstance(round_item, dict) else {
-            "round_index": getattr(round_item, "round_index", None),
-            "budget_plan": getattr(round_item, "budget_plan", None),
-            "started_at": getattr(round_item, "started_at", None),
-            "ended_at": getattr(round_item, "ended_at", None),
-        }
-        # Сериализуем datetime в строку
-        if round_dict.get("started_at") is not None and hasattr(round_dict["started_at"], "isoformat"):
-            round_dict["started_at"] = round_dict["started_at"].isoformat()
-        if round_dict.get("ended_at") is not None and hasattr(round_dict["ended_at"], "isoformat"):
-            round_dict["ended_at"] = round_dict["ended_at"].isoformat()
-        rounds_serialized.append(round_dict)
-
-    report_data["rounds"] = rounds_serialized
-    report_data["metrics"] = {
-        "date_from": date_from.isoformat(),
-        "date_to": date_to.isoformat(),
-        "impressions": impressions,
-        "clicks": clicks,
-        "spend": spend,
-        "leads": leads,
-        "purchases": purchases,
-        "revenue": revenue,
-        "cpc": cpc,
-        "cpl": cpl,
-        "cpa": cpa,
-    }
-    
-    return ExperimentReportResponse(**report_data)
-
-
+# --- Read APIs ---
 
 @router.get("/{experiment_id}/campaigns", response_model=ExperimentCampaignsResponse)
-def list_experiment_campaigns(experiment_id: int, session: Session = Depends(get_db)):
-    experiment = session.get(ExperimentModel, experiment_id)
-    if experiment is None:
-        raise HTTPException(status_code=404, detail="Experiment not found")
+def list_experiment_campaigns(
+    experiment_id: int,
+    platform: Platform = Platform.yandex,
+    limit: int = Query(100, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db)
+):
+    items, total = get_experiment_campaigns(db, experiment_id, platform, limit, offset)
+    return {
+        "items": [
+            ExperimentCampaignItem(
+                platform=i.platform,
+                campaign_external_id=i.campaign_external_id
+            ) for i in items
+        ],
+        "total": total
+    }
 
-    items = [
-        ExperimentCampaignItem(platform=camp.platform, campaign_external_id=camp.campaign_external_id)
-        for camp in session.query(ExperimentCampaign).filter(ExperimentCampaign.experiment_id == experiment_id).all()
-    ]
-    return ExperimentCampaignsResponse(items=items)
+@router.get("/{experiment_id}/metrics", response_model=MetricAggregateResponse)
+def get_metrics(
+    experiment_id: int,
+    date_from: date,
+    date_to: date,
+    platform: Platform = Platform.yandex,
+    group_by: str = Query("day", regex="^(day|campaign|day_campaign)$"),
+    campaign_external_id: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    items = get_experiment_metrics(
+        db, experiment_id, date_from, date_to, platform, group_by, campaign_external_id
+    )
+    return {"items": items}
 
-
-@router.put("/{experiment_id}/campaigns", response_model=ExperimentCampaignsResponse)
-def replace_experiment_campaigns(payload: ExperimentCampaignsRequest, experiment_id: int, session: Session = Depends(get_db)):
-    # check experiment exists
-    experiment = session.get(ExperimentModel, experiment_id)
-    if experiment is None:
-        raise HTTPException(status_code=404, detail="Experiment not found")
-
-    # validate campaign_external_id non-empty
-    for item in payload.items:
-        if not item.campaign_external_id or not item.campaign_external_id.strip():
-            raise HTTPException(status_code=400, detail="campaign_external_id must be non-empty")
-
-    # perform transactional replace
-    with session.begin():
-        session.query(ExperimentCampaign).filter(ExperimentCampaign.experiment_id == experiment_id).delete(synchronize_session=False)
-        objects = [
-            ExperimentCampaign(
-                experiment_id=experiment_id,
-                platform=item.platform,
-                campaign_external_id=item.campaign_external_id,
-            )
-            for item in payload.items
-        ]
-        session.add_all(objects)
-
-    items = [ExperimentCampaignItem(platform=obj.platform, campaign_external_id=obj.campaign_external_id) for obj in objects]
-    return ExperimentCampaignsResponse(items=items)
+@router.get("/{experiment_id}/summary", response_model=ExperimentSummaryResponse)
+def get_summary(
+    experiment_id: int,
+    date_from: date,
+    date_to: date,
+    platform: Platform = Platform.yandex,
+    db: Session = Depends(get_db)
+):
+    return get_experiment_summary(db, experiment_id, date_from, date_to, platform)

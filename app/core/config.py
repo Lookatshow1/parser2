@@ -10,8 +10,10 @@ class Settings(BaseSettings):
     api_host: str = "0.0.0.0"
     api_port: int = 8000
 
-    database_url: str = "postgresql+psycopg2://postgres:postgres@db:5432/ads"
-    redis_url: str = "redis://redis:6379/0"
+    database_url: str = "postgresql+psycopg2://postgres:postgres@localhost:5432/ads"
+    redis_url: str = "redis://localhost:6379/0"
+
+    default_organization_id: int = 1
 
     celery_broker_url: str | None = None
     celery_result_backend: str | None = None

@@ -1,10 +1,11 @@
 from datetime import datetime, date
 from decimal import Decimal
 from uuid import UUID
+from typing import Optional, Any, List
 
 from pydantic import BaseModel, Field
 
-from app.db.models import Platform
+from app.db.models import Platform, SyncRunType, SyncRunStatus, ConnectionStatus
 
 
 class ConnectionTestRequest(BaseModel):
@@ -19,18 +20,25 @@ class ConnectionTestResponse(BaseModel):
 class ConnectionCreateRequest(BaseModel):
     advertiser_id: int | None = None
     platform: Platform
+    name: str | None = None
     credentials_json: dict
 
 
-class ConnectionResponse(BaseModel):
+class ConnectionOut(BaseModel):
     id: int
     advertiser_id: int | None = None
     platform: Platform
-    status: str
+    name: str | None = None
+    status: ConnectionStatus
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
 
 
 class ConnectionListResponse(BaseModel):
-    items: list[ConnectionResponse]
+    items: list[ConnectionOut]
 
 
 class HealthDb(BaseModel):
@@ -266,3 +274,60 @@ class ExperimentCampaignsRequest(BaseModel):
 
 class ExperimentCampaignsResponse(BaseModel):
     items: list[ExperimentCampaignItem]
+    total: int
+
+
+class MetricAggregateItem(BaseModel):
+    date: date | None = None
+    campaign_external_id: str | None = None
+    impressions: int
+    clicks: int
+    spend: int
+    leads: int
+    purchases: int
+    revenue: int
+    ctr: float | None = None
+    cpc: float | None = None
+    cpm: float | None = None
+
+
+class MetricAggregateResponse(BaseModel):
+    items: list[MetricAggregateItem]
+
+
+class ExperimentSummaryResponse(BaseModel):
+    impressions: int
+    clicks: int
+    spend: int
+    leads: int
+    purchases: int
+    revenue: int
+    ctr: float | None = None
+    cpc: float | None = None
+    cpm: float | None = None
+
+
+class SyncRunCreateRequest(BaseModel):
+    platform: Platform
+    run_type: SyncRunType
+    date_from: date | None = None
+    date_to: date | None = None
+
+
+class SyncRunResponse(BaseModel):
+    id: int
+    experiment_id: int
+    platform: Platform
+    run_type: SyncRunType
+    status: SyncRunStatus
+    params_json: dict
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+    error_text: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class SyncRunListResponse(BaseModel):
+    items: list[SyncRunResponse]
+    total: int

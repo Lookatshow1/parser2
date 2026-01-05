@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import csv
 import time
-from datetime import date, datetime
+import os
+from datetime import date, datetime, timedelta
+from typing import List, Dict, Any
 
 import httpx
 
@@ -12,6 +14,12 @@ from app.db.models import MetricSnapshot, Platform
 
 
 class YandexDirectConnector(AdsConnector):
+    def __init__(self, credentials: Dict[str, Any] = None):
+        self.credentials = credentials or {}
+        self.token = self.credentials.get("token")
+        self.login = self.credentials.get("login")
+        self.is_mock = os.getenv("YANDEX_DIRECT_MOCK", "0") == "1"
+
     def validate_connection(self, credentials_json: dict) -> bool:
         return True
 
@@ -22,13 +30,19 @@ class YandexDirectConnector(AdsConnector):
         return {"campaign_id": "active"}
 
     def fetch_metrics(self, date_from: date, date_to: date) -> list[MetricSnapshot]:
+        # Legacy method, kept for compatibility if needed, but we prefer get_daily_stats
         settings = get_settings()
         if not settings.yandex_reports_token:
-            raise ValueError("YANDEX reports token is not configured")
+            # Fallback to credentials if settings not present
+            if not self.token:
+                 raise ValueError("YANDEX reports token is not configured")
+            token = self.token
+        else:
+            token = settings.yandex_reports_token
 
         report = self._fetch_report(
             settings.yandex_reports_url,
-            settings.yandex_reports_token,
+            token,
             date_from,
             date_to,
         )
@@ -36,6 +50,65 @@ class YandexDirectConnector(AdsConnector):
 
     def stop(self, external_ids: dict) -> None:
         return None
+
+    def list_campaigns(self) -> List[Dict[str, Any]]:
+        if self.is_mock:
+            return [
+                {"id": "111", "name": "Mock Campaign 1", "status": "STARTED"},
+                {"id": "222", "name": "Mock Campaign 2", "status": "STOPPED"},
+            ]
+
+        # TODO: Implement real API call using requests
+        return []
+
+    def get_daily_stats(self, campaign_ids: List[str], date_from: date, date_to: date) -> List[Dict[str, Any]]:
+        if self.is_mock:
+            results = []
+            delta = date_to - date_from
+            for i in range(delta.days + 1):
+                current_date = date_from + timedelta(days=i)
+                for cid in campaign_ids:
+                    results.append({
+                        "Date": current_date.isoformat(),
+                        "CampaignId": cid,
+                        "Impressions": 100 + int(cid),
+                        "Clicks": 10 + int(cid),
+                        "Cost": 500.0
+                    })
+            return results
+
+        # Reuse existing logic but return raw dicts instead of MetricSnapshot objects
+        # This allows the service layer to handle DB operations
+        settings = get_settings()
+        token = self.token or settings.yandex_reports_token
+        if not token:
+             raise ValueError("YANDEX reports token is not configured")
+
+        report = self._fetch_report(
+            settings.yandex_reports_url,
+            token,
+            date_from,
+            date_to,
+        )
+
+        # Parse TSV to dicts
+        rows = report.strip().splitlines()
+        if settings.yandex_reports_skip_header and rows:
+            rows = rows[1:]
+        reader = csv.reader(rows, delimiter="\t")
+        results = []
+        for row in reader:
+            if len(row) < 8:
+                continue
+            results.append({
+                "Date": row[0],
+                "CampaignId": row[1],
+                "Clicks": int(row[2] or 0),
+                "Impressions": int(row[3] or 0),
+                "Cost": float(row[4] or 0),
+                # Add other fields if needed
+            })
+        return results
 
     def _fetch_report(
         self,
@@ -89,6 +162,7 @@ class YandexDirectConnector(AdsConnector):
         return ""
 
     def _parse_tsv(self, tsv_text: str, skip_header: bool) -> list[MetricSnapshot]:
+        # Legacy helper for fetch_metrics
         rows = tsv_text.strip().splitlines()
         if skip_header and rows:
             rows = rows[1:]

@@ -4,25 +4,13 @@ from datetime import datetime, date
 
 from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint, func, Index
 from sqlalchemy import JSON
-from sqlalchemy.types import TypeDecorator
-
-
-class JSONB(TypeDecorator):
-    """Platform-adaptive JSONB type: uses native JSONB on Postgres, JSON elsewhere."""
-    impl = JSON
-    cache_ok = True
-    __visit_name__ = "JSON"
-
-    def load_dialect_impl(self, dialect):
-        if dialect.name == "postgresql":
-            from sqlalchemy.dialects.postgresql import JSONB as PGJSONB
-
-            return dialect.type_descriptor(PGJSONB())
-        return dialect.type_descriptor(JSON())
+from sqlalchemy.dialects.postgresql import JSONB as PGJSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 
+# Platform-adaptive JSON type
+JSONType = JSON().with_variant(PGJSONB(astext_type=Text()), "postgresql")
 
 class Platform(str, enum.Enum):
     yandex = "yandex"
@@ -72,13 +60,18 @@ class Connection(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     advertiser_id: Mapped[int | None] = mapped_column(ForeignKey("advertisers.id"), nullable=True)
     platform: Mapped[Platform] = mapped_column(Enum(Platform, name="platform_enum"), nullable=False)
-    credentials_json: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    name: Mapped[str | None] = mapped_column(String, nullable=True)
+    credentials_json: Mapped[dict] = mapped_column(JSONType, nullable=False)
     status: Mapped[ConnectionStatus] = mapped_column(
         Enum(ConnectionStatus, name="connection_status_enum"), default=ConnectionStatus.active, nullable=False
     )
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
 
     advertiser: Mapped[Advertiser | None] = relationship(back_populates="connections")
+    plans: Mapped[list["CampaignPlan"]] = relationship(back_populates="connection")
 
 
 class CampaignPlan(Base):
@@ -86,6 +79,7 @@ class CampaignPlan(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     advertiser_id: Mapped[int] = mapped_column(ForeignKey("advertisers.id"), nullable=False)
+    connection_id: Mapped[int | None] = mapped_column(ForeignKey("connections.id"), nullable=True)
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     platform: Mapped[Platform] = mapped_column(Enum(Platform, name="platform_enum"), nullable=False)
@@ -104,6 +98,7 @@ class CampaignPlan(Base):
 
     advertiser: Mapped["Advertiser"] = relationship(back_populates="plans")
     experiments: Mapped[list["Experiment"]] = relationship(back_populates="plan")
+    connection: Mapped["Connection"] = relationship(back_populates="plans")
 
 
 class Experiment(Base):
@@ -113,7 +108,7 @@ class Experiment(Base):
     plan_id: Mapped[int | None] = mapped_column(ForeignKey("campaign_plans.id"), nullable=True)
     project_id: Mapped[int | None] = mapped_column(ForeignKey("projects.id"), nullable=True)
     total_budget: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    platforms: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)
+    platforms: Mapped[list[str] | None] = mapped_column(JSONType, nullable=True)
     processing: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     status: Mapped[ExperimentStatus] = mapped_column(
         Enum(ExperimentStatus, name="experiment_status_enum"), default=ExperimentStatus.draft, nullable=False
@@ -136,7 +131,7 @@ class ExperimentRound(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     experiment_id: Mapped[int] = mapped_column(ForeignKey("experiments.id"), nullable=False)
     round_index: Mapped[int] = mapped_column(Integer, nullable=False)
-    budget_plan: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    budget_plan: Mapped[dict] = mapped_column(JSONType, nullable=False)
     started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     ended_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
@@ -159,7 +154,7 @@ class Hypothesis(Base):
         ForeignKey("experiment_rounds.id"), nullable=False
     )
     text: Mapped[str] = mapped_column(Text, nullable=False)
-    segmentation_params: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    segmentation_params: Mapped[dict | None] = mapped_column(JSONType, nullable=True)
     status: Mapped[HypothesisStatus] = mapped_column(
         Enum(HypothesisStatus, name="hypothesis_status_enum"), default=HypothesisStatus.draft, nullable=False
     )
@@ -179,9 +174,9 @@ class CreativeVariant(Base):
     title: Mapped[str | None] = mapped_column(String(255), nullable=True)
     image_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     media_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
-    meta_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    meta_json: Mapped[dict | None] = mapped_column(JSONType, nullable=True)
     moderation_status: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    external_ids: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    external_ids: Mapped[dict | None] = mapped_column(JSONType, nullable=True)
     compliance_token: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
@@ -213,6 +208,7 @@ class MetricSnapshot(Base):
     campaign_external_id: Mapped[str] = mapped_column(String(255), nullable=False)
     plan_id: Mapped[int | None] = mapped_column(ForeignKey("campaign_plans.id"), nullable=True)
     connection_id: Mapped[int | None] = mapped_column(ForeignKey("connections.id"), nullable=True)
+    experiment_id: Mapped[int | None] = mapped_column(ForeignKey("experiments.id"), nullable=True)
     clicks: Mapped[int] = mapped_column(Integer, default=0)
     impressions: Mapped[int] = mapped_column(Integer, default=0)
     spend: Mapped[int] = mapped_column(Integer, default=0)
@@ -220,6 +216,12 @@ class MetricSnapshot(Base):
     purchases: Mapped[int] = mapped_column(Integer, default=0)
     revenue: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("experiment_id", "platform", "date", "campaign_external_id", name="uq_metric_snapshot"),
+        Index("idx_metric_snapshots_experiment_platform_date", "experiment_id", "platform", "date"),
+        Index("idx_metric_snapshots_campaign", "campaign_external_id"),
+    )
 
 
 class BudgetAllocation(Base):
@@ -275,6 +277,7 @@ class JobStatus(str, enum.Enum):
     running = "running"
     succeeded = "succeeded"
     failed = "failed"
+    canceled = "canceled"
 
 
 class JobRun(Base):
@@ -285,8 +288,8 @@ class JobRun(Base):
     status: Mapped[JobStatus] = mapped_column(
         Enum(JobStatus, name="job_status_enum"), default=JobStatus.queued, nullable=False
     )
-    context_json: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default='{}')
-    result_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    context_json: Mapped[dict] = mapped_column(JSONType, nullable=False, server_default='{}')
+    result_json: Mapped[dict | None] = mapped_column(JSONType, nullable=True)
     error_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -299,4 +302,43 @@ class JobRun(Base):
         Index("idx_job_runs_status", "status"),
         Index("idx_job_runs_job_type", "job_type"),
         Index("idx_job_runs_created_at_desc", created_at.desc()),
+    )
+
+
+class SyncRunType(str, enum.Enum):
+    campaigns = "campaigns"
+    metrics = "metrics"
+    full = "full"
+
+
+class SyncRunStatus(str, enum.Enum):
+    queued = "queued"
+    running = "running"
+    success = "success"
+    failed = "failed"
+    canceled = "canceled"
+
+
+class SyncRun(Base):
+    __tablename__ = "sync_runs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    experiment_id: Mapped[int] = mapped_column(ForeignKey("experiments.id", ondelete="CASCADE"), nullable=False)
+    platform: Mapped[Platform] = mapped_column(Enum(Platform, name="platform_enum"), nullable=False)
+    run_type: Mapped[SyncRunType] = mapped_column(Enum(SyncRunType, name="sync_run_type_enum"), nullable=False)
+    status: Mapped[SyncRunStatus] = mapped_column(
+        Enum(SyncRunStatus, name="sync_run_status_enum"), default=SyncRunStatus.queued, nullable=False
+    )
+    params_json: Mapped[dict] = mapped_column(JSONType, nullable=False, server_default='{}')
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    error_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        Index("idx_sync_runs_experiment_platform_created_at", "experiment_id", "platform", created_at.desc()),
+        Index("idx_sync_runs_status", "status"),
     )

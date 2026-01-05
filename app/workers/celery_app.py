@@ -11,3 +11,6 @@ celery_app = Celery(
 )
 
 celery_app.autodiscover_tasks(["app.workers"])
+celery_app.conf.task_routes = {
+    "app.workers.sync_tasks.execute_sync_run": "main-queue"
+}
