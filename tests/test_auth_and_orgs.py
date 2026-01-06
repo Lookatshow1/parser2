@@ -8,6 +8,7 @@ def test_register_login_and_me(client: TestClient):
     login = client.post("/api/auth/login", json={"email": "auth@example.com", "password": "secret123"})
     assert login.status_code == 200
     token = login.json()["access_token"]
+    refresh_token = login.json()["refresh_token"]
 
     bad_login = client.post("/api/auth/login", json={"email": "auth@example.com", "password": "wrong"})
     assert bad_login.status_code == 401
@@ -16,6 +17,10 @@ def test_register_login_and_me(client: TestClient):
     assert me.status_code == 200
     assert me.json()["email"] == "auth@example.com"
 
+    refreshed = client.post("/api/auth/refresh", json={"refresh_token": refresh_token})
+    assert refreshed.status_code == 200
+    assert "access_token" in refreshed.json()
+
 
 def test_org_membership_and_isolation(client: TestClient):
     client.post("/api/auth/register", json={"email": "orgs@example.com", "password": "secret123"})
@@ -23,15 +28,19 @@ def test_org_membership_and_isolation(client: TestClient):
     token = login.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 
+    no_org = client.get("/api/connections", headers=headers)
+    assert no_org.status_code == 409
+
     org_a = client.post("/api/orgs", json={"name": "Org A"}, headers=headers)
     assert org_a.status_code == 201
     org_a_id = org_a.json()["id"]
-    org_headers = {**headers, "X-Org-Id": str(org_a_id)}
+    activate_a = client.post(f"/api/orgs/{org_a_id}/activate", headers=headers)
+    assert activate_a.status_code == 200
 
     connection = client.post(
         "/api/connections",
         json={"platform": "stub", "credentials_json": {}},
-        headers=org_headers,
+        headers=headers,
     )
     assert connection.status_code == 200
     connection_id = connection.json()["id"]
@@ -39,15 +48,16 @@ def test_org_membership_and_isolation(client: TestClient):
     org_b = client.post("/api/orgs", json={"name": "Org B"}, headers=headers)
     assert org_b.status_code == 201
     org_b_id = org_b.json()["id"]
-    org_b_headers = {**headers, "X-Org-Id": str(org_b_id)}
+    activate_b = client.post(f"/api/orgs/{org_b_id}/activate", headers=headers)
+    assert activate_b.status_code == 200
 
-    list_b = client.get("/api/connections", headers=org_b_headers)
+    list_b = client.get("/api/connections", headers=headers)
     assert list_b.status_code == 200
     assert list_b.json()["items"] == []
 
     sync_b = client.post(
         "/api/sync-runs",
         json={"connection_id": connection_id, "params_json": {"date_from": "2023-01-01", "date_to": "2023-01-03"}},
-        headers=org_b_headers,
+        headers=headers,
     )
     assert sync_b.status_code == 404

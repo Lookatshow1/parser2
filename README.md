@@ -24,14 +24,24 @@ curl -sS -X POST http://localhost:8000/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{"email":"user@example.com","password":"secret123"}'
 
-TOKEN=$(curl -sS -X POST http://localhost:8000/api/auth/login \
+LOGIN_JSON=$(curl -sS -X POST http://localhost:8000/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"user@example.com","password":"secret123"}' | python3 -c "import sys, json; print(json.load(sys.stdin)['access_token'])")
+  -d '{"email":"user@example.com","password":"secret123"}')
+
+TOKEN=$(printf '%s' "${LOGIN_JSON}" | python3 -c "import sys, json; print(json.loads(sys.stdin.read())['access_token'])")
+REFRESH_TOKEN=$(printf '%s' "${LOGIN_JSON}" | python3 -c "import sys, json; print(json.loads(sys.stdin.read())['refresh_token'])")
+
+TOKEN=$(curl -sS -X POST http://localhost:8000/api/auth/refresh \
+  -H "Content-Type: application/json" \
+  -d "{\"refresh_token\":\"${REFRESH_TOKEN}\"}" | python3 -c "import sys, json; print(json.load(sys.stdin)['access_token'])")
 
 ORG_ID=$(curl -sS -X POST http://localhost:8000/api/orgs \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer ${TOKEN}" \
   -d '{"name":"Demo Org"}' | python3 -c "import sys, json; print(json.load(sys.stdin)['id'])")
+
+curl -sS -X POST http://localhost:8000/api/orgs/${ORG_ID}/activate \
+  -H "Authorization: Bearer ${TOKEN}" >/dev/null
 
 INVITE_TOKEN=$(curl -sS -X POST "http://localhost:8000/api/orgs/${ORG_ID}/invites" \
   -H "Content-Type: application/json" \

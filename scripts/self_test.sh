@@ -21,14 +21,14 @@ if ! curl -fsS --max-time 3 "http://localhost:8000/api/health" >/dev/null; then
 fi
 
 echo "Waiting for Web..."
-for _ in {1..120}; do
-  if curl -fsS --max-time 3 "http://localhost:3000" >/dev/null; then
+for _ in {1..300}; do
+  if curl -fsS --max-time 5 "http://localhost:3000" >/dev/null; then
     break
   fi
   sleep 1
 done
 
-if ! curl -fsS --max-time 3 "http://localhost:3000" >/dev/null; then
+if ! curl -fsS --max-time 5 "http://localhost:3000" >/dev/null; then
   echo "Web did not become ready in time." >&2
   exit 1
 fi
@@ -44,9 +44,16 @@ curl -fsS --max-time 10 -X POST "http://localhost:8000/api/auth/register" \
   -H "Content-Type: application/json" \
   -d "{\"email\":\"${USER_EMAIL}\",\"password\":\"${USER_PASSWORD}\"}" >/dev/null
 
-TOKEN=$(curl -fsS --max-time 10 -X POST "http://localhost:8000/api/auth/login" \
+LOGIN_JSON=$(curl -fsS --max-time 10 -X POST "http://localhost:8000/api/auth/login" \
   -H "Content-Type: application/json" \
-  -d "{\"email\":\"${USER_EMAIL}\",\"password\":\"${USER_PASSWORD}\"}" \
+  -d "{\"email\":\"${USER_EMAIL}\",\"password\":\"${USER_PASSWORD}\"}")
+
+TOKEN=$(printf '%s' "${LOGIN_JSON}" | python3 -c "import sys, json; print(json.loads(sys.stdin.read())['access_token'])")
+REFRESH_TOKEN=$(printf '%s' "${LOGIN_JSON}" | python3 -c "import sys, json; print(json.loads(sys.stdin.read())['refresh_token'])")
+
+TOKEN=$(curl -fsS --max-time 10 -X POST "http://localhost:8000/api/auth/refresh" \
+  -H "Content-Type: application/json" \
+  -d "{\"refresh_token\":\"${REFRESH_TOKEN}\"}" \
   | python3 -c "import sys, json; print(json.load(sys.stdin)['access_token'])")
 
 ORG_ID=$(curl -fsS --max-time 10 -X POST "http://localhost:8000/api/orgs" \
@@ -123,8 +130,14 @@ fi
 
 curl -fsS --max-time 10 "http://localhost:8000/api/metrics?connection_id=${CONN_ID}&date_from=2023-01-01&date_to=2023-01-03" \
   -H "${INVITED_AUTH_HEADER}" -H "${INVITED_ORG_HEADER}" >/dev/null
-curl -fsS --max-time 10 "http://localhost:8000/api/dashboard/summary?connection_id=${CONN_ID}&date_from=2023-01-01&date_to=2023-01-03" \
-  -H "${INVITED_AUTH_HEADER}" -H "${INVITED_ORG_HEADER}" >/dev/null
+SUMMARY_JSON=$(curl -fsS --max-time 10 "http://localhost:8000/api/dashboard/summary?connection_id=${CONN_ID}&date_from=2023-01-01&date_to=2023-01-03" \
+  -H "${INVITED_AUTH_HEADER}" -H "${INVITED_ORG_HEADER}")
+
+CTR_VAL=$(printf '%s' "${SUMMARY_JSON}" | python3 -c "import sys, json; print(json.loads(sys.stdin.read())['totals'].get('ctr'))")
+if [ -z "$CTR_VAL" ] || [ "$CTR_VAL" = "None" ]; then
+  echo "Dashboard efficiency check failed: ctr is empty" >&2
+  exit 1
+fi
 
 SECOND_RUN_ID=$(curl -fsS --max-time 10 -X POST "http://localhost:8000/api/sync-runs" \
   -H "Content-Type: application/json" \

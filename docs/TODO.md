@@ -73,9 +73,13 @@
 Статус: done  
 Проверка: `make selftest` и `docker compose run --rm api pytest -q`
 
+4.4 Dashboard summary включает эффективность (CTR/CPC/CPM/CPA)  
+Статус: done  
+Проверка: `pytest -q tests/test_dashboard_efficiency.py`
+
 ## 5) Auth + Organizations (стадия 0–1)
 
-5.1 Auth (JWT + /me)  
+5.1 Auth (JWT + refresh + /me)  
 Статус: done  
 Проверка: `pytest -q tests/test_auth_and_orgs.py`
 
