@@ -1,7 +1,7 @@
 import os
 import pytest
 
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.engine import Engine
 
@@ -11,6 +11,8 @@ from app.main import create_app
 from app.core.config import get_settings
 from app.db.session import get_db
 from app.db.base import Base
+from app.db.models import Advertiser
+from app.db import session as db_session_module
 
 
 @pytest.fixture(scope="session")
@@ -25,7 +27,7 @@ def engine(database_url):
     return engine
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture()
 def connection(engine):
     conn = engine.connect()
     # begin a non-ORM transaction for test isolation
@@ -41,17 +43,31 @@ def db_session(connection):
     SessionLocal = sessionmaker(bind=connection, autoflush=False, autocommit=False)
     session = SessionLocal()
     session.begin_nested()
+    db_session_module.set_test_session(session)
 
     # restart SAVEPOINT after commit inside tested code
     @event.listens_for(session, "after_transaction_end")
     def restart_savepoint(sess, transaction):
-        if transaction.nested and not session.is_active:
-            session.begin_nested()
+        if transaction.nested and not sess.in_nested_transaction():
+            sess.begin_nested()
 
     try:
         yield session
     finally:
+        db_session_module.clear_test_session()
+        session.rollback()
         session.close()
+
+
+@pytest.fixture(autouse=True)
+def seed_default_advertiser(db_session):
+    existing = db_session.query(Advertiser).filter(Advertiser.id == 1).first()
+    if not existing:
+        db_session.add(Advertiser(id=1, name="Default Advertiser"))
+        db_session.commit()
+        db_session.execute(text("SELECT setval('advertisers_id_seq', (SELECT max(id) FROM advertisers))"))
+        db_session.commit()
+    yield
 
 
 @pytest.fixture(scope="session")

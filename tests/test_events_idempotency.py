@@ -46,7 +46,10 @@ def test_lead_event_idempotent(client, db_session, default_org_id):
     assert response_second.status_code == 200
     assert response_second.json()["idempotent"] is True
 
-    count = db_session.execute(text("SELECT COUNT(*) FROM conversion_events")).scalar_one()
+    count = db_session.execute(
+        text("SELECT COUNT(*) FROM conversion_events WHERE event_id = :event_id"),
+        {"event_id": payload["event_id"]},
+    ).scalar_one()
     assert count == 1
 
 
@@ -71,5 +74,8 @@ def test_purchase_event_idempotent(client, db_session, default_org_id):
     assert response_second.status_code == 200
     assert response_second.json()["idempotent"] is True
 
-    count = db_session.execute(text("SELECT COUNT(*) FROM conversion_events")).scalar_one()
+    count = db_session.execute(
+        text("SELECT COUNT(*) FROM conversion_events WHERE event_id = :event_id"),
+        {"event_id": payload["event_id"]},
+    ).scalar_one()
     assert count == 1

@@ -65,6 +65,16 @@ def test_connection_sync_creates_metrics_and_dashboard(client: TestClient, db: S
     assert data["totals"]["clicks"] == 60
     assert data["totals"]["spend"] == 1500
 
+    list_resp = client.get("/api/sync-runs", params={"connection_id": connection_id})
+    assert list_resp.status_code == 200
+    listed_ids = [item["id"] for item in list_resp.json()]
+    assert run_id in listed_ids
+
+    filtered_resp = client.get("/api/sync-runs", params={"connection_id": connection_id, "status": "success"})
+    assert filtered_resp.status_code == 200
+    filtered_ids = [item["id"] for item in filtered_resp.json()]
+    assert run_id in filtered_ids
+
     second_resp = client.post(
         "/api/sync-runs",
         json={

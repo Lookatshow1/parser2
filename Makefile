@@ -1,8 +1,8 @@
-.PHONY: up down reset-db migrate heads current history test seed selftest db-shell logs ps logs-worker logs-api logs-db doctor
+.PHONY: up down reset-db migrate heads current history test seed selftest db-shell logs ps logs-worker logs-api logs-db logs-web doctor
 
 up:
 	@$(MAKE) doctor
-	docker compose up -d db redis api worker
+	docker compose up -d db redis api worker web
 
 down:
 	@$(MAKE) doctor
@@ -23,6 +23,10 @@ logs-api:
 logs-db:
 	@$(MAKE) doctor
 	docker compose logs -f db || (echo "DB not running. Run 'make up' first." && exit 0)
+
+logs-web:
+	@$(MAKE) doctor
+	docker compose logs -f web || (echo "Web not running. Run 'make up' first." && exit 0)
 
 ps:
 	@$(MAKE) doctor

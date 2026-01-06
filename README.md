@@ -4,21 +4,36 @@
 
 ```bash
 cp .env.example .env
-docker compose up --build -d db redis api worker
-docker compose run --rm api alembic upgrade head
+make up
+make migrate
 ```
 
 ## Frontend (Next.js)
 
 ```bash
-cd apps/web
-cp .env.example .env
-npm install
-npm run generate:types
-npm run dev
+make up
 ```
 
 Frontend reads `NEXT_PUBLIC_API_BASE_URL` for backend base URL.
+Open http://localhost:3000 after `make up`.
+
+## Smoke flow (API)
+
+```bash
+curl -sS -X POST http://localhost:8000/api/connections \
+  -H "Content-Type: application/json" \
+  -d '{"platform":"stub","credentials_json":{}}'
+
+curl -sS -X POST http://localhost:8000/api/sync-runs \
+  -H "Content-Type: application/json" \
+  -d '{"connection_id":1,"params_json":{"date_from":"2023-01-01","date_to":"2023-01-03"}}'
+
+curl -sS http://localhost:8000/api/sync-runs/1
+curl -sS "http://localhost:8000/api/job-runs?connection_id=1"
+
+curl -sS "http://localhost:8000/api/metrics?connection_id=1&date_from=2023-01-01&date_to=2023-01-03"
+curl -sS "http://localhost:8000/api/dashboard/summary?connection_id=1&date_from=2023-01-01&date_to=2023-01-03"
+```
 
 ## Health checks
 
@@ -31,7 +46,7 @@ curl http://localhost:8000/openapi.json
 ## Tests
 
 ```bash
-docker compose run --rm api pytest -q
+make test
 ```
 
 ## Самопроверка
@@ -41,6 +56,8 @@ docker compose run --rm api pytest -q
 ```bash
 ./scripts/self_test.sh
 ```
+
+Self-test также проверяет web, smoke синк и идемпотентность (повторный sync не увеличивает число snapshot).
 
 Перед проверками можно выполнить быструю диагностику Docker:
 
