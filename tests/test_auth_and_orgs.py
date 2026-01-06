@@ -28,8 +28,8 @@ def test_org_membership_and_isolation(client: TestClient):
     token = login.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 
-    no_org = client.get("/api/connections", headers=headers)
-    assert no_org.status_code == 409
+    default_org_list = client.get("/api/connections", headers=headers)
+    assert default_org_list.status_code == 200
 
     org_a = client.post("/api/orgs", json={"name": "Org A"}, headers=headers)
     assert org_a.status_code == 201

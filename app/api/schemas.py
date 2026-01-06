@@ -366,6 +366,9 @@ class ApiCapabilitiesResponse(BaseModel):
 
 
 class DevSeedResponse(BaseModel):
+    user_id: int | None = None
+    org_a_id: int | None = None
+    org_b_id: int | None = None
     advertiser_id: int
     plan_id: int
     experiment_id: int

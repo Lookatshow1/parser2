@@ -11,8 +11,10 @@ import {
   listConnectionSyncRuns,
   getMetrics,
   ConnectionResponse,
+  listOrgs,
+  switchOrg,
 } from "../../lib/api";
-import { getOrgId, getToken } from "../../lib/session";
+import { getOrgId, getToken, setOrgId } from "../../lib/session";
 
 const platforms = ["stub", "yandex", "ozon", "vk"];
 const credentialsTemplates: Record<string, string> = {
@@ -24,6 +26,8 @@ const credentialsTemplates: Record<string, string> = {
 
 export default function ConnectionsPage() {
   const [items, setItems] = useState<ConnectionResponse[]>([]);
+  const [orgs, setOrgs] = useState<Array<{ id: number; name: string }>>([]);
+  const [activeOrgId, setActiveOrgId] = useState<string | null>(null);
   const [platform, setPlatform] = useState("stub");
   const [credentialsJson, setCredentialsJson] = useState("{}");
   const [name, setName] = useState("");
@@ -52,6 +56,8 @@ export default function ConnectionsPage() {
 
   const load = async () => {
     try {
+      const orgData = await listOrgs();
+      setOrgs(orgData.items);
       const data = await listConnections();
       setItems(data.items);
     } catch (err) {
@@ -63,6 +69,7 @@ export default function ConnectionsPage() {
     load();
     setDateFrom(defaultDateRange.from);
     setDateTo(defaultDateRange.to);
+    setActiveOrgId(getOrgId());
   }, []);
 
   useEffect(() => {
@@ -180,6 +187,19 @@ export default function ConnectionsPage() {
     }
   };
 
+  const handleOrgSwitch = async (orgId: string) => {
+    setError(null);
+    setNotice(null);
+    try {
+      await switchOrg({ organization_id: Number(orgId) });
+      setOrgId(orgId);
+      setActiveOrgId(orgId);
+      await load();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="card">
@@ -188,6 +208,28 @@ export default function ConnectionsPage() {
         {getToken() && !getOrgId() && <div className="text-yellow-400 mb-2">Select organization first.</div>}
         {error && <div className="text-red-400 mb-2">{error}</div>}
         {notice && <div className="text-green-400 mb-2">{notice}</div>}
+        <div className="grid gap-3 md:grid-cols-3">
+          <select
+            value={activeOrgId ?? ""}
+            onChange={(event) => {
+              const value = event.target.value;
+              if (!value) {
+                return;
+              }
+              handleOrgSwitch(value);
+            }}
+          >
+            <option value="">Select organization</option>
+            {orgs.map((org) => (
+              <option key={org.id} value={String(org.id)}>
+                #{org.id} {org.name}
+              </option>
+            ))}
+          </select>
+          <div className="text-xs text-slate-400">
+            Active org: {activeOrgId ? `#${activeOrgId}` : "not set"}
+          </div>
+        </div>
         <div className="grid gap-3 md:grid-cols-3">
           <select
             value={platform}

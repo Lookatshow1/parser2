@@ -24,6 +24,8 @@ curl -sS -X POST http://localhost:8000/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{"email":"user@example.com","password":"secret123"}'
 
+# Register creates a Personal org and sets it active by default.
+
 LOGIN_JSON=$(curl -sS -X POST http://localhost:8000/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"user@example.com","password":"secret123"}')

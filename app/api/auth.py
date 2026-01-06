@@ -11,7 +11,7 @@ from app.api.schemas import (
     AuthRefreshRequest,
     AuthRefreshResponse,
 )
-from app.db.models import RefreshToken, User
+from app.db.models import RefreshToken, User, Organization, Membership, MembershipRole
 from app.db.session import get_db
 from app.services.auth_service import (
     create_access_token,
@@ -38,6 +38,20 @@ def register(payload: AuthRegisterRequest, db: Session = Depends(get_db)):
         is_active=True,
     )
     db.add(user)
+    db.flush()
+
+    org = Organization(name="Personal")
+    db.add(org)
+    db.flush()
+
+    membership = Membership(
+        user_id=user.id,
+        organization_id=org.id,
+        role=MembershipRole.owner.value,
+    )
+    db.add(membership)
+    user.active_organization_id = org.id
+
     db.commit()
     db.refresh(user)
     return user

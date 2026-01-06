@@ -84,6 +84,7 @@ def get_active_org(user: User = Depends(get_current_user), db: Session = Depends
 
 
 @router.post("/{org_id}/activate", response_model=OrganizationOut)
+@router.post("/{org_id}/switch", response_model=OrganizationOut)
 def activate_org(
     org_id: int,
     user: User = Depends(get_current_user),

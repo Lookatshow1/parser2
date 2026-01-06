@@ -107,6 +107,10 @@
 Статус: done  
 Проверка: `pytest -q tests/test_org_invites.py`
 
+5.5 Регистрация создаёт Personal org + membership и выставляет active org  
+Статус: done  
+Проверка: `pytest -q tests/test_auth_and_orgs.py`
+
 ## 5) ЕРИР dev (шаг к стадии 4)
 
 5.1 Dev endpoint /api/erir/dev/register создаёт JobRun + ErirEvent  
@@ -126,6 +130,9 @@
 - Добавлены auth endpoints + membership; UI хранит токен и X-Org-Id.
 - Добавлен Celery beat для планового автосинка; connections получили auto_sync_* поля.
 - Dashboard summary расширен до ROAS и агрегатов по всем подключениям.
+- Регистрация создаёт Personal org и membership, active_org_id выставляется сразу.
+- /api/dev/seed создаёт пользователя + две организации + connections в разных org.
+- /api/orgs/{org_id}/switch добавлен как alias к activate.
 
 ## Next (после MVP)
 
