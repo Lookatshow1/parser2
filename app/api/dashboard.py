@@ -11,6 +11,24 @@ from app.db.session import get_db
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
+def _safe_div(numerator: float, denominator: float) -> float | None:
+    if denominator == 0:
+        return None
+    return numerator / denominator
+
+
+def _calc_efficiency(impressions: int, clicks: int, spend: int, purchases: int) -> dict[str, float | None]:
+    ctr = _safe_div(clicks, impressions)
+    cpc = _safe_div(spend, clicks)
+    cpm = _safe_div(spend * 1000, impressions)
+    cpa = _safe_div(spend, purchases)
+    return {
+        "ctr": round(ctr, 4) if ctr is not None else None,
+        "cpc": round(cpc, 2) if cpc is not None else None,
+        "cpm": round(cpm, 2) if cpm is not None else None,
+        "cpa": round(cpa, 2) if cpa is not None else None,
+    }
+
 
 @router.get("/summary", response_model=DashboardSummaryResponse)
 def dashboard_summary(
@@ -44,6 +62,12 @@ def dashboard_summary(
         .first()
     )
 
+    totals_eff = _calc_efficiency(
+        impressions=int(totals_row[0]),
+        clicks=int(totals_row[1]),
+        spend=int(totals_row[2]),
+        purchases=int(totals_row[4]),
+    )
     totals = DashboardTotals(
         impressions=int(totals_row[0]),
         clicks=int(totals_row[1]),
@@ -51,6 +75,7 @@ def dashboard_summary(
         leads=int(totals_row[3]),
         purchases=int(totals_row[4]),
         revenue=int(totals_row[5]),
+        **totals_eff,
     )
 
     daily_rows = (
@@ -68,18 +93,26 @@ def dashboard_summary(
         .all()
     )
 
-    daily = [
-        DashboardDailyItem(
-            date=row[0],
+    daily = []
+    for row in daily_rows:
+        daily_eff = _calc_efficiency(
             impressions=int(row[1]),
             clicks=int(row[2]),
             spend=int(row[3]),
-            leads=int(row[4]),
             purchases=int(row[5]),
-            revenue=int(row[6]),
         )
-        for row in daily_rows
-    ]
+        daily.append(
+            DashboardDailyItem(
+                date=row[0],
+                impressions=int(row[1]),
+                clicks=int(row[2]),
+                spend=int(row[3]),
+                leads=int(row[4]),
+                purchases=int(row[5]),
+                revenue=int(row[6]),
+                **daily_eff,
+            )
+        )
 
     return DashboardSummaryResponse(
         connection_id=connection_id,

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { loginUser, registerUser } from "../../lib/api";
-import { setToken } from "../../lib/session";
+import { setRefreshToken, setToken } from "../../lib/session";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("user@example.com");
@@ -27,6 +27,7 @@ export default function LoginPage() {
     try {
       const token = await loginUser({ email, password });
       setToken(token.access_token);
+      setRefreshToken(token.refresh_token);
       setNotice("Logged in. Go to Orgs to select an organization.");
     } catch (err) {
       setError((err as Error).message);

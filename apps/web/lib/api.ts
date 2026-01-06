@@ -1,4 +1,4 @@
-import { getOrgId, getToken } from "./session";
+import { clearOrgId, clearRefreshToken, clearToken, getOrgId, getToken } from "./session";
 
 const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 const apiBase = `${baseUrl}/api`;
@@ -35,6 +35,18 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
       error = (await response.json()) as ApiError;
     } catch {
       error = null;
+    }
+    if (response.status === 401 && typeof window !== "undefined") {
+      clearToken();
+      clearRefreshToken();
+      clearOrgId();
+      window.location.href = "/login";
+    }
+    if (response.status === 409 && typeof window !== "undefined") {
+      const message = error?.error?.message || "";
+      if (message.toLowerCase().includes("select organization")) {
+        window.location.href = "/orgs";
+      }
     }
     const message = error?.error?.message || `Request failed with status ${response.status}`;
     throw new Error(message);
@@ -88,8 +100,10 @@ export type JobRunItem = {
 
 export type AuthToken = {
   access_token: string;
+  refresh_token: string;
   token_type: string;
   expires_in: number;
+  refresh_expires_in: number;
 };
 
 export type UserMe = {
@@ -193,7 +207,18 @@ export async function getDashboardSummary(payload: { connection_id: number; date
     date_to: payload.date_to,
   });
   return request<{
-    totals: { impressions: number; clicks: number; spend: number; leads: number; purchases: number; revenue: number };
+    totals: {
+      impressions: number;
+      clicks: number;
+      spend: number;
+      leads: number;
+      purchases: number;
+      revenue: number;
+      ctr?: number | null;
+      cpc?: number | null;
+      cpm?: number | null;
+      cpa?: number | null;
+    };
     daily: Array<Record<string, unknown>>;
   }>(`/dashboard/summary?${params.toString()}`);
 }
@@ -227,6 +252,13 @@ export async function loginUser(payload: { email: string; password: string }) {
   });
 }
 
+export async function refreshToken(payload: { refresh_token: string }) {
+  return request<{ access_token: string; token_type: string; expires_in: number }>("/auth/refresh", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
 export async function getMe() {
   return request<UserMe>("/auth/me");
 }
@@ -247,9 +279,8 @@ export async function getActiveOrg() {
 }
 
 export async function switchOrg(payload: { organization_id: number }) {
-  return request<Organization>("/orgs/switch", {
+  return request<Organization>(`/orgs/${payload.organization_id}/activate`, {
     method: "POST",
-    body: JSON.stringify(payload)
   });
 }
 
