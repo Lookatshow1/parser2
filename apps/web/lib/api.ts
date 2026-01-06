@@ -106,6 +106,22 @@ export type Organization = {
   updated_at: string;
 };
 
+export type OrgInvite = {
+  id: number;
+  organization_id: number;
+  invited_email: string;
+  role: string;
+  expires_at: string;
+  accepted_at: string | null;
+};
+
+export type OrgMember = {
+  user_id: number;
+  email: string;
+  role: string;
+  created_at: string;
+};
+
 export async function listConnections() {
   return request<{ items: ConnectionResponse[] }>("/connections");
 }
@@ -234,6 +250,42 @@ export async function switchOrg(payload: { organization_id: number }) {
   return request<Organization>("/orgs/switch", {
     method: "POST",
     body: JSON.stringify(payload)
+  });
+}
+
+export async function createInvite(orgId: number, payload: { email: string; role: string; expires_in_days?: number }) {
+  return request<OrgInvite & { invite_token: string }>(`/orgs/${orgId}/invites`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function listInvites(orgId: number, status?: string) {
+  const suffix = status ? `?status=${encodeURIComponent(status)}` : "";
+  return request<{ items: OrgInvite[] }>(`/orgs/${orgId}/invites${suffix}`);
+}
+
+export async function acceptInvite(payload: { token: string }) {
+  return request<Organization>("/orgs/invites/accept", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function listMembers(orgId: number) {
+  return request<OrgMember[]>(`/orgs/${orgId}/members`);
+}
+
+export async function updateMemberRole(orgId: number, userId: number, payload: { role: string }) {
+  return request<OrgMember>(`/orgs/${orgId}/members/${userId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function deleteMember(orgId: number, userId: number) {
+  return request<void>(`/orgs/${orgId}/members/${userId}`, {
+    method: "DELETE"
   });
 }
 
