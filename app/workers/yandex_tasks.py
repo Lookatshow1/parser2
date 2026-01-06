@@ -32,7 +32,7 @@ def sync_yandex_metrics(self, connection_id: int, plan_id: int, date_from: str, 
                 "connection_id": connection_id,
             }
 
-        connector = YandexDirectConnector()
+        connector = YandexDirectConnector(connection.credentials_json)
         metrics = connector.fetch_metrics(date.fromisoformat(date_from), date.fromisoformat(date_to))
         
         logger.info(f"Fetched {len(metrics)} metrics from Yandex API")
@@ -43,16 +43,16 @@ def sync_yandex_metrics(self, connection_id: int, plan_id: int, date_from: str, 
             rows.append(
                 {
                     "organization_id": connection.organization_id,
-                    "date": m.date,
-                    "platform": m.platform,
-                    "level": "campaign",
-                    "campaign_external_id": m.campaign_external_id,
-                    "clicks": m.clicks,
-                    "impressions": m.impressions,
-                    "spend": m.spend,
-                    "leads": m.leads,
-                    "purchases": m.purchases,
-                    "revenue": m.revenue,
+                    "date": m["date"],
+                    "platform": m["platform"],
+                    "level": m.get("level") or "campaign",
+                    "campaign_external_id": m["campaign_external_id"],
+                    "clicks": m["clicks"],
+                    "impressions": m["impressions"],
+                    "spend": m["spend"],
+                    "leads": m["leads"],
+                    "purchases": m["purchases"],
+                    "revenue": m["revenue"],
                     "plan_id": plan_id,
                     "connection_id": connection_id,
                     "created_at": now,

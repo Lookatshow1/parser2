@@ -2,14 +2,29 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from datetime import date
-from typing import List, Dict, Any
+from typing import List, Dict, Any, TypedDict
 
-from app.db.models import MetricSnapshot
+from app.db.models import MetricSnapshot, Platform
+
+
+class MetricRecord(TypedDict):
+    date: date
+    platform: Platform
+    level: str
+    campaign_external_id: str
+    ad_group_external_id: str | None
+    ad_external_id: str | None
+    impressions: int
+    clicks: int
+    spend: int
+    leads: int
+    purchases: int
+    revenue: int
 
 
 class AdsConnector(ABC):
     @abstractmethod
-    def validate_connection(self, credentials_json: dict) -> bool:
+    def validate_connection(self, credentials_json: dict) -> dict:
         raise NotImplementedError
 
     @abstractmethod
@@ -21,7 +36,7 @@ class AdsConnector(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def fetch_metrics(self, date_from: date, date_to: date) -> list[MetricSnapshot]:
+    def fetch_metrics(self, date_from: date, date_to: date) -> list[MetricRecord]:
         raise NotImplementedError
 
     @abstractmethod

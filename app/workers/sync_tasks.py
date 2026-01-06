@@ -1,13 +1,13 @@
 import traceback
 from datetime import datetime, timezone
-from celery import shared_task
 from sqlalchemy.orm import Session
 
-from app.db.session import SessionLocal
+from app.db import session as db_session
 from app.db.models import SyncRun, SyncRunStatus, SyncRunType
 from app.jobs.service import mark_failed, mark_running, mark_succeeded
 from app.services.lock_service import acquire_advisory_lock, get_sync_lock_key, get_connection_sync_lock_key
 from app.services.sync_service import sync_campaigns, sync_metrics, sync_connection_metrics
+from app.workers.celery_app import celery_app
 
 def _run_sync_logic(db: Session, run: SyncRun):
     """
@@ -61,9 +61,10 @@ def _run_sync_logic(db: Session, run: SyncRun):
             return {"campaigns": result_campaigns, "metrics": result_metrics}
         return {"campaigns": result_campaigns}
 
-@shared_task(bind=True, max_retries=3)
+@celery_app.task(bind=True, max_retries=3)
 def execute_sync_run(self, run_id: int):
-    db = SessionLocal()
+    db = db_session.get_session()
+    lock_key = None
     try:
         run = db.query(SyncRun).get(run_id)
         if not run:
@@ -100,6 +101,11 @@ def execute_sync_run(self, run_id: int):
 
             run.status = SyncRunStatus.success
             run.finished_at = datetime.now(timezone.utc)
+            duration_ms = int((run.finished_at - run.started_at).total_seconds() * 1000)
+            if isinstance(result, dict):
+                result = {**result, "duration_ms": duration_ms}
+            else:
+                result = {"result": result, "duration_ms": duration_ms}
             run.result_json = result or {}
             db.commit()
             if job_run_id:
@@ -121,4 +127,7 @@ def execute_sync_run(self, run_id: int):
             # self.retry(exc=e, countdown=60)
 
     finally:
-        db.close()
+        if lock_key is not None:
+            db.info.get("advisory_locks", set()).discard(lock_key)
+        if not db_session.is_test_session(db):
+            db.close()

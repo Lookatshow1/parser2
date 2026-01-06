@@ -1,15 +1,15 @@
 import traceback
 from datetime import datetime, timezone
-from celery import shared_task
 
-from app.db.session import SessionLocal
+from app.db import session as db_session
 from app.db.models import ErirEvent, ErirStatus
 from app.jobs.service import mark_failed, mark_running, mark_succeeded
+from app.workers.celery_app import celery_app
 
 
-@shared_task(bind=True, max_retries=1)
+@celery_app.task(bind=True, max_retries=1)
 def execute_erir_register(self, erir_event_id: int, job_run_id: int):
-    db = SessionLocal()
+    db = db_session.get_session()
     try:
         event = db.query(ErirEvent).get(erir_event_id)
         if not event:
@@ -47,4 +47,5 @@ def execute_erir_register(self, erir_event_id: int, job_run_id: int):
         mark_failed(db, job_run_id, error_text[:4000])
         return "failed"
     finally:
-        db.close()
+        if not db_session.is_test_session(db):
+            db.close()

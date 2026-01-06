@@ -4,8 +4,8 @@ import os
 from datetime import date, timedelta
 from typing import List, Dict, Any
 
-from app.connectors.base import AdsConnector
-from app.db.models import MetricSnapshot
+from app.connectors.base import AdsConnector, MetricRecord
+from app.db.models import MetricSnapshot, Platform
 
 
 class OzonPerformanceConnector(AdsConnector):
@@ -15,8 +15,16 @@ class OzonPerformanceConnector(AdsConnector):
         self.client_secret = self.credentials.get("client_secret")
         self.is_mock = os.getenv("OZON_PERF_MOCK", "0") == "1"
 
-    def validate_connection(self, credentials_json: dict) -> bool:
-        return True
+    def validate_connection(self, credentials_json: dict) -> dict:
+        client_id = credentials_json.get("client_id")
+        client_secret = credentials_json.get("client_secret")
+        if not client_id or not client_secret:
+            return {
+                "ok": False,
+                "error_code": "missing_credentials",
+                "message": "Ozon credentials require 'client_id' and 'client_secret'",
+            }
+        return {"ok": True}
 
     def create_campaign_bundle(self, plan, experiment, creatives) -> dict:
         return {"campaign_id": "stub_ozon"}
@@ -24,9 +32,29 @@ class OzonPerformanceConnector(AdsConnector):
     def sync_status(self, external_ids: dict) -> dict:
         return {"campaign_id": "active"}
 
-    def fetch_metrics(self, date_from: date, date_to: date) -> list[MetricSnapshot]:
-        # Not implemented for legacy flow
-        return []
+    def fetch_metrics(self, date_from: date, date_to: date) -> list[MetricRecord]:
+        if self.is_mock:
+            campaigns = self.list_campaigns()
+            campaign_ids = [str(camp["id"]) for camp in campaigns]
+            rows = self.get_daily_stats(campaign_ids, date_from, date_to)
+            return [
+                {
+                    "date": date.fromisoformat(row["Date"]),
+                    "platform": Platform.ozon,
+                    "level": "campaign",
+                    "campaign_external_id": str(row["CampaignId"]),
+                    "ad_group_external_id": None,
+                    "ad_external_id": None,
+                    "impressions": int(row.get("Impressions") or 0),
+                    "clicks": int(row.get("Clicks") or 0),
+                    "spend": int(float(row.get("Cost") or 0)),
+                    "leads": 0,
+                    "purchases": 0,
+                    "revenue": 0,
+                }
+                for row in rows
+            ]
+        raise NotImplementedError("Ozon real fetch is not implemented yet")
 
     def stop(self, external_ids: dict) -> None:
         return None

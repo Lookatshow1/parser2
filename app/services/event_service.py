@@ -1,4 +1,5 @@
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from app.db.models import (
@@ -13,7 +14,8 @@ from app.db.models import (
 
 class EventService:
     def handle_event(self, session: Session, event_type: ConversionEventType, payload) -> tuple[ConversionEvent, bool]:
-        existing = session.scalar(select(ConversionEvent).where(ConversionEvent.event_id == str(payload.event_id)))
+        event_id = str(payload.event_id)
+        existing = session.scalar(select(ConversionEvent).where(ConversionEvent.event_id == event_id))
         if existing:
             return existing, True
 
@@ -30,25 +32,33 @@ class EventService:
                     .order_by(Experiment.created_at.desc())
                 )
 
-        event = ConversionEvent(
-            event_id=str(payload.event_id),
-            event_type=event_type,
-            occurred_at=payload.occurred_at,
-            landing_url=payload.landing_url,
-            utm_source=payload.utm_source,
-            utm_medium=payload.utm_medium,
-            utm_campaign=payload.utm_campaign,
-            utm_content=payload.utm_content,
-            utm_term=payload.utm_term,
-            contact_phone=payload.contact.phone if payload.contact else None,
-            contact_email=payload.contact.email if payload.contact else None,
-            value=getattr(payload, "value", None),
-            plan_id=plan.id if plan else None,
-            experiment_id=experiment.id if experiment else None,
+        values = {
+            "event_id": event_id,
+            "event_type": event_type,
+            "occurred_at": payload.occurred_at,
+            "landing_url": payload.landing_url,
+            "utm_source": payload.utm_source,
+            "utm_medium": payload.utm_medium,
+            "utm_campaign": payload.utm_campaign,
+            "utm_content": payload.utm_content,
+            "utm_term": payload.utm_term,
+            "contact_phone": payload.contact.phone if payload.contact else None,
+            "contact_email": payload.contact.email if payload.contact else None,
+            "value": getattr(payload, "value", None),
+            "plan_id": plan.id if plan else None,
+            "experiment_id": experiment.id if experiment else None,
+        }
+
+        stmt = insert(ConversionEvent).values(**values).on_conflict_do_nothing(
+            index_elements=["event_id"]
         )
-        session.add(event)
+        result = session.execute(stmt)
         session.commit()
-        session.refresh(event)
+        event = session.scalar(select(ConversionEvent).where(ConversionEvent.event_id == event_id))
+        if event is None:
+            raise ValueError("Failed to persist conversion event")
+        if result.rowcount == 0:
+            return event, True
 
         if plan:
             self._update_metrics(session, event, plan, experiment)

@@ -14,6 +14,6 @@ def get_connector(platform: Platform, credentials: Dict[str, Any]) -> AdsConnect
     elif platform == Platform.vk:
         return VkAdsConnector(credentials)
     elif platform == Platform.stub:
-        return StubConnector()
+        return StubConnector(credentials)
     else:
         raise ValueError(f"Unsupported platform: {platform}")

@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from datetime import date, timedelta
 
-from app.connectors.base import AdsConnector
+from app.connectors.base import AdsConnector, MetricRecord
 from app.connectors.vk_ads_client import VkAdsClient
 from app.db.models import MetricSnapshot, Platform
 
@@ -13,10 +13,16 @@ class VkAdsConnector(AdsConnector):
         self._credentials = credentials_json
         self.is_mock = os.getenv("VK_ADS_MOCK", "0") == "1"
 
-    def validate_connection(self, credentials_json: dict) -> bool:
+    def validate_connection(self, credentials_json: dict) -> dict:
         access_token = credentials_json.get("access_token")
         version = credentials_json.get("version")
-        return bool(access_token and version)
+        if not access_token or not version:
+            return {
+                "ok": False,
+                "error_code": "missing_credentials",
+                "message": "VK credentials require 'access_token' and 'version'",
+            }
+        return {"ok": True}
 
     def create_campaign_bundle(self, plan, experiment, creatives) -> dict:
         return {"campaign_id": "stub"}
@@ -24,7 +30,29 @@ class VkAdsConnector(AdsConnector):
     def sync_status(self, external_ids: dict) -> dict:
         return {"campaign_id": "active"}
 
-    def fetch_metrics(self, date_from: date, date_to: date) -> list[MetricSnapshot]:
+    def fetch_metrics(self, date_from: date, date_to: date) -> list[MetricRecord]:
+        if self.is_mock:
+            campaigns = self.list_campaigns()
+            campaign_ids = [str(camp["id"]) for camp in campaigns]
+            rows = self.get_daily_stats(campaign_ids, date_from, date_to)
+            return [
+                {
+                    "date": date.fromisoformat(row["Date"]),
+                    "platform": Platform.vk,
+                    "level": "campaign",
+                    "campaign_external_id": str(row["CampaignId"]),
+                    "ad_group_external_id": None,
+                    "ad_external_id": None,
+                    "impressions": int(row.get("Impressions") or 0),
+                    "clicks": int(row.get("Clicks") or 0),
+                    "spend": int(float(row.get("Cost") or 0)),
+                    "leads": 0,
+                    "purchases": 0,
+                    "revenue": 0,
+                }
+                for row in rows
+            ]
+
         client = self._build_client(self._credentials)
         if not self._credentials:
             raise ValueError("Missing VK credentials")
@@ -41,7 +69,23 @@ class VkAdsConnector(AdsConnector):
             date_to=date_to.isoformat(),
             period="day",
         )
-        return self._parse_metrics_response(response)
+        return [
+            {
+                "date": snap.date,
+                "platform": snap.platform,
+                "level": "campaign",
+                "campaign_external_id": snap.campaign_external_id,
+                "ad_group_external_id": None,
+                "ad_external_id": None,
+                "impressions": snap.impressions,
+                "clicks": snap.clicks,
+                "spend": snap.spend,
+                "leads": snap.leads,
+                "purchases": snap.purchases,
+                "revenue": snap.revenue,
+            }
+            for snap in self._parse_metrics_response(response)
+        ]
 
     def stop(self, external_ids: dict) -> None:
         return None

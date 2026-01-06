@@ -21,9 +21,9 @@ def _apply_metric_upsert(db: Session, stmt, conflict_elements, conflict_where, s
     insert_stmt = stmt.on_conflict_do_nothing(
         index_elements=conflict_elements,
         index_where=conflict_where,
-    )
+    ).returning(MetricSnapshot.id)
     result = db.execute(insert_stmt)
-    if result.rowcount:
+    if result.first():
         return 1, 0, 0
 
     update_stmt = stmt.on_conflict_do_update(
@@ -31,9 +31,9 @@ def _apply_metric_upsert(db: Session, stmt, conflict_elements, conflict_where, s
         index_where=conflict_where,
         set_=set_values,
         where=_metric_needs_update(stmt),
-    )
+    ).returning(MetricSnapshot.id)
     result = db.execute(update_stmt)
-    if result.rowcount:
+    if result.first():
         return 0, 1, 0
     return 0, 0, 1
 
@@ -72,8 +72,6 @@ def sync_campaigns(db: Session, experiment_id: int, platform: Platform):
             stats["updated"] += 1
 
     db.commit()
-    stats["date_from"] = date_from.isoformat()
-    stats["date_to"] = date_to.isoformat()
     return stats
 
 def sync_metrics(db: Session, experiment_id: int, platform: Platform, date_from: date, date_to: date):
@@ -155,34 +153,73 @@ def sync_connection_metrics(
         raise ValueError("Connection not found")
 
     connector = get_connector(connection.platform, connection.credentials_json)
-    campaigns = connector.list_campaigns()
-    campaign_ids = [str(camp["id"]) for camp in campaigns]
+    records = connector.fetch_metrics(date_from, date_to)
+    stats = {"inserted": 0, "updated": 0, "unchanged": 0, "total": len(records)}
 
-    if not campaign_ids:
-        return {"status": "no_campaigns", "total": 0}
+    for record in records:
+        record_date = record.get("date")
+        if isinstance(record_date, str):
+            record_date = date.fromisoformat(record_date)
+        if record_date is None:
+            raise ValueError("Metric record missing date")
 
-    raw_metrics = connector.get_daily_stats(campaign_ids, date_from, date_to)
-    stats = {"inserted": 0, "updated": 0, "unchanged": 0, "total": len(raw_metrics)}
+        level = record.get("level") or "campaign"
+        campaign_external_id = record.get("campaign_external_id")
+        if not campaign_external_id:
+            raise ValueError("Metric record missing campaign_external_id")
 
-    for row in raw_metrics:
-        date_value = date.fromisoformat(str(row["Date"]))
+        ad_group_external_id = record.get("ad_group_external_id")
+        ad_external_id = record.get("ad_external_id")
+
+        if level == "ad_group" and not ad_group_external_id:
+            raise ValueError("Metric record missing ad_group_external_id")
+        if level == "ad" and (not ad_group_external_id or not ad_external_id):
+            raise ValueError("Metric record missing ad_group_external_id or ad_external_id")
+
         stmt = insert(MetricSnapshot).values(
             organization_id=connection.organization_id,
             connection_id=connection.id,
-            date=date_value,
+            date=record_date,
             platform=connection.platform,
-            level="campaign",
-            campaign_external_id=str(row["CampaignId"]),
-            impressions=int(row.get("Impressions") or 0),
-            clicks=int(row.get("Clicks") or 0),
-            spend=int(float(row.get("Cost") or 0)),
-            leads=int(float(row.get("Leads") or 0)),
-            purchases=int(float(row.get("Purchases") or 0)),
-            revenue=int(float(row.get("Revenue") or 0)),
+            level=level,
+            campaign_external_id=str(campaign_external_id),
+            ad_group_external_id=str(ad_group_external_id) if ad_group_external_id is not None else None,
+            ad_external_id=str(ad_external_id) if ad_external_id is not None else None,
+            impressions=int(record.get("impressions") or 0),
+            clicks=int(record.get("clicks") or 0),
+            spend=int(float(record.get("spend") or 0)),
+            leads=int(float(record.get("leads") or 0)),
+            purchases=int(float(record.get("purchases") or 0)),
+            revenue=int(float(record.get("revenue") or 0)),
         )
 
-        conflict_elements = ["organization_id", "connection_id", "platform", "date", "campaign_external_id"]
-        conflict_where = text("level = 'campaign' AND connection_id IS NOT NULL")
+        if level == "campaign":
+            conflict_elements = ["organization_id", "connection_id", "platform", "date", "campaign_external_id"]
+            conflict_where = text("level = 'campaign' AND connection_id IS NOT NULL")
+        elif level == "ad_group":
+            conflict_elements = [
+                "organization_id",
+                "connection_id",
+                "platform",
+                "date",
+                "campaign_external_id",
+                "ad_group_external_id",
+            ]
+            conflict_where = text("level = 'ad_group' AND connection_id IS NOT NULL")
+        elif level == "ad":
+            conflict_elements = [
+                "organization_id",
+                "connection_id",
+                "platform",
+                "date",
+                "campaign_external_id",
+                "ad_group_external_id",
+                "ad_external_id",
+            ]
+            conflict_where = text("level = 'ad' AND connection_id IS NOT NULL")
+        else:
+            raise ValueError(f"Unsupported metric level: {level}")
+
         set_values = {
             "impressions": stmt.excluded.impressions,
             "clicks": stmt.excluded.clicks,
@@ -227,6 +264,7 @@ def sync_connection_metrics(
     db.commit()
     stats["date_from"] = date_from.isoformat()
     stats["date_to"] = date_to.isoformat()
+    stats["platform"] = connection.platform.value
     return stats
 
 # Legacy wrappers for backward compatibility if needed

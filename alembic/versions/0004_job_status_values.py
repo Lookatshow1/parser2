@@ -16,10 +16,66 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.execute("ALTER TYPE job_status_enum RENAME VALUE 'queued' TO 'pending'")
-    op.execute("ALTER TYPE job_status_enum RENAME VALUE 'succeeded' TO 'success'")
+    op.execute(
+        """
+        DO $$
+        BEGIN
+          IF EXISTS (
+            SELECT 1
+            FROM pg_enum e
+            JOIN pg_type t ON t.oid = e.enumtypid
+            WHERE t.typname = 'job_status_enum' AND e.enumlabel = 'queued'
+          ) THEN
+            ALTER TYPE job_status_enum RENAME VALUE 'queued' TO 'pending';
+          END IF;
+        END $$;
+        """
+    )
+    op.execute(
+        """
+        DO $$
+        BEGIN
+          IF EXISTS (
+            SELECT 1
+            FROM pg_enum e
+            JOIN pg_type t ON t.oid = e.enumtypid
+            WHERE t.typname = 'job_status_enum' AND e.enumlabel = 'succeeded'
+          ) THEN
+            ALTER TYPE job_status_enum RENAME VALUE 'succeeded' TO 'success';
+          END IF;
+        END $$;
+        """
+    )
 
 
 def downgrade() -> None:
-    op.execute("ALTER TYPE job_status_enum RENAME VALUE 'success' TO 'succeeded'")
-    op.execute("ALTER TYPE job_status_enum RENAME VALUE 'pending' TO 'queued'")
+    op.execute(
+        """
+        DO $$
+        BEGIN
+          IF EXISTS (
+            SELECT 1
+            FROM pg_enum e
+            JOIN pg_type t ON t.oid = e.enumtypid
+            WHERE t.typname = 'job_status_enum' AND e.enumlabel = 'success'
+          ) THEN
+            ALTER TYPE job_status_enum RENAME VALUE 'success' TO 'succeeded';
+          END IF;
+        END $$;
+        """
+    )
+    op.execute(
+        """
+        DO $$
+        BEGIN
+          IF EXISTS (
+            SELECT 1
+            FROM pg_enum e
+            JOIN pg_type t ON t.oid = e.enumtypid
+            WHERE t.typname = 'job_status_enum' AND e.enumlabel = 'pending'
+          ) THEN
+            ALTER TYPE job_status_enum RENAME VALUE 'pending' TO 'queued';
+          END IF;
+        END $$;
+        """
+    )

@@ -1,11 +1,16 @@
 from datetime import timedelta
+from typing import Any
 
-from app.connectors.base import AdsConnector
+from app.connectors.base import AdsConnector, MetricRecord
+from app.db.models import Platform
 
 
 class StubConnector(AdsConnector):
-    def validate_connection(self, credentials_json: dict) -> bool:
-        return True
+    def __init__(self, credentials: dict | None = None):
+        self.credentials = credentials or {}
+
+    def validate_connection(self, credentials_json: dict) -> dict:
+        return {"ok": True}
 
     def create_campaign_bundle(self, plan, experiment, creatives) -> dict:
         return {"campaign_id": "stub"}
@@ -13,13 +18,35 @@ class StubConnector(AdsConnector):
     def sync_status(self, external_ids: dict) -> dict:
         return {"campaign_id": "active"}
 
-    def fetch_metrics(self, date_from, date_to):
-        return []
+    def fetch_metrics(self, date_from, date_to) -> list[MetricRecord]:
+        results: list[MetricRecord] = []
+        campaigns = self.list_campaigns()
+        current = date_from
+        while current <= date_to:
+            for camp in campaigns:
+                results.append(
+                    {
+                        "date": current,
+                        "platform": Platform.stub,
+                        "level": "campaign",
+                        "campaign_external_id": str(camp["id"]),
+                        "ad_group_external_id": None,
+                        "ad_external_id": None,
+                        "impressions": 100,
+                        "clicks": 10,
+                        "spend": 250,
+                        "leads": 0,
+                        "purchases": 0,
+                        "revenue": 0,
+                    }
+                )
+            current = current + timedelta(days=1)
+        return results
 
     def stop(self, external_ids: dict) -> None:
         return None
 
-    def list_campaigns(self):
+    def list_campaigns(self) -> list[dict[str, Any]]:
         return [
             {"id": "stub_1", "name": "Stub Campaign 1", "status": "ACTIVE"},
             {"id": "stub_2", "name": "Stub Campaign 2", "status": "PAUSED"},

@@ -17,6 +17,8 @@ depends_on = None
 
 
 def upgrade() -> None:
+    # Alembic creates alembic_version with VARCHAR(32); widen for long revision ids.
+    op.execute("ALTER TABLE alembic_version ALTER COLUMN version_num TYPE VARCHAR(128)")
     # 1. Enums (create if not exists logic is tricky in pure alembic without raw sql check,
     # but since it's init, we assume clean DB)
     # We use sa.Enum with native_enum=True (default for postgres)
@@ -372,10 +374,10 @@ def upgrade() -> None:
     op.create_table('erir_events',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('organization_id', sa.Integer(), nullable=False),
-        sa.Column('experiment_id', sa.Integer(), nullable=False),
-        sa.Column('erir_token_id', sa.Integer(), nullable=False),
-        sa.Column('level', sa.String(length=20), nullable=False),
-        sa.Column('code', sa.String(length=100), nullable=False),
+        sa.Column('experiment_id', sa.Integer(), nullable=True),
+        sa.Column('erir_token_id', sa.Integer(), nullable=True),
+        sa.Column('level', sa.String(length=20), nullable=True),
+        sa.Column('code', sa.String(length=100), nullable=True),
         sa.Column('message', sa.Text(), nullable=True),
         sa.Column('payload_json', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
         sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),

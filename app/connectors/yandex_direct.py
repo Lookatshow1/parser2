@@ -8,7 +8,7 @@ from typing import List, Dict, Any
 
 import httpx
 
-from app.connectors.base import AdsConnector
+from app.connectors.base import AdsConnector, MetricRecord
 from app.core.config import get_settings
 from app.db.models import MetricSnapshot, Platform
 
@@ -20,8 +20,15 @@ class YandexDirectConnector(AdsConnector):
         self.login = self.credentials.get("login")
         self.is_mock = os.getenv("YANDEX_DIRECT_MOCK", "0") == "1"
 
-    def validate_connection(self, credentials_json: dict) -> bool:
-        return True
+    def validate_connection(self, credentials_json: dict) -> dict:
+        token = credentials_json.get("token")
+        if not token:
+            return {
+                "ok": False,
+                "error_code": "missing_token",
+                "message": "Yandex credentials require 'token'",
+            }
+        return {"ok": True}
 
     def create_campaign_bundle(self, plan, experiment, creatives) -> dict:
         return {"campaign_id": "stub"}
@@ -29,7 +36,29 @@ class YandexDirectConnector(AdsConnector):
     def sync_status(self, external_ids: dict) -> dict:
         return {"campaign_id": "active"}
 
-    def fetch_metrics(self, date_from: date, date_to: date) -> list[MetricSnapshot]:
+    def fetch_metrics(self, date_from: date, date_to: date) -> list[MetricRecord]:
+        if self.is_mock:
+            campaigns = self.list_campaigns()
+            campaign_ids = [str(camp["id"]) for camp in campaigns]
+            rows = self.get_daily_stats(campaign_ids, date_from, date_to)
+            return [
+                {
+                    "date": date.fromisoformat(row["Date"]),
+                    "platform": Platform.yandex,
+                    "level": "campaign",
+                    "campaign_external_id": str(row["CampaignId"]),
+                    "ad_group_external_id": None,
+                    "ad_external_id": None,
+                    "impressions": int(row.get("Impressions") or 0),
+                    "clicks": int(row.get("Clicks") or 0),
+                    "spend": int(float(row.get("Cost") or 0)),
+                    "leads": int(float(row.get("Leads") or 0)),
+                    "purchases": int(float(row.get("Purchases") or 0)),
+                    "revenue": int(float(row.get("Revenue") or 0)),
+                }
+                for row in rows
+            ]
+
         # Legacy method, kept for compatibility if needed, but we prefer get_daily_stats
         settings = get_settings()
         if not settings.yandex_reports_token:
@@ -46,7 +75,23 @@ class YandexDirectConnector(AdsConnector):
             date_from,
             date_to,
         )
-        return self._parse_tsv(report, skip_header=settings.yandex_reports_skip_header)
+        return [
+            {
+                "date": snap.date,
+                "platform": Platform.yandex,
+                "level": "campaign",
+                "campaign_external_id": snap.campaign_external_id,
+                "ad_group_external_id": None,
+                "ad_external_id": None,
+                "impressions": snap.impressions,
+                "clicks": snap.clicks,
+                "spend": snap.spend,
+                "leads": snap.leads,
+                "purchases": snap.purchases,
+                "revenue": snap.revenue,
+            }
+            for snap in self._parse_tsv(report, skip_header=settings.yandex_reports_skip_header)
+        ]
 
     def stop(self, external_ids: dict) -> None:
         return None
