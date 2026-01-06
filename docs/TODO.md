@@ -77,6 +77,10 @@
 Статус: done  
 Проверка: `pytest -q tests/test_dashboard_efficiency.py`
 
+4.5 Connections не возвращают credentials_json, есть credentials_present  
+Статус: done  
+Проверка: `pytest -q tests/test_credentials_security.py`
+
 ## 5) Auth + Organizations (стадия 0–1)
 
 5.1 Auth (JWT + refresh + /me)  
@@ -120,3 +124,4 @@
 - Расширение observability: correlation id для job/sync + structured logs.
 - ЕРИР: хранение токенов, повторная отправка событий, отдельный статус-поток.
 - Инвайты: рассылка email + ревокация инвайтов + аудит действий.
+- Credentials: шифрование at-rest и ротация ключа (Fernet).

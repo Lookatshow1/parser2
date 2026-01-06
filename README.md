@@ -100,6 +100,7 @@ make test
 
 Self-test также проверяет web, smoke синк и идемпотентность (повторный sync не увеличивает число snapshot).
 Теперь self-test также проверяет auth + инвайт + membership.
+Connections API не возвращает credentials_json (есть только credentials_present).
 
 Перед проверками можно выполнить быструю диагностику Docker:
 

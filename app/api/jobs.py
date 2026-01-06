@@ -17,7 +17,7 @@ router = APIRouter()
 def list_jobs(
     limit: int = Query(50, le=200),
     status: Optional[JobStatus] = None,
-    job_type: Optional[str] = None,
+    job_type: Optional[str] = Query(None, alias="type"),
     organization_id: Optional[int] = Query(None, ge=1),
     connection_id: Optional[int] = Query(None, ge=1),
     db: Session = Depends(get_db),

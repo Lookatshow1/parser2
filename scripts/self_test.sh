@@ -88,12 +88,28 @@ curl -fsS --max-time 10 -X POST "http://localhost:8000/api/orgs/invites/accept" 
 INVITED_AUTH_HEADER="Authorization: Bearer ${INVITED_TOKEN}"
 INVITED_ORG_HEADER="X-Org-Id: ${ORG_ID}"
 
-CONN_ID=$(curl -fsS --max-time 10 -X POST "http://localhost:8000/api/connections" \
+CONN_JSON=$(curl -fsS --max-time 10 -X POST "http://localhost:8000/api/connections" \
   -H "Content-Type: application/json" \
   -H "${INVITED_AUTH_HEADER}" \
   -H "${INVITED_ORG_HEADER}" \
-  -d '{"platform":"stub","credentials_json":{}}' \
-  | python3 -c "import sys, json; print(json.load(sys.stdin)['id'])")
+  -d '{"platform":"stub","credentials_json":{"token":"secret"}}')
+
+CONN_ID=$(printf '%s' "${CONN_JSON}" | python3 -c "import sys, json; print(json.loads(sys.stdin.read())['id'])")
+
+CREDS_PRESENT=$(printf '%s' "${CONN_JSON}" | python3 -c "import sys, json; print('credentials_json' in json.loads(sys.stdin.read()))")
+if [ "$CREDS_PRESENT" = "True" ]; then
+  echo "Credentials leak detected in connection response." >&2
+  exit 1
+fi
+
+CREDS_LIST_PRESENT=$(curl -fsS --max-time 10 "http://localhost:8000/api/connections" \
+  -H "${INVITED_AUTH_HEADER}" \
+  -H "${INVITED_ORG_HEADER}" \
+  | python3 -c "import sys, json; data=json.load(sys.stdin)['items']; print(any('credentials_json' in item for item in data))")
+if [ "$CREDS_LIST_PRESENT" = "True" ]; then
+  echo "Credentials leak detected in connections list." >&2
+  exit 1
+fi
 
 RUN_ID=$(curl -fsS --max-time 10 -X POST "http://localhost:8000/api/sync-runs" \
   -H "Content-Type: application/json" \
