@@ -75,10 +75,31 @@ def list_orgs(user: User = Depends(get_current_user), db: Session = Depends(get_
 @router.get("/active", response_model=OrganizationOut)
 def get_active_org(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if not user.active_organization_id:
-        raise HTTPException(status_code=404, detail="Active organization not set")
+        raise HTTPException(status_code=409, detail="Select organization")
     org = db.query(Organization).get(user.active_organization_id)
     if not org:
         raise HTTPException(status_code=404, detail="Organization not found")
+    return org
+
+
+@router.post("/{org_id}/activate", response_model=OrganizationOut)
+def activate_org(
+    org_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    membership = (
+        db.query(Membership)
+        .filter(Membership.user_id == user.id, Membership.organization_id == org_id)
+        .first()
+    )
+    if not membership:
+        raise HTTPException(status_code=403, detail="Forbidden for this organization")
+    org = db.query(Organization).get(org_id)
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    user.active_organization_id = org.id
+    db.commit()
     return org
 
 

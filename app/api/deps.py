@@ -39,7 +39,7 @@ def get_current_org(
 ) -> Organization:
     org_id = x_org_id or user.active_organization_id
     if not org_id:
-        raise HTTPException(status_code=400, detail="Select organization")
+        raise HTTPException(status_code=409, detail="Select organization")
 
     membership = (
         db.query(Membership)
@@ -62,7 +62,7 @@ def get_current_membership(
 ) -> Membership:
     org_id = x_org_id or user.active_organization_id
     if not org_id:
-        raise HTTPException(status_code=400, detail="Select organization")
+        raise HTTPException(status_code=409, detail="Select organization")
 
     membership = (
         db.query(Membership)

@@ -1,10 +1,25 @@
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.schemas import AuthRegisterRequest, AuthLoginRequest, AuthMeResponse, AuthTokenResponse
-from app.db.models import User
+from app.api.schemas import (
+    AuthRegisterRequest,
+    AuthLoginRequest,
+    AuthMeResponse,
+    AuthTokenResponse,
+    AuthRefreshRequest,
+    AuthRefreshResponse,
+)
+from app.db.models import RefreshToken, User
 from app.db.session import get_db
-from app.services.auth_service import create_access_token, get_password_hash, verify_password
+from app.services.auth_service import (
+    create_access_token,
+    create_refresh_token_data,
+    get_password_hash,
+    hash_refresh_token,
+    verify_password,
+)
 from app.api.deps import get_current_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -12,12 +27,13 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/register", response_model=AuthMeResponse, status_code=status.HTTP_201_CREATED)
 def register(payload: AuthRegisterRequest, db: Session = Depends(get_db)):
-    existing = db.query(User).filter(User.email == payload.email).first()
+    email = str(payload.email).strip().lower()
+    existing = db.query(User).filter(User.email == email).first()
     if existing:
         raise HTTPException(status_code=409, detail="Email already registered")
 
     user = User(
-        email=payload.email,
+        email=email,
         password_hash=get_password_hash(payload.password),
         is_active=True,
     )
@@ -29,14 +45,50 @@ def register(payload: AuthRegisterRequest, db: Session = Depends(get_db)):
 
 @router.post("/login", response_model=AuthTokenResponse)
 def login(payload: AuthLoginRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == payload.email).first()
+    email = str(payload.email).strip().lower()
+    user = db.query(User).filter(User.email == email).first()
     if not user or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     if not user.is_active:
         raise HTTPException(status_code=401, detail="Inactive user")
-    return create_access_token(str(user.id))
+    access = create_access_token(str(user.id))
+    refresh = create_refresh_token_data()
+    db.add(
+        RefreshToken(
+            user_id=user.id,
+            token_hash=refresh["token_hash"],
+            jti=refresh["jti"],
+            expires_at=refresh["expires_at"],
+        )
+    )
+    db.commit()
+    return AuthTokenResponse(
+        access_token=access["access_token"],
+        refresh_token=refresh["raw_token"],
+        token_type=access["token_type"],
+        expires_in=access["expires_in"],
+        refresh_expires_in=refresh["expires_in"],
+    )
 
 
 @router.get("/me", response_model=AuthMeResponse)
 def me(user: User = Depends(get_current_user)):
     return user
+
+
+@router.post("/refresh", response_model=AuthRefreshResponse)
+def refresh_token(payload: AuthRefreshRequest, db: Session = Depends(get_db)):
+    token_hash = hash_refresh_token(payload.refresh_token)
+    token = db.query(RefreshToken).filter(RefreshToken.token_hash == token_hash).first()
+    if not token or token.revoked_at is not None:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
+    now = datetime.now(timezone.utc)
+    if token.expires_at <= now:
+        raise HTTPException(status_code=401, detail="Refresh token expired")
+
+    user = db.query(User).filter(User.id == token.user_id).first()
+    if not user or not user.is_active:
+        raise HTTPException(status_code=401, detail="Inactive user")
+
+    access = create_access_token(str(user.id))
+    return AuthRefreshResponse(**access)

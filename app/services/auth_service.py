@@ -1,4 +1,7 @@
 from datetime import datetime, timedelta, timezone
+import hashlib
+import secrets
+import uuid
 
 import jwt
 from passlib.context import CryptContext
@@ -36,3 +39,23 @@ def create_access_token(subject: str) -> dict:
 def decode_access_token(token: str) -> dict:
     settings = get_settings()
     return jwt.decode(token, settings.secret_key, algorithms=[settings.access_token_algorithm])
+
+
+def hash_refresh_token(raw_token: str) -> str:
+    return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+
+
+def create_refresh_token_data() -> dict:
+    settings = get_settings()
+    now = datetime.now(timezone.utc)
+    raw_token = secrets.token_urlsafe(32)
+    token_hash = hash_refresh_token(raw_token)
+    jti = uuid.uuid4().hex
+    expires_at = now + timedelta(days=settings.refresh_token_ttl_days)
+    return {
+        "raw_token": raw_token,
+        "token_hash": token_hash,
+        "jti": jti,
+        "expires_at": expires_at,
+        "expires_in": settings.refresh_token_ttl_days * 86400,
+    }

@@ -37,6 +37,9 @@ services:
       DATABASE_URL: postgresql+psycopg2://postgres:postgres@db:5432/ads
       REDIS_URL: redis://redis:6379/0
       SECRET_KEY: dev_secret
+      JWT_ALG: HS256
+      ACCESS_TTL_MIN: 60
+      REFRESH_TTL_DAYS: 7
       ACCESS_TOKEN_EXPIRE_MINUTES: 60
     env_file:
       - .env
@@ -59,6 +62,9 @@ services:
       DATABASE_URL: postgresql+psycopg2://postgres:postgres@db:5432/ads
       REDIS_URL: redis://redis:6379/0
       SECRET_KEY: dev_secret
+      JWT_ALG: HS256
+      ACCESS_TTL_MIN: 60
+      REFRESH_TTL_DAYS: 7
       ACCESS_TOKEN_EXPIRE_MINUTES: 60
     env_file:
       - .env

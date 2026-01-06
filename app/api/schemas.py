@@ -77,16 +77,28 @@ class ConnectionSyncRequest(BaseModel):
 
 
 class AuthRegisterRequest(BaseModel):
-    email: str
+    email: EmailStr
     password: str = Field(min_length=6)
 
 
 class AuthLoginRequest(BaseModel):
-    email: str
+    email: EmailStr
     password: str
 
 
 class AuthTokenResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str
+    expires_in: int
+    refresh_expires_in: int
+
+
+class AuthRefreshRequest(BaseModel):
+    refresh_token: str
+
+
+class AuthRefreshResponse(BaseModel):
     access_token: str
     token_type: str
     expires_in: int
@@ -348,6 +360,10 @@ class DashboardTotals(BaseModel):
     leads: int
     purchases: int
     revenue: int
+    ctr: float | None = None
+    cpc: float | None = None
+    cpm: float | None = None
+    cpa: float | None = None
 
 
 class DashboardDailyItem(BaseModel):
@@ -358,6 +374,10 @@ class DashboardDailyItem(BaseModel):
     leads: int
     purchases: int
     revenue: int
+    ctr: float | None = None
+    cpc: float | None = None
+    cpm: float | None = None
+    cpa: float | None = None
 
 
 class DashboardSummaryResponse(BaseModel):

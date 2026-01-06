@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from pydantic import Field, AliasChoices
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -25,9 +26,19 @@ class Settings(BaseSettings):
     dev_mode: bool = False
     cors_origins: str = "*"
     env: str = "dev"
-    secret_key: str = "dev_secret"
-    access_token_expire_minutes: int = 60
-    access_token_algorithm: str = "HS256"
+    secret_key: str = Field(default="dev_secret", validation_alias=AliasChoices("SECRET_KEY", "JWT_SECRET"))
+    access_token_expire_minutes: int = Field(
+        default=60,
+        validation_alias=AliasChoices("ACCESS_TTL_MIN", "ACCESS_TOKEN_EXPIRE_MINUTES"),
+    )
+    access_token_algorithm: str = Field(
+        default="HS256",
+        validation_alias=AliasChoices("JWT_ALG", "ACCESS_TOKEN_ALGORITHM"),
+    )
+    refresh_token_ttl_days: int = Field(
+        default=7,
+        validation_alias=AliasChoices("REFRESH_TTL_DAYS", "REFRESH_TOKEN_TTL_DAYS"),
+    )
 
 
 @lru_cache
