@@ -1,3 +1,5 @@
+import { getOrgId, getToken } from "./session";
+
 const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 const apiBase = `${baseUrl}/api`;
 
@@ -10,11 +12,15 @@ type ApiError = {
 };
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const token = getToken();
+  const orgId = getOrgId();
   let response: Response;
   try {
     response = await fetch(`${apiBase}${path}`, {
       headers: {
         "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(orgId ? { "X-Org-Id": orgId } : {}),
         ...(options?.headers || {})
       },
       ...options
@@ -78,6 +84,26 @@ export type JobRunItem = {
   updated_at: string;
   error_text?: string | null;
   result_json?: Record<string, unknown> | null;
+};
+
+export type AuthToken = {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+};
+
+export type UserMe = {
+  id: number;
+  email: string;
+  is_active: boolean;
+  active_organization_id: number | null;
+};
+
+export type Organization = {
+  id: number;
+  name: string;
+  created_at: string;
+  updated_at: string;
 };
 
 export async function listConnections() {
@@ -169,6 +195,46 @@ export async function getMetrics(payload: {
     group_by: payload.group_by || "day",
   });
   return request<{ items: Array<Record<string, unknown>> }>(`/metrics?${params.toString()}`);
+}
+
+export async function registerUser(payload: { email: string; password: string }) {
+  return request<UserMe>("/auth/register", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function loginUser(payload: { email: string; password: string }) {
+  return request<AuthToken>("/auth/login", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function getMe() {
+  return request<UserMe>("/auth/me");
+}
+
+export async function listOrgs() {
+  return request<{ items: Organization[] }>("/orgs");
+}
+
+export async function createOrg(payload: { name: string }) {
+  return request<Organization>("/orgs", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function getActiveOrg() {
+  return request<Organization>("/orgs/active");
+}
+
+export async function switchOrg(payload: { organization_id: number }) {
+  return request<Organization>("/orgs/switch", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
 }
 
 export async function createPlan(payload: { url: string; business_description?: string | null; kpi?: string | null; internal_code?: string | null }) {

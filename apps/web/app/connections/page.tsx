@@ -11,6 +11,7 @@ import {
   getMetrics,
   ConnectionResponse,
 } from "../../lib/api";
+import { getOrgId, getToken } from "../../lib/session";
 
 const platforms = ["stub", "yandex", "ozon", "vk"];
 
@@ -150,6 +151,8 @@ export default function ConnectionsPage() {
     <div className="space-y-6">
       <div className="card">
         <h1 className="text-xl font-semibold mb-4">Connections</h1>
+        {!getToken() && <div className="text-yellow-400 mb-2">Login required. Go to Login page.</div>}
+        {getToken() && !getOrgId() && <div className="text-yellow-400 mb-2">Select organization first.</div>}
         {error && <div className="text-red-400 mb-2">{error}</div>}
         {notice && <div className="text-green-400 mb-2">{notice}</div>}
         <div className="grid gap-3 md:grid-cols-3">
