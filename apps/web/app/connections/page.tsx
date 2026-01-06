@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
   createConnection,
+  updateConnection,
   listConnections,
   testConnection,
   syncConnection,
@@ -14,11 +15,21 @@ import {
 import { getOrgId, getToken } from "../../lib/session";
 
 const platforms = ["stub", "yandex", "ozon", "vk"];
+const credentialsTemplates: Record<string, string> = {
+  stub: "{}",
+  yandex: JSON.stringify({ token: "", login: "" }),
+  ozon: JSON.stringify({ client_id: "", client_secret: "" }),
+  vk: JSON.stringify({ access_token: "", version: "5.131", account_id: "" }),
+};
 
 export default function ConnectionsPage() {
   const [items, setItems] = useState<ConnectionResponse[]>([]);
   const [platform, setPlatform] = useState("stub");
   const [credentialsJson, setCredentialsJson] = useState("{}");
+  const [name, setName] = useState("");
+  const [autoSyncEnabled, setAutoSyncEnabled] = useState(false);
+  const [autoSyncEveryMinutes, setAutoSyncEveryMinutes] = useState(1440);
+  const [autoSyncWindowDays, setAutoSyncWindowDays] = useState(3);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [selectedConnectionId, setSelectedConnectionId] = useState<number | null>(null);
@@ -74,8 +85,30 @@ export default function ConnectionsPage() {
     setNotice(null);
     try {
       const credentials = JSON.parse(credentialsJson);
-      await createConnection({ platform, credentials_json: credentials });
+      await createConnection({
+        platform,
+        name: name || null,
+        credentials_json: credentials,
+        auto_sync_enabled: autoSyncEnabled,
+        auto_sync_every_minutes: autoSyncEveryMinutes,
+        auto_sync_window_days: autoSyncWindowDays,
+      });
       setNotice("Connection created");
+      await load();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
+  const toggleAutoSync = async (connectionId: number, enabled: boolean) => {
+    setError(null);
+    setNotice(null);
+    try {
+      await updateConnection(connectionId, {
+        auto_sync_enabled: enabled,
+        auto_sync_every_minutes: autoSyncEveryMinutes,
+        auto_sync_window_days: autoSyncWindowDays,
+      });
       await load();
     } catch (err) {
       setError((err as Error).message);
@@ -156,13 +189,27 @@ export default function ConnectionsPage() {
         {error && <div className="text-red-400 mb-2">{error}</div>}
         {notice && <div className="text-green-400 mb-2">{notice}</div>}
         <div className="grid gap-3 md:grid-cols-3">
-          <select value={platform} onChange={(event) => setPlatform(event.target.value)}>
+          <select
+            value={platform}
+            onChange={(event) => {
+              const next = event.target.value;
+              setPlatform(next);
+              if (credentialsTemplates[next]) {
+                setCredentialsJson(credentialsTemplates[next]);
+              }
+            }}
+          >
             {platforms.map((item) => (
               <option key={item} value={item}>
                 {item}
               </option>
             ))}
           </select>
+          <input
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            placeholder="Connection name"
+          />
           <input
             value={credentialsJson}
             onChange={(event) => setCredentialsJson(event.target.value)}
@@ -184,6 +231,30 @@ export default function ConnectionsPage() {
             </button>
           </div>
         </div>
+        <div className="grid gap-3 md:grid-cols-3">
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={autoSyncEnabled}
+              onChange={(event) => setAutoSyncEnabled(event.target.checked)}
+            />
+            Enable auto-sync
+          </label>
+          <input
+            type="number"
+            min={1}
+            value={autoSyncEveryMinutes}
+            onChange={(event) => setAutoSyncEveryMinutes(Number(event.target.value) || 1)}
+            placeholder="Every minutes"
+          />
+          <input
+            type="number"
+            min={1}
+            value={autoSyncWindowDays}
+            onChange={(event) => setAutoSyncWindowDays(Number(event.target.value) || 1)}
+            placeholder="Window days"
+          />
+        </div>
       </div>
 
       <div className="card">
@@ -194,6 +265,10 @@ export default function ConnectionsPage() {
               <span>#{item.id}</span>
               <span>{item.platform}</span>
               <span>{item.status}</span>
+              <span className="text-xs text-slate-400">
+                Auto-sync: {item.auto_sync_enabled ? "on" : "off"}
+                {item.auto_sync_enabled ? ` (${item.auto_sync_every_minutes ?? 0}m / ${item.auto_sync_window_days ?? 0}d)` : ""}
+              </span>
               <div className="flex gap-2">
                 <button
                   onClick={() => {
@@ -204,6 +279,12 @@ export default function ConnectionsPage() {
                   className="bg-slate-700 hover:bg-slate-600 text-xs px-3 py-1 rounded"
                 >
                   View
+                </button>
+                <button
+                  onClick={() => toggleAutoSync(item.id, !item.auto_sync_enabled)}
+                  className="bg-slate-700 hover:bg-slate-600 text-xs px-3 py-1 rounded"
+                >
+                  {item.auto_sync_enabled ? "Disable auto" : "Enable auto"}
                 </button>
                 <Link
                   href={`/connections/${item.id}`}

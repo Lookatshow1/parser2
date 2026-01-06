@@ -65,6 +65,12 @@ export type ConnectionResponse = {
   advertiser_id: number | null;
   platform: string;
   status: string;
+  name?: string | null;
+  credentials_present?: boolean;
+  auto_sync_enabled?: boolean;
+  auto_sync_every_minutes?: number;
+  auto_sync_window_days?: number;
+  last_auto_sync_at?: string | null;
 };
 
 export type PlanResponse = {
@@ -143,10 +149,26 @@ export async function listConnections() {
 export async function createConnection(payload: {
   advertiser_id?: number | null;
   platform: string;
+  name?: string | null;
   credentials_json: Record<string, unknown>;
+  auto_sync_enabled?: boolean;
+  auto_sync_every_minutes?: number;
+  auto_sync_window_days?: number;
 }) {
   return request<ConnectionResponse>("/connections", {
     method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function updateConnection(connectionId: number, payload: {
+  name?: string | null;
+  auto_sync_enabled?: boolean;
+  auto_sync_every_minutes?: number;
+  auto_sync_window_days?: number;
+}) {
+  return request<ConnectionResponse>(`/connections/${connectionId}`, {
+    method: "PATCH",
     body: JSON.stringify(payload)
   });
 }
@@ -218,6 +240,7 @@ export async function getDashboardSummary(payload: { connection_id: number; date
       cpc?: number | null;
       cpm?: number | null;
       cpa?: number | null;
+      roas?: number | null;
     };
     daily: Array<Record<string, unknown>>;
   }>(`/dashboard/summary?${params.toString()}`);

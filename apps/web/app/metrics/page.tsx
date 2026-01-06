@@ -13,10 +13,13 @@ export default function MetricsPage() {
     impressions: number;
     clicks: number;
     spend: number;
+    purchases?: number;
+    revenue?: number;
     ctr?: number | null;
     cpc?: number | null;
     cpm?: number | null;
     cpa?: number | null;
+    roas?: number | null;
   } | null>(null);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -69,10 +72,13 @@ export default function MetricsPage() {
         impressions: summaryData.totals.impressions,
         clicks: summaryData.totals.clicks,
         spend: summaryData.totals.spend,
+        purchases: summaryData.totals.purchases,
+        revenue: summaryData.totals.revenue,
         ctr: summaryData.totals.ctr ?? null,
         cpc: summaryData.totals.cpc ?? null,
         cpm: summaryData.totals.cpm ?? null,
         cpa: summaryData.totals.cpa ?? null,
+        roas: summaryData.totals.roas ?? null,
       });
     } catch (err) {
       setError((err as Error).message);
@@ -104,10 +110,13 @@ export default function MetricsPage() {
           <div className="rounded bg-slate-900/60 p-3">Impressions: {summary.impressions}</div>
           <div className="rounded bg-slate-900/60 p-3">Clicks: {summary.clicks}</div>
           <div className="rounded bg-slate-900/60 p-3">Spend: {summary.spend}</div>
+          <div className="rounded bg-slate-900/60 p-3">Purchases: {summary.purchases ?? 0}</div>
+          <div className="rounded bg-slate-900/60 p-3">Revenue: {summary.revenue ?? 0}</div>
           <div className="rounded bg-slate-900/60 p-3">CTR: {summary.ctr ?? "n/a"}</div>
           <div className="rounded bg-slate-900/60 p-3">CPC: {summary.cpc ?? "n/a"}</div>
           <div className="rounded bg-slate-900/60 p-3">CPM: {summary.cpm ?? "n/a"}</div>
           <div className="rounded bg-slate-900/60 p-3">CPA: {summary.cpa ?? "n/a"}</div>
+          <div className="rounded bg-slate-900/60 p-3">ROAS: {summary.roas ?? "n/a"}</div>
         </div>
       )}
 

@@ -10,7 +10,16 @@ export default function ConnectionDetailPage({ params }: { params: { id: string 
   const connectionId = Number(params.id);
   const [runs, setRuns] = useState<Run[]>([]);
   const [metrics, setMetrics] = useState<Array<Record<string, unknown>>>([]);
-  const [summary, setSummary] = useState<{ impressions: number; clicks: number; spend: number } | null>(null);
+  const [summary, setSummary] = useState<{
+    impressions: number;
+    clicks: number;
+    spend: number;
+    ctr?: number | null;
+    cpc?: number | null;
+    cpm?: number | null;
+    cpa?: number | null;
+    roas?: number | null;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -52,6 +61,11 @@ export default function ConnectionDetailPage({ params }: { params: { id: string 
         impressions: summaryData.totals.impressions,
         clicks: summaryData.totals.clicks,
         spend: summaryData.totals.spend,
+        ctr: summaryData.totals.ctr ?? null,
+        cpc: summaryData.totals.cpc ?? null,
+        cpm: summaryData.totals.cpm ?? null,
+        cpa: summaryData.totals.cpa ?? null,
+        roas: summaryData.totals.roas ?? null,
       });
       setDateFrom(defaultDateRange.from);
       setDateTo(defaultDateRange.to);
@@ -115,6 +129,11 @@ export default function ConnectionDetailPage({ params }: { params: { id: string 
         impressions: summaryData.totals.impressions,
         clicks: summaryData.totals.clicks,
         spend: summaryData.totals.spend,
+        ctr: summaryData.totals.ctr ?? null,
+        cpc: summaryData.totals.cpc ?? null,
+        cpm: summaryData.totals.cpm ?? null,
+        cpa: summaryData.totals.cpa ?? null,
+        roas: summaryData.totals.roas ?? null,
       });
     } catch (err) {
       setError((err as Error).message);
@@ -140,6 +159,11 @@ export default function ConnectionDetailPage({ params }: { params: { id: string 
             <div className="rounded bg-slate-900/60 p-3">Impressions: {summary.impressions}</div>
             <div className="rounded bg-slate-900/60 p-3">Clicks: {summary.clicks}</div>
             <div className="rounded bg-slate-900/60 p-3">Spend: {summary.spend}</div>
+            <div className="rounded bg-slate-900/60 p-3">CTR: {summary.ctr ?? "n/a"}</div>
+            <div className="rounded bg-slate-900/60 p-3">CPC: {summary.cpc ?? "n/a"}</div>
+            <div className="rounded bg-slate-900/60 p-3">CPM: {summary.cpm ?? "n/a"}</div>
+            <div className="rounded bg-slate-900/60 p-3">CPA: {summary.cpa ?? "n/a"}</div>
+            <div className="rounded bg-slate-900/60 p-3">ROAS: {summary.roas ?? "n/a"}</div>
           </div>
         )}
         <div className="grid gap-3 md:grid-cols-4 text-sm">
