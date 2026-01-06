@@ -76,6 +76,14 @@ curl -sS "http://localhost:8000/api/metrics?connection_id=1&date_from=2023-01-01
 curl -sS "http://localhost:8000/api/dashboard/summary?connection_id=1&date_from=2023-01-01&date_to=2023-01-03" -H "Authorization: Bearer ${MEMBER_TOKEN}" -H "X-Org-Id: ${ORG_ID}"
 ```
 
+## Connector credentials (structure)
+
+These are only structural checks now; real API calls are not required for stub/self-test.
+
+- Yandex: `{"token":"..."}` (optional `login`)
+- VK Ads: `{"access_token":"...","version":"5.131","account_id":"..."}`
+- Ozon Performance: `{"client_id":"...","client_secret":"..."}`
+
 ## Health checks
 
 ```bash
@@ -101,6 +109,7 @@ make test
 Self-test также проверяет web, smoke синк и идемпотентность (повторный sync не увеличивает число snapshot).
 Теперь self-test также проверяет auth + инвайт + membership.
 Connections API не возвращает credentials_json (есть только credentials_present).
+Первый прогон self-test после `docker compose down --volumes` может занять больше времени из-за установки npm-зависимостей для web.
 
 Перед проверками можно выполнить быструю диагностику Docker:
 

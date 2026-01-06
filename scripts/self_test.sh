@@ -5,7 +5,7 @@ make doctor
 
 make reset-db
 
-docker compose up -d api worker web
+docker compose up -d api worker web beat
 
 echo "Waiting for API..."
 for _ in {1..60}; do
@@ -21,14 +21,15 @@ if ! curl -fsS --max-time 3 "http://localhost:8000/api/health" >/dev/null; then
 fi
 
 echo "Waiting for Web..."
-for _ in {1..300}; do
-  if curl -fsS --max-time 5 "http://localhost:3000" >/dev/null; then
+WEB_DEADLINE=$((SECONDS + 600))
+while [ "$SECONDS" -lt "$WEB_DEADLINE" ]; do
+  if curl -fsS --max-time 30 "http://localhost:3000" >/dev/null; then
     break
   fi
-  sleep 1
+  sleep 2
 done
 
-if ! curl -fsS --max-time 5 "http://localhost:3000" >/dev/null; then
+if ! curl -fsS --max-time 30 "http://localhost:3000" >/dev/null; then
   echo "Web did not become ready in time." >&2
   exit 1
 fi
@@ -111,6 +112,12 @@ if [ "$CREDS_LIST_PRESENT" = "True" ]; then
   exit 1
 fi
 
+curl -fsS --max-time 10 -X PATCH "http://localhost:8000/api/connections/${CONN_ID}" \
+  -H "Content-Type: application/json" \
+  -H "${INVITED_AUTH_HEADER}" \
+  -H "${INVITED_ORG_HEADER}" \
+  -d '{"auto_sync_enabled":true,"auto_sync_every_minutes":1,"auto_sync_window_days":3}' >/dev/null
+
 RUN_ID=$(curl -fsS --max-time 10 -X POST "http://localhost:8000/api/sync-runs" \
   -H "Content-Type: application/json" \
   -H "${INVITED_AUTH_HEADER}" \
@@ -152,6 +159,12 @@ SUMMARY_JSON=$(curl -fsS --max-time 10 "http://localhost:8000/api/dashboard/summ
 CTR_VAL=$(printf '%s' "${SUMMARY_JSON}" | python3 -c "import sys, json; print(json.loads(sys.stdin.read())['totals'].get('ctr'))")
 if [ -z "$CTR_VAL" ] || [ "$CTR_VAL" = "None" ]; then
   echo "Dashboard efficiency check failed: ctr is empty" >&2
+  exit 1
+fi
+
+ROAS_VAL=$(printf '%s' "${SUMMARY_JSON}" | python3 -c "import sys, json; print(json.loads(sys.stdin.read())['totals'].get('roas'))")
+if [ -z "$ROAS_VAL" ]; then
+  echo "Dashboard efficiency check failed: roas is empty" >&2
   exit 1
 fi
 

@@ -47,3 +47,4 @@ def test_dashboard_efficiency_calcs(client: TestClient, db: Session, auth_contex
     assert totals["cpc"] == 25.0
     assert totals["cpm"] == 2500.0
     assert totals["cpa"] is None
+    assert totals["roas"] == 0.0

@@ -81,6 +81,14 @@
 Статус: done  
 Проверка: `pytest -q tests/test_credentials_security.py`
 
+4.6 Dashboard summary включает ROAS и может агрегировать по всем connection_id  
+Статус: done  
+Проверка: `pytest -q tests/test_dashboard_efficiency.py` и `curl -sS /api/dashboard/summary?...`
+
+4.7 Автосинк по расписанию (beat + авто-поля у connections)  
+Статус: done  
+Проверка: `pytest -q tests/test_auto_sync_scheduler.py`
+
 ## 5) Auth + Organizations (стадия 0–1)
 
 5.1 Auth (JWT + refresh + /me)  
@@ -116,11 +124,14 @@
 - Web запускается в dev-режиме через Next.js; добавлен Babel-конфиг для стабильного старта без SWC.
 - Celery worker слушает `main-queue` и `celery`, а таски явно импортируются.
 - Добавлены auth endpoints + membership; UI хранит токен и X-Org-Id.
+- Добавлен Celery beat для планового автосинка; connections получили auto_sync_* поля.
+- Dashboard summary расширен до ROAS и агрегатов по всем подключениям.
 
 ## Next (после MVP)
 
 - Реальные коннекторы: минимальные fetch для Yandex/Ozon/VK (таймауты/429/5xx, ретраи).
 - Idempotency ключи и retry-политика для коннекторов (429/5xx).
+- Автосинк: доп. ограничения по лимитам и окна, настройка через UI.
 - Расширение observability: correlation id для job/sync + structured logs.
 - ЕРИР: хранение токенов, повторная отправка событий, отдельный статус-поток.
 - Инвайты: рассылка email + ревокация инвайтов + аудит действий.
