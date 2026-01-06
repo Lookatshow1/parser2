@@ -1,22 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-python3 - <<'PY'
-import subprocess
-import sys
-
-try:
-    subprocess.run(
-        ["docker", "info"],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        check=True,
-        timeout=10,
-    )
-except Exception:
-    print("Docker daemon is not available. Start Docker Desktop and retry.", file=sys.stderr)
-    sys.exit(1)
-PY
+make doctor
 
 make reset-db
 

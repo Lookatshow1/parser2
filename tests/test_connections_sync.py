@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.db.models import Advertiser, JobRun, MetricSnapshot
+from app.db.models import Advertiser, JobRun, MetricSnapshot, SyncRun
 from app.workers.sync_tasks import execute_sync_run
 
 
@@ -37,6 +37,11 @@ def test_connection_sync_creates_metrics_and_dashboard(client: TestClient, db: S
     )
     assert metrics_count == 6
 
+    first_run = db.query(SyncRun).get(run_id)
+    assert first_run.result_json["inserted"] == 6
+    assert first_run.result_json["updated"] == 0
+    assert first_run.result_json["unchanged"] == 0
+
     job = (
         db.query(JobRun)
         .filter(JobRun.connection_id == connection_id)
@@ -59,3 +64,26 @@ def test_connection_sync_creates_metrics_and_dashboard(client: TestClient, db: S
     assert data["totals"]["impressions"] == 600
     assert data["totals"]["clicks"] == 60
     assert data["totals"]["spend"] == 1500
+
+    second_resp = client.post(
+        "/api/sync-runs",
+        json={
+            "connection_id": connection_id,
+            "params_json": {"date_from": "2023-01-01", "date_to": "2023-01-03"},
+        },
+    )
+    assert second_resp.status_code == 201
+    second_run_id = second_resp.json()["id"]
+    execute_sync_run(second_run_id)
+
+    metrics_count_after = (
+        db.query(MetricSnapshot)
+        .filter(MetricSnapshot.connection_id == connection_id)
+        .count()
+    )
+    assert metrics_count_after == metrics_count
+
+    second_run = db.query(SyncRun).get(second_run_id)
+    assert second_run.result_json["inserted"] == 0
+    assert second_run.result_json["updated"] == 0
+    assert second_run.result_json["unchanged"] == 6

@@ -17,6 +17,10 @@
 Статус: done  
 Проверка: `rg -n "alembic" scripts/self_test.sh`
 
+0.4 make doctor проверяет Docker и docker compose  
+Статус: next  
+Проверка: `make doctor`
+
 ## 1) Миграции и база (блок А)
 
 1.1 История миграций линейная, reset-db поднимает схему с нуля  
@@ -51,6 +55,10 @@
 Статус: next  
 Проверка: SQL через `make db-shell`
 
+3.3 Синк идемпотентен (повтор не плодит дубли)  
+Статус: next  
+Проверка: `pytest -q tests/test_connections_sync.py`
+
 ## 4) API и Web (блоки E–F) + минимальные тесты (блок G)
 
 4.1 API: connections/create/list/check, sync-runs/create/get, metrics/get, dashboard/summary (connection_id)  
@@ -64,6 +72,12 @@
 4.3 self_test обновлён и есть базовые тесты  
 Статус: next  
 Проверка: `make selftest` и `docker compose run --rm api pytest -q`
+
+## 5) ЕРИР dev (шаг к стадии 4)
+
+5.1 Dev endpoint /api/erir/dev/register создаёт JobRun + ErirEvent  
+Статус: next  
+Проверка: `pytest -q tests/test_erir_dev.py`
 
 ## Notes
 

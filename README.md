@@ -42,6 +42,12 @@ docker compose run --rm api pytest -q
 ./scripts/self_test.sh
 ```
 
+Перед проверками можно выполнить быструю диагностику Docker:
+
+```bash
+make doctor
+```
+
 ## Helper scripts
 
 ```bash

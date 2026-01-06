@@ -266,6 +266,18 @@ class DashboardSummaryResponse(BaseModel):
     daily: list[DashboardDailyItem]
 
 
+class ErirDevRegisterRequest(BaseModel):
+    organization_id: int | None = None
+    connection_id: int | None = None
+    payload_json: dict
+
+
+class ErirDevRegisterResponse(BaseModel):
+    job_run_id: int
+    erir_event_id: int
+    status: str
+
+
 class ExperimentCreateRequest(BaseModel):
     plan_id: int
     budget: int

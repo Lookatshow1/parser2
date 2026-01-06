@@ -1,9 +1,41 @@
 from datetime import date
 from sqlalchemy.orm import Session
 from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy import func, text
+from sqlalchemy import func, text, or_
 from app.db.models import Connection, Experiment, ExperimentCampaign, MetricSnapshot, Platform, CampaignPlan
 from app.services.connector_service import get_connector
+
+
+def _metric_needs_update(stmt):
+    return or_(
+        MetricSnapshot.impressions.is_distinct_from(stmt.excluded.impressions),
+        MetricSnapshot.clicks.is_distinct_from(stmt.excluded.clicks),
+        MetricSnapshot.spend.is_distinct_from(stmt.excluded.spend),
+        MetricSnapshot.leads.is_distinct_from(stmt.excluded.leads),
+        MetricSnapshot.purchases.is_distinct_from(stmt.excluded.purchases),
+        MetricSnapshot.revenue.is_distinct_from(stmt.excluded.revenue),
+    )
+
+
+def _apply_metric_upsert(db: Session, stmt, conflict_elements, conflict_where, set_values):
+    insert_stmt = stmt.on_conflict_do_nothing(
+        index_elements=conflict_elements,
+        index_where=conflict_where,
+    )
+    result = db.execute(insert_stmt)
+    if result.rowcount:
+        return 1, 0, 0
+
+    update_stmt = stmt.on_conflict_do_update(
+        index_elements=conflict_elements,
+        index_where=conflict_where,
+        set_=set_values,
+        where=_metric_needs_update(stmt),
+    )
+    result = db.execute(update_stmt)
+    if result.rowcount:
+        return 0, 1, 0
+    return 0, 0, 1
 
 def sync_campaigns(db: Session, experiment_id: int, platform: Platform):
     # 1. Get Experiment and Connection
@@ -40,6 +72,8 @@ def sync_campaigns(db: Session, experiment_id: int, platform: Platform):
             stats["updated"] += 1
 
     db.commit()
+    stats["date_from"] = date_from.isoformat()
+    stats["date_to"] = date_to.isoformat()
     return stats
 
 def sync_metrics(db: Session, experiment_id: int, platform: Platform, date_from: date, date_to: date):
@@ -65,7 +99,7 @@ def sync_metrics(db: Session, experiment_id: int, platform: Platform, date_from:
     raw_metrics = connector.get_daily_stats(campaign_ids, date_from, date_to)
 
     # 4. Upsert Metrics
-    stats = {"created": 0, "updated": 0, "total": len(raw_metrics)}
+    stats = {"inserted": 0, "updated": 0, "unchanged": 0, "total": len(raw_metrics)}
 
     for row in raw_metrics:
         date_value = date.fromisoformat(str(row["Date"]))
@@ -86,23 +120,24 @@ def sync_metrics(db: Session, experiment_id: int, platform: Platform, date_from:
             revenue=int(float(row.get("Revenue") or 0)),
         )
 
-        stmt = stmt.on_conflict_do_update(
-            index_elements=["organization_id", "experiment_id", "platform", "date", "campaign_external_id"],
-            index_where=text("level = 'campaign'"),
-            set_={
+        inserted, updated, unchanged = _apply_metric_upsert(
+            db,
+            stmt,
+            ["organization_id", "experiment_id", "platform", "date", "campaign_external_id"],
+            text("level = 'campaign'"),
+            {
                 "impressions": stmt.excluded.impressions,
                 "clicks": stmt.excluded.clicks,
                 "spend": stmt.excluded.spend,
                 "leads": stmt.excluded.leads,
                 "purchases": stmt.excluded.purchases,
                 "revenue": stmt.excluded.revenue,
+                "updated_at": func.now(),
             },
         )
-        result = db.execute(stmt)
-        if result.rowcount:
-            stats["created"] += 1
-        else:
-            stats["updated"] += 1
+        stats["inserted"] += inserted
+        stats["updated"] += updated
+        stats["unchanged"] += unchanged
 
     db.commit()
     return stats
@@ -127,7 +162,7 @@ def sync_connection_metrics(
         return {"status": "no_campaigns", "total": 0}
 
     raw_metrics = connector.get_daily_stats(campaign_ids, date_from, date_to)
-    stats = {"created": 0, "updated": 0, "total": len(raw_metrics)}
+    stats = {"inserted": 0, "updated": 0, "unchanged": 0, "total": len(raw_metrics)}
 
     for row in raw_metrics:
         date_value = date.fromisoformat(str(row["Date"]))
@@ -146,32 +181,52 @@ def sync_connection_metrics(
             revenue=int(float(row.get("Revenue") or 0)),
         )
 
-        if force:
-            stmt = stmt.on_conflict_do_update(
-                index_elements=["organization_id", "connection_id", "platform", "date", "campaign_external_id"],
-                index_where=text("level = 'campaign' AND connection_id IS NOT NULL"),
-                set_={
-                    "impressions": stmt.excluded.impressions,
-                    "clicks": stmt.excluded.clicks,
-                    "spend": stmt.excluded.spend,
-                    "leads": stmt.excluded.leads,
-                    "purchases": stmt.excluded.purchases,
-                    "revenue": stmt.excluded.revenue,
-                },
-            )
-        else:
-            stmt = stmt.on_conflict_do_nothing(
-                index_elements=["organization_id", "connection_id", "platform", "date", "campaign_external_id"],
-                index_where=text("level = 'campaign' AND connection_id IS NOT NULL"),
-            )
+        conflict_elements = ["organization_id", "connection_id", "platform", "date", "campaign_external_id"]
+        conflict_where = text("level = 'campaign' AND connection_id IS NOT NULL")
+        set_values = {
+            "impressions": stmt.excluded.impressions,
+            "clicks": stmt.excluded.clicks,
+            "spend": stmt.excluded.spend,
+            "leads": stmt.excluded.leads,
+            "purchases": stmt.excluded.purchases,
+            "revenue": stmt.excluded.revenue,
+            "updated_at": func.now(),
+        }
 
-        result = db.execute(stmt)
-        if result.rowcount:
-            stats["created"] += 1
+        if force:
+            insert_stmt = stmt.on_conflict_do_nothing(
+                index_elements=conflict_elements,
+                index_where=conflict_where,
+            )
+            result = db.execute(insert_stmt)
+            if result.rowcount:
+                stats["inserted"] += 1
+            else:
+                update_stmt = stmt.on_conflict_do_update(
+                    index_elements=conflict_elements,
+                    index_where=conflict_where,
+                    set_=set_values,
+                )
+                result = db.execute(update_stmt)
+                if result.rowcount:
+                    stats["updated"] += 1
+                else:
+                    stats["unchanged"] += 1
         else:
-            stats["updated"] += 1
+            inserted, updated, unchanged = _apply_metric_upsert(
+                db,
+                stmt,
+                conflict_elements,
+                conflict_where,
+                set_values,
+            )
+            stats["inserted"] += inserted
+            stats["updated"] += updated
+            stats["unchanged"] += unchanged
 
     db.commit()
+    stats["date_from"] = date_from.isoformat()
+    stats["date_to"] = date_to.isoformat()
     return stats
 
 # Legacy wrappers for backward compatibility if needed

@@ -245,6 +245,9 @@ class MetricSnapshot(Base):
     purchases: Mapped[int] = mapped_column(Integer, default=0)
     revenue: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
 
     __table_args__ = (
         Index("idx_metric_snapshots_experiment_platform_date", "experiment_id", "platform", "date"),
@@ -425,4 +428,61 @@ class SyncRun(Base):
         Index("idx_sync_runs_experiment_platform_created_at", "experiment_id", "platform", created_at.desc()),
         Index("idx_sync_runs_connection_created_at", "connection_id", created_at.desc()),
         Index("idx_sync_runs_status", "status"),
+    )
+
+
+class ErirStatus(str, enum.Enum):
+    pending = "pending"
+    running = "running"
+    success = "success"
+    failed = "failed"
+    canceled = "canceled"
+
+
+class ErirToken(Base):
+    __tablename__ = "erir_tokens"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    experiment_id: Mapped[int | None] = mapped_column(ForeignKey("experiments.id", ondelete="CASCADE"), nullable=True)
+    platform: Mapped[Platform | None] = mapped_column(Enum(Platform, name="platform_enum"), nullable=True)
+    creative_id: Mapped[int | None] = mapped_column(ForeignKey("ad_creatives.id", ondelete="CASCADE"), nullable=True)
+    token: Mapped[str | None] = mapped_column(String, nullable=True)
+    token_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    issued_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    error_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    request_payload_json: Mapped[dict | None] = mapped_column(JSONType, nullable=True)
+    response_payload_json: Mapped[dict | None] = mapped_column(JSONType, nullable=True)
+    provider: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    token_json: Mapped[dict | None] = mapped_column(JSONType, nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+
+class ErirEvent(Base):
+    __tablename__ = "erir_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    experiment_id: Mapped[int | None] = mapped_column(ForeignKey("experiments.id", ondelete="CASCADE"), nullable=True)
+    erir_token_id: Mapped[int | None] = mapped_column(ForeignKey("erir_tokens.id", ondelete="CASCADE"), nullable=True)
+    connection_id: Mapped[int | None] = mapped_column(ForeignKey("connections.id", ondelete="SET NULL"), nullable=True)
+    event_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    status: Mapped[ErirStatus] = mapped_column(
+        Enum(ErirStatus, name="erir_status_enum", native_enum=False),
+        default=ErirStatus.pending,
+        nullable=False,
+    )
+    error_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    result_json: Mapped[dict | None] = mapped_column(JSONType, nullable=True)
+    level: Mapped[str | None] = mapped_column(String(length=20), nullable=True)
+    code: Mapped[str | None] = mapped_column(String(length=100), nullable=True)
+    message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    payload_json: Mapped[dict | None] = mapped_column(JSONType, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
