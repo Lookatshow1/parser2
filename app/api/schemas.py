@@ -59,6 +59,7 @@ class ConnectionOut(BaseModel):
     platform: Platform
     name: str | None = None
     status: ConnectionStatus
+    credentials_present: bool
     created_at: datetime
     updated_at: datetime
 
@@ -152,6 +153,7 @@ class OrgInviteCreateRequest(BaseModel):
 
 class OrgInviteAcceptRequest(BaseModel):
     token: str
+    password: str | None = None
 
 
 class OrgInviteOut(BaseModel):
@@ -159,6 +161,7 @@ class OrgInviteOut(BaseModel):
     organization_id: int
     invited_email: EmailStr
     role: MembershipRole
+    status: str
     expires_at: datetime
     accepted_at: datetime | None = None
     accepted_by_user_id: int | None = None

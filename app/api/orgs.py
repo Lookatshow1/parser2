@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, get_optional_user
 from app.api.schemas import (
     OrgInviteAcceptRequest,
     OrgInviteCreateRequest,
@@ -23,6 +23,7 @@ from app.api.schemas import (
 from app.db.models import Membership, MembershipRole, OrgInvite, Organization, User
 from app.db.session import get_db
 from app.services.rbac import can_invite, can_manage_members, ROLE_OWNER
+from app.services.auth_service import get_password_hash
 
 router = APIRouter(prefix="/orgs", tags=["orgs"])
 
@@ -156,6 +157,7 @@ def create_invite(
         organization_id=org_id,
         invited_email=normalized_email,
         role=payload.role.value,
+        status="pending",
         token_hash=token_hash,
         expires_at=expires_at,
         created_by_user_id=user.id,
@@ -181,14 +183,24 @@ def list_invites(
     if not can_invite(membership.role):
         raise HTTPException(status_code=403, detail="Insufficient role for invites")
 
-    query = db.query(OrgInvite).filter(OrgInvite.organization_id == org_id)
     now = datetime.now(timezone.utc)
-    if status_filter == "pending":
-        query = query.filter(OrgInvite.accepted_at.is_(None), OrgInvite.expires_at > now)
-    elif status_filter == "accepted":
-        query = query.filter(OrgInvite.accepted_at.isnot(None))
-    elif status_filter == "expired":
-        query = query.filter(OrgInvite.accepted_at.is_(None), OrgInvite.expires_at <= now)
+    pending_expired = (
+        db.query(OrgInvite)
+        .filter(
+            OrgInvite.organization_id == org_id,
+            OrgInvite.status == "pending",
+            OrgInvite.expires_at <= now,
+        )
+        .all()
+    )
+    for invite in pending_expired:
+        invite.status = "expired"
+    if pending_expired:
+        db.commit()
+
+    query = db.query(OrgInvite).filter(OrgInvite.organization_id == org_id)
+    if status_filter:
+        query = query.filter(OrgInvite.status == status_filter)
     items = query.order_by(OrgInvite.created_at.desc()).all()
     return {"items": items}
 
@@ -196,18 +208,35 @@ def list_invites(
 @router.post("/invites/accept", response_model=OrganizationOut)
 def accept_invite(
     payload: OrgInviteAcceptRequest,
-    user: User = Depends(get_current_user),
+    user: User | None = Depends(get_optional_user),
     db: Session = Depends(get_db),
 ):
     token_hash = _hash_token(payload.token)
     invite = db.query(OrgInvite).filter(OrgInvite.token_hash == token_hash).first()
     if not invite:
         raise HTTPException(status_code=404, detail="Invite not found")
-    if invite.accepted_at:
+    if invite.status == "accepted" or invite.accepted_at:
         raise HTTPException(status_code=400, detail="Invite already accepted")
     now = datetime.now(timezone.utc)
     if invite.expires_at <= now:
+        invite.status = "expired"
+        db.commit()
         raise HTTPException(status_code=400, detail="Invite expired")
+
+    if user is None:
+        if not payload.password:
+            raise HTTPException(status_code=401, detail="Password required to create user")
+        existing = db.query(User).filter(User.email == invite.invited_email).first()
+        if existing:
+            raise HTTPException(status_code=401, detail="Login required to accept invite")
+        user = User(
+            email=invite.invited_email,
+            password_hash=get_password_hash(payload.password),
+            is_active=True,
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
 
     membership = (
         db.query(Membership)
@@ -224,6 +253,7 @@ def accept_invite(
 
     invite.accepted_at = now
     invite.accepted_by_user_id = user.id
+    invite.status = "accepted"
     if not user.active_organization_id:
         user.active_organization_id = invite.organization_id
     db.commit()
@@ -253,7 +283,7 @@ def list_members(
             user_id=member.user_id,
             email=user_row.email,
             role=member.role,
-            created_at=user_row.created_at,
+            created_at=member.created_at,
         )
         for member, user_row in members
     ]

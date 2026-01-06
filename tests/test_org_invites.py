@@ -52,6 +52,29 @@ def test_org_invite_accept_flow(client: TestClient):
     assert any(member["email"] == "invitee@example.com" for member in members.json())
 
 
+def test_invite_flow_new_user(client: TestClient):
+    token_owner = _register_and_login(client, "owner_new_user@example.com")
+    org_id = _create_org(client, token_owner, "New User Org")
+
+    invite_resp = client.post(
+        f"/api/orgs/{org_id}/invites",
+        json={"email": "new_user@example.com", "role": "member"},
+        headers={"Authorization": f"Bearer {token_owner}"},
+    )
+    assert invite_resp.status_code == 201
+    invite_token = invite_resp.json()["invite_token"]
+
+    accept_resp = client.post(
+        "/api/orgs/invites/accept",
+        json={"token": invite_token, "password": "secret123"},
+    )
+    assert accept_resp.status_code == 200
+    assert accept_resp.json()["id"] == org_id
+
+    login = client.post("/api/auth/login", json={"email": "new_user@example.com", "password": "secret123"})
+    assert login.status_code == 200
+
+
 def test_rbac_viewer_cannot_write(client: TestClient):
     token_owner = _register_and_login(client, "owner_viewer@example.com")
     org_id = _create_org(client, token_owner, "Viewer Org")
@@ -89,6 +112,34 @@ def test_rbac_viewer_cannot_write(client: TestClient):
         headers=headers,
     )
     assert create_sync.status_code == 403
+
+
+def test_rbac_invites_only_admin(client: TestClient):
+    token_owner = _register_and_login(client, "owner_invite_only@example.com")
+    org_id = _create_org(client, token_owner, "Invite RBAC Org")
+
+    invite_resp = client.post(
+        f"/api/orgs/{org_id}/invites",
+        json={"email": "viewer_invite@example.com", "role": "viewer"},
+        headers={"Authorization": f"Bearer {token_owner}"},
+    )
+    assert invite_resp.status_code == 201
+    invite_token = invite_resp.json()["invite_token"]
+
+    token_viewer = _register_and_login(client, "viewer_invite@example.com")
+    accept_resp = client.post(
+        "/api/orgs/invites/accept",
+        json={"token": invite_token},
+        headers={"Authorization": f"Bearer {token_viewer}"},
+    )
+    assert accept_resp.status_code == 200
+
+    forbidden = client.post(
+        f"/api/orgs/{org_id}/invites",
+        json={"email": "another@example.com", "role": "member"},
+        headers={"Authorization": f"Bearer {token_viewer}"},
+    )
+    assert forbidden.status_code == 403
 
 
 def test_cross_org_access_hidden(client: TestClient):

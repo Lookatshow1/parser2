@@ -32,6 +32,28 @@ def get_current_user(
     return user
 
 
+def get_optional_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
+) -> User | None:
+    if not credentials:
+        return None
+    if credentials.scheme.lower() != "bearer":
+        raise HTTPException(status_code=401, detail="Invalid token")
+    token = credentials.credentials
+    try:
+        payload = decode_access_token(token)
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    subject = payload.get("sub")
+    if not subject:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    user = db.query(User).get(int(subject))
+    if not user or not user.is_active:
+        raise HTTPException(status_code=401, detail="Inactive user")
+    return user
+
+
 def get_current_org(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),

@@ -85,6 +85,7 @@ class Membership(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
     role: Mapped[MembershipRole] = mapped_column(String(50), nullable=False, default=MembershipRole.member.value)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     __table_args__ = (
         UniqueConstraint("organization_id", "user_id", name="uq_org_member"),
@@ -100,6 +101,7 @@ class OrgInvite(Base):
     organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
     invited_email: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[MembershipRole] = mapped_column(String(50), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
     token_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -159,6 +161,10 @@ class Connection(Base):
 
     advertiser: Mapped[Advertiser | None] = relationship(back_populates="connections")
     plans: Mapped[list["CampaignPlan"]] = relationship(back_populates="connection")
+
+    @property
+    def credentials_present(self) -> bool:
+        return bool(self.credentials_json)
 
 
 class CampaignPlan(Base):
