@@ -41,3 +41,9 @@ def get_connection_sync_lock_key(connection_id: int, platform: str) -> int:
     raw_str = f"sync:connection:{connection_id}:{_normalize_platform(platform)}"
     hash_bytes = hashlib.sha256(raw_str.encode("utf-8")).digest()
     return int.from_bytes(hash_bytes[:8], byteorder="big", signed=True)
+
+
+def get_auto_sync_lock_key(connection_id: int) -> int:
+    raw_str = f"auto_sync:{connection_id}"
+    hash_bytes = hashlib.sha256(raw_str.encode("utf-8")).digest()
+    return int.from_bytes(hash_bytes[:8], byteorder="big", signed=True)

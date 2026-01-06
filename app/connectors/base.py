@@ -4,6 +4,8 @@ from abc import ABC, abstractmethod
 from datetime import date
 from typing import List, Dict, Any, TypedDict
 
+from pydantic import BaseModel
+
 from app.db.models import MetricSnapshot, Platform
 
 
@@ -23,6 +25,10 @@ class MetricRecord(TypedDict):
 
 
 class AdsConnector(ABC):
+    @abstractmethod
+    def credential_schema(self) -> type[BaseModel]:
+        raise NotImplementedError
+
     @abstractmethod
     def validate_connection(self, credentials_json: dict) -> dict:
         raise NotImplementedError

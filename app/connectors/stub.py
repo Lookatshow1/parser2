@@ -2,12 +2,16 @@ from datetime import timedelta
 from typing import Any
 
 from app.connectors.base import AdsConnector, MetricRecord
+from app.connectors.credentials import StubCredentials
 from app.db.models import Platform
 
 
 class StubConnector(AdsConnector):
     def __init__(self, credentials: dict | None = None):
         self.credentials = credentials or {}
+
+    def credential_schema(self):
+        return StubCredentials
 
     def validate_connection(self, credentials_json: dict) -> dict:
         return {"ok": True}

@@ -7,8 +7,10 @@ from datetime import date, datetime, timedelta
 from typing import List, Dict, Any
 
 import httpx
+from pydantic import ValidationError
 
 from app.connectors.base import AdsConnector, MetricRecord
+from app.connectors.credentials import YandexCredentials
 from app.core.config import get_settings
 from app.db.models import MetricSnapshot, Platform
 
@@ -20,13 +22,17 @@ class YandexDirectConnector(AdsConnector):
         self.login = self.credentials.get("login")
         self.is_mock = os.getenv("YANDEX_DIRECT_MOCK", "0") == "1"
 
+    def credential_schema(self):
+        return YandexCredentials
+
     def validate_connection(self, credentials_json: dict) -> dict:
-        token = credentials_json.get("token")
-        if not token:
+        try:
+            self.credential_schema().model_validate(credentials_json)
+        except ValidationError as exc:
             return {
                 "ok": False,
-                "error_code": "missing_token",
-                "message": "Yandex credentials require 'token'",
+                "error_code": "invalid_credentials",
+                "message": exc.errors()[0]["msg"],
             }
         return {"ok": True}
 

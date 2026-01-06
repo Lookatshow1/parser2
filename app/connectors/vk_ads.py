@@ -3,7 +3,10 @@ from __future__ import annotations
 import os
 from datetime import date, timedelta
 
+from pydantic import ValidationError
+
 from app.connectors.base import AdsConnector, MetricRecord
+from app.connectors.credentials import VkCredentials
 from app.connectors.vk_ads_client import VkAdsClient
 from app.db.models import MetricSnapshot, Platform
 
@@ -13,14 +16,17 @@ class VkAdsConnector(AdsConnector):
         self._credentials = credentials_json
         self.is_mock = os.getenv("VK_ADS_MOCK", "0") == "1"
 
+    def credential_schema(self):
+        return VkCredentials
+
     def validate_connection(self, credentials_json: dict) -> dict:
-        access_token = credentials_json.get("access_token")
-        version = credentials_json.get("version")
-        if not access_token or not version:
+        try:
+            self.credential_schema().model_validate(credentials_json)
+        except ValidationError as exc:
             return {
                 "ok": False,
-                "error_code": "missing_credentials",
-                "message": "VK credentials require 'access_token' and 'version'",
+                "error_code": "invalid_credentials",
+                "message": exc.errors()[0]["msg"],
             }
         return {"ok": True}
 

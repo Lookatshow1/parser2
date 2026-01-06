@@ -1,4 +1,3 @@
-import os
 from datetime import date, timedelta
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -7,11 +6,10 @@ from sqlalchemy.orm import Session
 
 from app.api.schemas import ConnectionSyncRunCreateRequest, SyncRunResponse
 from app.api.deps import get_current_membership, get_current_org, get_current_user
-from app.db.models import Connection, SyncRun, SyncRunStatus, SyncRunType, Organization, User
+from app.db.models import Connection, SyncRun, SyncRunStatus, Organization, User
 from app.db.session import get_db
-from app.jobs.service import create_job
 from app.services.rbac import can_run_sync
-from app.workers.sync_tasks import execute_sync_run
+from app.services.sync_run_service import create_connection_sync_run
 
 router = APIRouter(prefix="/sync-runs", tags=["sync-runs"])
 
@@ -38,31 +36,13 @@ def create_sync_run(
         date_from = date_to - timedelta(days=2)
         params.setdefault("date_from", date_from.isoformat())
         params.setdefault("date_to", date_to.isoformat())
-
-    job = create_job(
-        db,
-        job_type="connection_sync",
-        context={"connection_id": connection.id, **params},
-        organization_id=connection.organization_id,
-        connection_id=connection.id,
+    return create_connection_sync_run(
+        db=db,
+        connection=connection,
+        date_from=date.fromisoformat(str(params["date_from"])),
+        date_to=date.fromisoformat(str(params["date_to"])),
+        force=bool(params.get("force", False)),
     )
-    params["job_run_id"] = job.id
-
-    run = SyncRun(
-        organization_id=connection.organization_id,
-        connection_id=connection.id,
-        platform=connection.platform,
-        run_type=SyncRunType.metrics,
-        status=SyncRunStatus.queued,
-        params_json=params,
-    )
-    db.add(run)
-    db.commit()
-    db.refresh(run)
-
-    if not os.getenv("PYTEST_CURRENT_TEST"):
-        execute_sync_run.delay(run.id)
-    return run
 
 
 @router.get("/{run_id}", response_model=SyncRunResponse)

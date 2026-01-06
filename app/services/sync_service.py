@@ -157,6 +157,7 @@ def sync_connection_metrics(
     stats = {"inserted": 0, "updated": 0, "unchanged": 0, "total": len(records)}
 
     for record in records:
+        metrics_payload = record.get("metrics") if isinstance(record.get("metrics"), dict) else record
         record_date = record.get("date")
         if isinstance(record_date, str):
             record_date = date.fromisoformat(record_date)
@@ -164,7 +165,7 @@ def sync_connection_metrics(
             raise ValueError("Metric record missing date")
 
         level = record.get("level") or "campaign"
-        campaign_external_id = record.get("campaign_external_id")
+        campaign_external_id = record.get("campaign_external_id") or record.get("entity_external_id")
         if not campaign_external_id:
             raise ValueError("Metric record missing campaign_external_id")
 
@@ -185,12 +186,12 @@ def sync_connection_metrics(
             campaign_external_id=str(campaign_external_id),
             ad_group_external_id=str(ad_group_external_id) if ad_group_external_id is not None else None,
             ad_external_id=str(ad_external_id) if ad_external_id is not None else None,
-            impressions=int(record.get("impressions") or 0),
-            clicks=int(record.get("clicks") or 0),
-            spend=int(float(record.get("spend") or 0)),
-            leads=int(float(record.get("leads") or 0)),
-            purchases=int(float(record.get("purchases") or 0)),
-            revenue=int(float(record.get("revenue") or 0)),
+            impressions=int(metrics_payload.get("impressions") or 0),
+            clicks=int(metrics_payload.get("clicks") or 0),
+            spend=int(float(metrics_payload.get("spend") or metrics_payload.get("cost") or 0)),
+            leads=int(float(metrics_payload.get("leads") or 0)),
+            purchases=int(float(metrics_payload.get("purchases") or metrics_payload.get("conversions") or 0)),
+            revenue=int(float(metrics_payload.get("revenue") or 0)),
         )
 
         if level == "campaign":

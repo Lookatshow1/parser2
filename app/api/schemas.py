@@ -3,24 +3,25 @@ from decimal import Decimal
 from uuid import UUID
 from typing import Optional, Any, List
 
-from pydantic import BaseModel, Field, model_validator, EmailStr
+from pydantic import BaseModel, Field, model_validator, EmailStr, ValidationError
 
 from app.db.models import Platform, SyncRunType, SyncRunStatus, ConnectionStatus
 from app.db.models import MembershipRole
+from app.connectors.credentials import get_credentials_model
 
 
 def validate_credentials_for_platform(platform: Platform, credentials_json: dict) -> None:
-    if platform == Platform.yandex:
-        if not credentials_json.get("token"):
-            raise ValueError("Yandex credentials require 'token'")
-    elif platform == Platform.ozon:
-        if not credentials_json.get("client_id") or not credentials_json.get("client_secret"):
-            raise ValueError("Ozon credentials require 'client_id' and 'client_secret'")
-    elif platform == Platform.vk:
-        if not credentials_json.get("access_token") or not credentials_json.get("version"):
-            raise ValueError("VK credentials require 'access_token' and 'version'")
-    elif platform == Platform.stub:
-        return
+    try:
+        model = get_credentials_model(platform)
+    except ValueError as exc:
+        raise ValueError(str(exc)) from exc
+    try:
+        model.model_validate(credentials_json or {})
+    except ValidationError as exc:
+        missing_fields = [err["loc"][-1] for err in exc.errors() if err.get("type") == "missing"]
+        if missing_fields:
+            raise ValueError(f"Missing fields: {', '.join(missing_fields)}") from exc
+        raise ValueError(exc.errors()[0]["msg"]) from exc
 
 
 class ConnectionTestRequest(BaseModel):
@@ -45,6 +46,9 @@ class ConnectionCreateRequest(BaseModel):
     platform: Platform
     name: str | None = None
     credentials_json: dict
+    auto_sync_enabled: bool = False
+    auto_sync_every_minutes: int = Field(default=1440, ge=1)
+    auto_sync_window_days: int = Field(default=3, ge=1)
 
     @model_validator(mode="after")
     def _validate_credentials(self):
@@ -60,6 +64,10 @@ class ConnectionOut(BaseModel):
     name: str | None = None
     status: ConnectionStatus
     credentials_present: bool
+    auto_sync_enabled: bool
+    auto_sync_every_minutes: int
+    auto_sync_window_days: int
+    last_auto_sync_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -69,6 +77,13 @@ class ConnectionOut(BaseModel):
 
 class ConnectionListResponse(BaseModel):
     items: list[ConnectionOut]
+
+
+class ConnectionUpdateRequest(BaseModel):
+    name: str | None = None
+    auto_sync_enabled: bool | None = None
+    auto_sync_every_minutes: int | None = Field(default=None, ge=1)
+    auto_sync_window_days: int | None = Field(default=None, ge=1)
 
 
 class ConnectionSyncRequest(BaseModel):
@@ -367,6 +382,7 @@ class DashboardTotals(BaseModel):
     cpc: float | None = None
     cpm: float | None = None
     cpa: float | None = None
+    roas: float | None = None
 
 
 class DashboardDailyItem(BaseModel):
@@ -381,14 +397,21 @@ class DashboardDailyItem(BaseModel):
     cpc: float | None = None
     cpm: float | None = None
     cpa: float | None = None
+    roas: float | None = None
+
+
+class DashboardConnectionTotals(BaseModel):
+    connection_id: int
+    totals: DashboardTotals
 
 
 class DashboardSummaryResponse(BaseModel):
-    connection_id: int
+    connection_id: int | None = None
     date_from: dt_date
     date_to: dt_date
     totals: DashboardTotals
     daily: list[DashboardDailyItem]
+    connections: list[DashboardConnectionTotals] | None = None
 
 
 class ErirDevRegisterRequest(BaseModel):

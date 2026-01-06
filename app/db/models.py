@@ -147,6 +147,10 @@ class Connection(Base):
     credentials_json: Mapped[dict] = mapped_column(JSONType, nullable=False)
     credentials_encrypted: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
     credentials_version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    auto_sync_enabled: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"), nullable=False)
+    auto_sync_every_minutes: Mapped[int] = mapped_column(Integer, default=1440, server_default="1440", nullable=False)
+    auto_sync_window_days: Mapped[int] = mapped_column(Integer, default=3, server_default="3", nullable=False)
+    last_auto_sync_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     status: Mapped[ConnectionStatus] = mapped_column(
         Enum(ConnectionStatus, name="connection_status_enum", native_enum=False),
         default=ConnectionStatus.active,

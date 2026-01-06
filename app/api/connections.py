@@ -1,24 +1,23 @@
-import os
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from app.db.session import get_db
-from app.db.models import Connection, ConnectionStatus, SyncRun, SyncRunStatus, SyncRunType
+from app.db.models import Connection, ConnectionStatus, SyncRun
 from app.api.schemas import (
     ConnectionCreateRequest,
     ConnectionOut,
     ConnectionListResponse,
     ConnectionTestResponse,
     ConnectionSyncRequest,
+    ConnectionUpdateRequest,
     SyncRunListResponse,
     SyncRunResponse,
 )
 from app.api.deps import get_current_membership, get_current_org, get_current_user
 from app.db.models import Organization, User
-from app.jobs.service import create_job
 from app.services.connector_service import get_connector
+from app.services.sync_run_service import create_connection_sync_run
 from app.services.rbac import can_run_sync, can_write_connections
-from app.workers.sync_tasks import execute_sync_run
 
 router = APIRouter(prefix="/connections", tags=["connections"])
 
@@ -37,12 +36,42 @@ def create_connection(
         advertiser_id=item.advertiser_id,
         platform=item.platform,
         name=item.name,
-        credentials_json=item.credentials_json
+        credentials_json=item.credentials_json,
+        auto_sync_enabled=item.auto_sync_enabled,
+        auto_sync_every_minutes=item.auto_sync_every_minutes,
+        auto_sync_window_days=item.auto_sync_window_days,
     )
     db.add(db_obj)
     db.commit()
     db.refresh(db_obj)
     return db_obj
+
+
+@router.patch("/{connection_id}", response_model=ConnectionOut)
+def update_connection(
+    connection_id: int,
+    payload: ConnectionUpdateRequest,
+    db: Session = Depends(get_db),
+    org: Organization = Depends(get_current_org),
+    user: User = Depends(get_current_user),
+    membership=Depends(get_current_membership),
+):
+    if not can_write_connections(membership.role):
+        raise HTTPException(status_code=403, detail="Insufficient role to update connection")
+    conn = db.query(Connection).filter(Connection.id == connection_id, Connection.organization_id == org.id).first()
+    if not conn:
+        raise HTTPException(status_code=404, detail="Connection not found")
+    if payload.name is not None:
+        conn.name = payload.name
+    if payload.auto_sync_enabled is not None:
+        conn.auto_sync_enabled = payload.auto_sync_enabled
+    if payload.auto_sync_every_minutes is not None:
+        conn.auto_sync_every_minutes = payload.auto_sync_every_minutes
+    if payload.auto_sync_window_days is not None:
+        conn.auto_sync_window_days = payload.auto_sync_window_days
+    db.commit()
+    db.refresh(conn)
+    return conn
 
 @router.get("", response_model=ConnectionListResponse)
 def list_connections(
@@ -109,37 +138,13 @@ def create_connection_sync_run(
     if not conn:
         raise HTTPException(status_code=404, detail="Connection not found")
 
-    context = {
-        "connection_id": conn.id,
-        "date_from": payload.date_from.isoformat(),
-        "date_to": payload.date_to.isoformat(),
-        "force": payload.force,
-    }
-    job = create_job(
-        db,
-        job_type="connection_sync",
-        context=context,
-        organization_id=conn.organization_id,
-        connection_id=conn.id,
+    run = create_connection_sync_run(
+        db=db,
+        connection=conn,
+        date_from=payload.date_from,
+        date_to=payload.date_to,
+        force=payload.force,
     )
-
-    params = dict(context)
-    params["job_run_id"] = job.id
-
-    run = SyncRun(
-        organization_id=conn.organization_id,
-        connection_id=conn.id,
-        platform=conn.platform,
-        run_type=SyncRunType.metrics,
-        status=SyncRunStatus.queued,
-        params_json=params,
-    )
-    db.add(run)
-    db.commit()
-    db.refresh(run)
-
-    if not os.getenv("PYTEST_CURRENT_TEST"):
-        execute_sync_run.delay(run.id)
     return run
 
 @router.get("/{connection_id}/sync-runs", response_model=SyncRunListResponse)

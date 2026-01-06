@@ -2,7 +2,7 @@
 
 up:
 	@$(MAKE) doctor
-	docker compose up -d db redis api worker web
+	docker compose up -d db redis api worker web beat
 
 down:
 	@$(MAKE) doctor

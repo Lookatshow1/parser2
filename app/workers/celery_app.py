@@ -18,9 +18,18 @@ celery_app.conf.imports = (
     "app.workers.experiment_tasks",
     "app.workers.yandex_tasks",
     "app.workers.tasks",
+    "app.workers.auto_sync_tasks",
 )
 celery_app.conf.task_routes = {
-    "app.workers.sync_tasks.execute_sync_run": "main-queue"
+    "app.workers.sync_tasks.execute_sync_run": "main-queue",
+    "app.workers.auto_sync_tasks.run_auto_sync_scheduler": "main-queue",
+}
+
+celery_app.conf.beat_schedule = {
+    "auto-sync-scheduler": {
+        "task": "app.workers.auto_sync_tasks.run_auto_sync_scheduler",
+        "schedule": 60.0,
+    },
 }
 
 if os.getenv("PYTEST_CURRENT_TEST"):

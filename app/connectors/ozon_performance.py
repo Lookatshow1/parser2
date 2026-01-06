@@ -4,7 +4,10 @@ import os
 from datetime import date, timedelta
 from typing import List, Dict, Any
 
+from pydantic import ValidationError
+
 from app.connectors.base import AdsConnector, MetricRecord
+from app.connectors.credentials import OzonCredentials
 from app.db.models import MetricSnapshot, Platform
 
 
@@ -15,14 +18,17 @@ class OzonPerformanceConnector(AdsConnector):
         self.client_secret = self.credentials.get("client_secret")
         self.is_mock = os.getenv("OZON_PERF_MOCK", "0") == "1"
 
+    def credential_schema(self):
+        return OzonCredentials
+
     def validate_connection(self, credentials_json: dict) -> dict:
-        client_id = credentials_json.get("client_id")
-        client_secret = credentials_json.get("client_secret")
-        if not client_id or not client_secret:
+        try:
+            self.credential_schema().model_validate(credentials_json)
+        except ValidationError as exc:
             return {
                 "ok": False,
-                "error_code": "missing_credentials",
-                "message": "Ozon credentials require 'client_id' and 'client_secret'",
+                "error_code": "invalid_credentials",
+                "message": exc.errors()[0]["msg"],
             }
         return {"ok": True}
 
