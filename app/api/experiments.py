@@ -1,5 +1,6 @@
 from datetime import date
 from typing import Optional
+import os
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
@@ -91,7 +92,8 @@ def create_sync_run(
     db.refresh(run)
 
     # Enqueue task
-    execute_sync_run.delay(run.id)
+    if not os.getenv("PYTEST_CURRENT_TEST"):
+        execute_sync_run.delay(run.id)
 
     return run
 

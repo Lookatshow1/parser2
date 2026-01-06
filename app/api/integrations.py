@@ -20,7 +20,7 @@ from app.connectors.yandex_direct_reports import (
     parse_tsv_metrics,
 )
 from app.core.config import get_settings
-from app.db.models import Connection, Platform
+from app.db.models import Connection, MetricSnapshot, Platform
 from app.db.session import get_db
 from app.workers.yandex_tasks import sync_yandex_metrics
 
@@ -94,13 +94,30 @@ def sync_vk_stats(payload: VkStatsSyncRequest, session: Session = Depends(get_db
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except VkApiError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
-    for m in metrics:
-        m.organization_id = connection.organization_id
-        m.plan_id = payload.plan_id
-        m.connection_id = payload.connection_id
-        m.level = "campaign"
 
-    session.add_all(metrics)
+    snapshots = []
+    for m in metrics:
+        snapshots.append(
+            MetricSnapshot(
+                organization_id=connection.organization_id,
+                connection_id=payload.connection_id,
+                plan_id=payload.plan_id,
+                platform=connection.platform,
+                date=m["date"],
+                level=m.get("level") or "campaign",
+                campaign_external_id=str(m["campaign_external_id"]),
+                ad_group_external_id=m.get("ad_group_external_id"),
+                ad_external_id=m.get("ad_external_id"),
+                impressions=m["impressions"],
+                clicks=m["clicks"],
+                spend=m["spend"],
+                leads=m["leads"],
+                purchases=m["purchases"],
+                revenue=m["revenue"],
+            )
+        )
+
+    session.add_all(snapshots)
     session.commit()
     return VkStatsSyncResponse(rows=len(metrics), saved=len(metrics))
 

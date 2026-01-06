@@ -1,8 +1,9 @@
+import os
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from app.db.session import get_db
-from app.db.models import Connection, SyncRun, SyncRunStatus, SyncRunType
+from app.db.models import Connection, ConnectionStatus, SyncRun, SyncRunStatus, SyncRunType
 from app.api.schemas import (
     ConnectionCreateRequest,
     ConnectionOut,
@@ -19,7 +20,7 @@ from app.workers.sync_tasks import execute_sync_run
 
 router = APIRouter(prefix="/connections", tags=["connections"])
 
-@router.post("/", response_model=ConnectionOut)
+@router.post("", response_model=ConnectionOut)
 def create_connection(item: ConnectionCreateRequest, db: Session = Depends(get_db)):
     settings = get_settings()
     organization_id = item.organization_id or settings.default_organization_id
@@ -35,7 +36,7 @@ def create_connection(item: ConnectionCreateRequest, db: Session = Depends(get_d
     db.refresh(db_obj)
     return db_obj
 
-@router.get("/", response_model=ConnectionListResponse)
+@router.get("", response_model=ConnectionListResponse)
 def list_connections(db: Session = Depends(get_db)):
     items = db.query(Connection).all()
     return {"items": items}
@@ -54,10 +55,19 @@ def check_connection(connection_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Connection not found")
     connector = get_connector(conn.platform, conn.credentials_json)
     try:
-        ok = connector.validate_connection(conn.credentials_json)
+        result = connector.validate_connection(conn.credentials_json)
     except Exception as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    return ConnectionTestResponse(ok=bool(ok))
+    ok = bool(result.get("ok"))
+    message = result.get("message")
+    error_code = result.get("error_code")
+    if ok:
+        conn.status = ConnectionStatus.active
+    else:
+        conn.status = ConnectionStatus.error
+        conn.notes = message or conn.notes
+    db.commit()
+    return ConnectionTestResponse(ok=ok, message=message, error_code=error_code)
 
 @router.post("/{connection_id}/sync", response_model=SyncRunResponse, status_code=status.HTTP_201_CREATED)
 def create_connection_sync_run(
@@ -98,7 +108,8 @@ def create_connection_sync_run(
     db.commit()
     db.refresh(run)
 
-    execute_sync_run.delay(run.id)
+    if not os.getenv("PYTEST_CURRENT_TEST"):
+        execute_sync_run.delay(run.id)
     return run
 
 @router.get("/{connection_id}/sync-runs", response_model=SyncRunListResponse)

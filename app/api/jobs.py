@@ -12,10 +12,13 @@ from app.jobs.service import create_job, mark_running, mark_succeeded, mark_fail
 router = APIRouter()
 
 @router.get("/jobs", response_model=JobRunListOut)
+@router.get("/job-runs", response_model=JobRunListOut)
 def list_jobs(
     limit: int = Query(50, le=200),
     status: Optional[JobStatus] = None,
     job_type: Optional[str] = None,
+    organization_id: Optional[int] = Query(None, ge=1),
+    connection_id: Optional[int] = Query(None, ge=1),
     db: Session = Depends(get_db)
 ):
     query = db.query(JobRun)
@@ -24,11 +27,16 @@ def list_jobs(
         query = query.filter(JobRun.status == status)
     if job_type:
         query = query.filter(JobRun.job_type == job_type)
+    if organization_id:
+        query = query.filter(JobRun.organization_id == organization_id)
+    if connection_id:
+        query = query.filter(JobRun.connection_id == connection_id)
 
     jobs = query.order_by(desc(JobRun.created_at)).limit(limit).all()
     return {"items": jobs}
 
 @router.get("/jobs/{job_id}", response_model=JobRunOut)
+@router.get("/job-runs/{job_id}", response_model=JobRunOut)
 def get_job(job_id: int, db: Session = Depends(get_db)):
     job = db.query(JobRun).filter(JobRun.id == job_id).first()
     if not job:

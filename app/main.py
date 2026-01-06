@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request, HTTPException, APIRouter
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.encoders import jsonable_encoder
 
 from app.api.connections import router as connections_router
 from app.api.connectors import router as connectors_router
@@ -37,6 +38,7 @@ def create_app() -> FastAPI:
     )
     app.include_router(health_router)
     api_router = APIRouter(prefix="/api")
+    api_router.include_router(health_router)
     api_router.include_router(connections_router)
     api_router.include_router(connectors_router)
     api_router.include_router(compliance_router)
@@ -50,10 +52,6 @@ def create_app() -> FastAPI:
     api_router.include_router(dev_router)
     api_router.include_router(jobs_router)
     api_router.include_router(sync_runs_router)
-
-    @api_router.get("/health", response_model=HealthResponse)
-    def api_health():
-        return HealthResponse(status="ok")
 
     @api_router.get("/version", response_model=ApiVersionResponse)
     def api_version():
@@ -99,7 +97,7 @@ def create_app() -> FastAPI:
                 "error": {
                     "code": "validation_error",
                     "message": "Validation failed",
-                    "details": exc.errors(),
+                    "details": jsonable_encoder(exc.errors()),
                 }
             },
         )

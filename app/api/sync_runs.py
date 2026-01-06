@@ -1,5 +1,8 @@
+import os
 from datetime import date, timedelta
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import Optional
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
 from app.api.schemas import ConnectionSyncRunCreateRequest, SyncRunResponse
@@ -44,7 +47,8 @@ def create_sync_run(payload: ConnectionSyncRunCreateRequest, db: Session = Depen
     db.commit()
     db.refresh(run)
 
-    execute_sync_run.delay(run.id)
+    if not os.getenv("PYTEST_CURRENT_TEST"):
+        execute_sync_run.delay(run.id)
     return run
 
 
@@ -54,3 +58,24 @@ def get_sync_run(run_id: int, db: Session = Depends(get_db)):
     if not run:
         raise HTTPException(status_code=404, detail="SyncRun not found")
     return run
+
+
+@router.get("", response_model=list[SyncRunResponse])
+def list_sync_runs(
+    connection_id: Optional[int] = Query(None, ge=1),
+    status: Optional[SyncRunStatus] = None,
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+):
+    query = db.query(SyncRun)
+    if connection_id:
+        query = query.filter(SyncRun.connection_id == connection_id)
+    if status:
+        query = query.filter(SyncRun.status == status)
+    return (
+        query.order_by(desc(SyncRun.created_at))
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )

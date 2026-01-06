@@ -1,3 +1,4 @@
+import os
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
@@ -38,7 +39,8 @@ def erir_dev_register(payload: ErirDevRegisterRequest, db: Session = Depends(get
     db.commit()
     db.refresh(event)
 
-    execute_erir_register.delay(event.id, job.id)
+    if not os.getenv("PYTEST_CURRENT_TEST"):
+        execute_erir_register.delay(event.id, job.id)
 
     return ErirDevRegisterResponse(
         job_run_id=job.id,

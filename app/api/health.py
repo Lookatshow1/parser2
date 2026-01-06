@@ -59,3 +59,14 @@ def health_check(session: Session = Depends(get_db)):
             head=head_rev
         )
     )
+
+
+@router.get("/healthz")
+def healthz_check(session: Session = Depends(get_db)):
+    try:
+        session.execute(text("SELECT 1"))
+        db_status = "ok"
+    except Exception:
+        db_status = "error"
+    status = "ok" if db_status == "ok" else "error"
+    return {"status": status, "db": db_status}

@@ -1,4 +1,4 @@
-from datetime import datetime, date
+from datetime import datetime, date as dt_date
 from decimal import Decimal
 from uuid import UUID
 from typing import Optional, Any, List
@@ -34,6 +34,8 @@ class ConnectionTestRequest(BaseModel):
 
 class ConnectionTestResponse(BaseModel):
     ok: bool
+    message: str | None = None
+    error_code: str | None = None
 
 
 class ConnectionCreateRequest(BaseModel):
@@ -68,8 +70,8 @@ class ConnectionListResponse(BaseModel):
 
 
 class ConnectionSyncRequest(BaseModel):
-    date_from: date
-    date_to: date
+    date_from: dt_date
+    date_to: dt_date
     force: bool = False
 
 
@@ -130,8 +132,8 @@ class PlanCreateRequest(BaseModel):
     platform: Platform
     budget: Decimal | None = Field(default=None, ge=0)
     currency: str = Field(default="RUB", min_length=1, max_length=10)
-    start_date: date | None = None
-    end_date: date | None = None
+    start_date: dt_date | None = None
+    end_date: dt_date | None = None
     internal_code: str | None = Field(default=None, max_length=64)
 
 
@@ -142,8 +144,8 @@ class PlanResponse(BaseModel):
     platform: Platform
     budget: Decimal | None = None
     currency: str
-    start_date: date | None = None
-    end_date: date | None = None
+    start_date: dt_date | None = None
+    end_date: dt_date | None = None
     internal_code: str | None = None
     created_at: datetime
     updated_at: datetime
@@ -249,7 +251,7 @@ class DashboardTotals(BaseModel):
 
 
 class DashboardDailyItem(BaseModel):
-    date: date
+    date: dt_date
     impressions: int
     clicks: int
     spend: int
@@ -260,8 +262,8 @@ class DashboardDailyItem(BaseModel):
 
 class DashboardSummaryResponse(BaseModel):
     connection_id: int
-    date_from: date
-    date_to: date
+    date_from: dt_date
+    date_to: dt_date
     totals: DashboardTotals
     daily: list[DashboardDailyItem]
 
@@ -349,7 +351,7 @@ class ExperimentCampaignsResponse(BaseModel):
 
 
 class MetricAggregateItem(BaseModel):
-    date: date | None = None
+    date: dt_date | None = None
     campaign_external_id: str | None = None
     impressions: int
     clicks: int
@@ -381,8 +383,8 @@ class ExperimentSummaryResponse(BaseModel):
 class SyncRunCreateRequest(BaseModel):
     platform: Platform
     run_type: SyncRunType
-    date_from: date | None = None
-    date_to: date | None = None
+    date_from: dt_date | None = None
+    date_to: dt_date | None = None
 
 
 class ConnectionSyncRunCreateRequest(BaseModel):

@@ -58,6 +58,7 @@ export type PlanResponse = {
 export type ExperimentListItem = {
   id: number;
   status: string;
+  plan_id: number | null;
   project_id: number | null;
   total_budget: number | null;
 };
@@ -67,6 +68,16 @@ export type ExperimentReport = {
   status: string;
   rounds: Array<{ round_index: number; budget_plan: Record<string, number>; started_at: string | null; ended_at: string | null }>;
   metrics: Array<{ date: string; platform: string; impressions: number; clicks: number; spend: number }>;
+};
+
+export type JobRunItem = {
+  id: number;
+  job_type: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  error_text?: string | null;
+  result_json?: Record<string, unknown> | null;
 };
 
 export async function listConnections() {
@@ -85,7 +96,7 @@ export async function createConnection(payload: {
 }
 
 export async function testConnection(connectionId: number) {
-  return request<{ ok: boolean }>(`/connections/${connectionId}/check`, {
+  return request<{ ok: boolean; message?: string | null; error_code?: string | null }>(`/connections/${connectionId}/check`, {
     method: "POST",
   });
 }
@@ -116,9 +127,33 @@ export async function getSyncRun(runId: number) {
 }
 
 export async function listConnectionSyncRuns(connectionId: number) {
-  return request<{ items: Array<{ id: number; status: string; run_type: string; created_at: string }> }>(
-    `/connections/${connectionId}/sync-runs`
+  return request<Array<{ id: number; status: string; run_type: string; created_at: string; result_json?: Record<string, unknown>; error_text?: string | null }>>(
+    `/sync-runs?connection_id=${connectionId}`
   );
+}
+
+export async function listJobRuns(payload: { connection_id?: number; limit?: number }) {
+  const params = new URLSearchParams();
+  if (payload.connection_id) {
+    params.set("connection_id", String(payload.connection_id));
+  }
+  if (payload.limit) {
+    params.set("limit", String(payload.limit));
+  }
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  return request<{ items: JobRunItem[] }>(`/job-runs${suffix}`);
+}
+
+export async function getDashboardSummary(payload: { connection_id: number; date_from: string; date_to: string }) {
+  const params = new URLSearchParams({
+    connection_id: String(payload.connection_id),
+    date_from: payload.date_from,
+    date_to: payload.date_to,
+  });
+  return request<{
+    totals: { impressions: number; clicks: number; spend: number; leads: number; purchases: number; revenue: number };
+    daily: Array<Record<string, unknown>>;
+  }>(`/dashboard/summary?${params.toString()}`);
 }
 
 export async function getMetrics(payload: {

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
   createConnection,
@@ -11,18 +12,18 @@ import {
   ConnectionResponse,
 } from "../../lib/api";
 
-const platforms = ["yandex", "ozon", "vk"];
+const platforms = ["stub", "yandex", "ozon", "vk"];
 
 export default function ConnectionsPage() {
   const [items, setItems] = useState<ConnectionResponse[]>([]);
-  const [platform, setPlatform] = useState("yandex");
+  const [platform, setPlatform] = useState("stub");
   const [credentialsJson, setCredentialsJson] = useState("{}");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [selectedConnectionId, setSelectedConnectionId] = useState<number | null>(null);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [syncRuns, setSyncRuns] = useState<Array<{ id: number; status: string; run_type: string; created_at: string }>>([]);
+  const [syncRuns, setSyncRuns] = useState<Array<{ id: number; status: string; run_type: string; created_at: string; result_json?: Record<string, unknown>; error_text?: string | null }>>([]);
   const [metrics, setMetrics] = useState<Array<Record<string, unknown>>>([]);
   const [loadingRuns, setLoadingRuns] = useState(false);
   const [loadingMetrics, setLoadingMetrics] = useState(false);
@@ -52,6 +53,21 @@ export default function ConnectionsPage() {
     setDateTo(defaultDateRange.to);
   }, []);
 
+  useEffect(() => {
+    if (!selectedConnectionId) {
+      return;
+    }
+    const hasActive = syncRuns.some((run) => run.status === "queued" || run.status === "running");
+    if (!hasActive) {
+      return;
+    }
+    const interval = setInterval(() => {
+      refreshSyncRuns(selectedConnectionId);
+      refreshMetrics(selectedConnectionId);
+    }, 2500);
+    return () => clearInterval(interval);
+  }, [selectedConnectionId, syncRuns]);
+
   const handleCreate = async () => {
     setError(null);
     setNotice(null);
@@ -70,7 +86,11 @@ export default function ConnectionsPage() {
     setNotice(null);
     try {
       const result = await testConnection(connectionId);
-      setNotice(result.ok ? "Connection OK" : "Connection failed");
+      if (result.ok) {
+        setNotice(result.message ? `Connection OK: ${result.message}` : "Connection OK");
+      } else {
+        setError(result.message || result.error_code || "Connection failed");
+      }
     } catch (err) {
       setError((err as Error).message);
     }
@@ -80,7 +100,7 @@ export default function ConnectionsPage() {
     setLoadingRuns(true);
     try {
       const data = await listConnectionSyncRuns(connectionId);
-      setSyncRuns(data.items);
+      setSyncRuns(data);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -147,7 +167,16 @@ export default function ConnectionsPage() {
           />
           <div className="flex gap-2">
             <button onClick={handleCreate}>Create</button>
-            <button onClick={handleTest} className="bg-slate-700 hover:bg-slate-600">
+            <button
+              onClick={() => {
+                if (!selectedConnectionId) {
+                  setError("Select a connection to test");
+                  return;
+                }
+                handleTest(selectedConnectionId);
+              }}
+              className="bg-slate-700 hover:bg-slate-600"
+            >
               Test
             </button>
           </div>
@@ -173,6 +202,12 @@ export default function ConnectionsPage() {
                 >
                   View
                 </button>
+                <Link
+                  href={`/connections/${item.id}`}
+                  className="bg-slate-800 hover:bg-slate-700 text-xs px-3 py-1 rounded"
+                >
+                  Details
+                </Link>
                 <button
                   onClick={() => handleTest(item.id)}
                   className="bg-slate-700 hover:bg-slate-600 text-xs px-3 py-1 rounded"
@@ -216,11 +251,18 @@ export default function ConnectionsPage() {
         ) : (
           <div className="grid gap-2 text-sm">
             {syncRuns.map((run) => (
-              <div key={run.id} className="flex justify-between border-b border-slate-800 pb-2">
+              <div key={run.id} className="grid grid-cols-5 gap-2 border-b border-slate-800 pb-2">
                 <span>#{run.id}</span>
                 <span>{run.run_type}</span>
                 <span>{run.status}</span>
                 <span>{new Date(run.created_at).toLocaleString()}</span>
+                <span>
+                  {run.result_json && "inserted" in run.result_json
+                    ? `${run.result_json.inserted}/${run.result_json.updated}/${run.result_json.unchanged}`
+                    : run.error_text
+                    ? String(run.error_text).slice(0, 80)
+                    : "-"}
+                </span>
               </div>
             ))}
             {syncRuns.length === 0 && <div className="text-slate-400">No sync runs yet.</div>}
