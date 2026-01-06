@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session
 
 from app.api.schemas import MetricAggregateResponse, MetricsSummaryResponse
 from app.db.models import MetricSnapshot
+from app.api.deps import get_current_org, get_current_user
+from app.db.models import Organization, User
 from app.db.session import get_db
 from app.services.metrics_service import get_connection_metrics
 
@@ -20,10 +22,13 @@ def metrics_by_connection(
     group_by: str = Query("day", regex="^(day|campaign|day_campaign)$"),
     campaign_external_id: str | None = Query(None),
     session: Session = Depends(get_db),
+    org: Organization = Depends(get_current_org),
+    user: User = Depends(get_current_user),
 ):
     items = get_connection_metrics(
         session,
         connection_id=connection_id,
+        organization_id=org.id,
         date_from=date_from,
         date_to=date_to,
         group_by=group_by,
@@ -38,6 +43,8 @@ def metrics_summary(
     date_from: date | None = Query(None, description="Начало периода (по умолчанию: 7 дней назад)"),
     date_to: date | None = Query(None, description="Конец периода (по умолчанию: сегодня UTC)"),
     session: Session = Depends(get_db),
+    org: Organization = Depends(get_current_org),
+    user: User = Depends(get_current_user),
 ):
     # Устанавливаем дефолтные значения дат (последние 7 дней)
     if date_to is None:
@@ -56,6 +63,7 @@ def metrics_summary(
             func.sum(MetricSnapshot.revenue).label("revenue_sum"),
         )
         .filter(MetricSnapshot.plan_id == plan_id)
+        .filter(MetricSnapshot.organization_id == org.id)
         .filter(MetricSnapshot.date >= date_from)
         .filter(MetricSnapshot.date <= date_to)
     )

@@ -5,7 +5,8 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.api.schemas import DashboardSummaryResponse, DashboardTotals, DashboardDailyItem
-from app.db.models import MetricSnapshot
+from app.api.deps import get_current_org, get_current_user
+from app.db.models import MetricSnapshot, Organization, User
 from app.db.session import get_db
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
@@ -17,11 +18,14 @@ def dashboard_summary(
     date_from: date = Query(...),
     date_to: date = Query(...),
     session: Session = Depends(get_db),
+    org: Organization = Depends(get_current_org),
+    user: User = Depends(get_current_user),
 ):
     base_query = (
         session.query(MetricSnapshot)
         .filter(
             MetricSnapshot.connection_id == connection_id,
+            MetricSnapshot.organization_id == org.id,
             MetricSnapshot.date >= date_from,
             MetricSnapshot.date <= date_to,
             MetricSnapshot.level == "campaign",

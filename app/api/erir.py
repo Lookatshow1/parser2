@@ -3,8 +3,8 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.api.schemas import ErirDevRegisterRequest, ErirDevRegisterResponse
-from app.core.config import get_settings
-from app.db.models import ErirEvent, ErirStatus
+from app.api.deps import get_current_org, get_current_user
+from app.db.models import ErirEvent, ErirStatus, Organization, User
 from app.db.session import get_db
 from app.jobs.service import create_job
 from app.workers.erir_tasks import execute_erir_register
@@ -13,9 +13,13 @@ router = APIRouter(prefix="/erir", tags=["erir"])
 
 
 @router.post("/dev/register", response_model=ErirDevRegisterResponse)
-def erir_dev_register(payload: ErirDevRegisterRequest, db: Session = Depends(get_db)):
-    settings = get_settings()
-    organization_id = payload.organization_id or settings.default_organization_id
+def erir_dev_register(
+    payload: ErirDevRegisterRequest,
+    db: Session = Depends(get_db),
+    org: Organization = Depends(get_current_org),
+    user: User = Depends(get_current_user),
+):
+    organization_id = org.id
 
     job = create_job(
         db,

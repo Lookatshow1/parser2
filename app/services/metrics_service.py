@@ -143,6 +143,7 @@ def get_experiment_summary(
 def get_connection_metrics(
     db: Session,
     connection_id: int,
+    organization_id: int,
     date_from: date,
     date_to: date,
     group_by: str = "day",
@@ -157,6 +158,7 @@ def get_connection_metrics(
         func.sum(MetricSnapshot.revenue).label("revenue"),
     ).filter(
         MetricSnapshot.connection_id == connection_id,
+        MetricSnapshot.organization_id == organization_id,
         MetricSnapshot.date >= date_from,
         MetricSnapshot.date <= date_to,
         MetricSnapshot.level == "campaign",

@@ -6,7 +6,8 @@ from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
 from app.api.schemas import ConnectionSyncRunCreateRequest, SyncRunResponse
-from app.db.models import Connection, SyncRun, SyncRunStatus, SyncRunType
+from app.api.deps import get_current_org, get_current_user
+from app.db.models import Connection, SyncRun, SyncRunStatus, SyncRunType, Organization, User
 from app.db.session import get_db
 from app.jobs.service import create_job
 from app.workers.sync_tasks import execute_sync_run
@@ -14,8 +15,16 @@ from app.workers.sync_tasks import execute_sync_run
 router = APIRouter(prefix="/sync-runs", tags=["sync-runs"])
 
 @router.post("", response_model=SyncRunResponse, status_code=status.HTTP_201_CREATED)
-def create_sync_run(payload: ConnectionSyncRunCreateRequest, db: Session = Depends(get_db)):
-    connection = db.query(Connection).get(payload.connection_id)
+def create_sync_run(
+    payload: ConnectionSyncRunCreateRequest,
+    db: Session = Depends(get_db),
+    org: Organization = Depends(get_current_org),
+    user: User = Depends(get_current_user),
+):
+    connection = db.query(Connection).filter(
+        Connection.id == payload.connection_id,
+        Connection.organization_id == org.id,
+    ).first()
     if not connection:
         raise HTTPException(status_code=404, detail="Connection not found")
 
@@ -53,8 +62,13 @@ def create_sync_run(payload: ConnectionSyncRunCreateRequest, db: Session = Depen
 
 
 @router.get("/{run_id}", response_model=SyncRunResponse)
-def get_sync_run(run_id: int, db: Session = Depends(get_db)):
-    run = db.query(SyncRun).get(run_id)
+def get_sync_run(
+    run_id: int,
+    db: Session = Depends(get_db),
+    org: Organization = Depends(get_current_org),
+    user: User = Depends(get_current_user),
+):
+    run = db.query(SyncRun).filter(SyncRun.id == run_id, SyncRun.organization_id == org.id).first()
     if not run:
         raise HTTPException(status_code=404, detail="SyncRun not found")
     return run
@@ -67,8 +81,11 @@ def list_sync_runs(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
+    org: Organization = Depends(get_current_org),
+    user: User = Depends(get_current_user),
 ):
     query = db.query(SyncRun)
+    query = query.filter(SyncRun.organization_id == org.id)
     if connection_id:
         query = query.filter(SyncRun.connection_id == connection_id)
     if status:

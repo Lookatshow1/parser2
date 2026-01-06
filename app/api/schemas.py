@@ -6,6 +6,7 @@ from typing import Optional, Any, List
 from pydantic import BaseModel, Field, model_validator
 
 from app.db.models import Platform, SyncRunType, SyncRunStatus, ConnectionStatus
+from app.db.models import MembershipRole
 
 
 def validate_credentials_for_platform(platform: Platform, credentials_json: dict) -> None:
@@ -73,6 +74,62 @@ class ConnectionSyncRequest(BaseModel):
     date_from: dt_date
     date_to: dt_date
     force: bool = False
+
+
+class AuthRegisterRequest(BaseModel):
+    email: str
+    password: str = Field(min_length=6)
+
+
+class AuthLoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class AuthTokenResponse(BaseModel):
+    access_token: str
+    token_type: str
+    expires_in: int
+
+
+class AuthMeResponse(BaseModel):
+    id: int
+    email: str
+    is_active: bool
+    active_organization_id: int | None = None
+
+    class Config:
+        from_attributes = True
+
+
+class OrganizationCreateRequest(BaseModel):
+    name: str
+
+
+class OrganizationSwitchRequest(BaseModel):
+    organization_id: int
+
+
+class OrganizationOut(BaseModel):
+    id: int
+    name: str
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class MembershipOut(BaseModel):
+    organization_id: int
+    role: MembershipRole
+
+    class Config:
+        from_attributes = True
+
+
+class OrganizationListResponse(BaseModel):
+    items: list[OrganizationOut]
 
 
 class HealthDb(BaseModel):

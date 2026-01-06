@@ -13,7 +13,8 @@ from app.api.schemas import (
     SyncRunListResponse,
     SyncRunResponse,
 )
-from app.core.config import get_settings
+from app.api.deps import get_current_org, get_current_user
+from app.db.models import Organization, User
 from app.jobs.service import create_job
 from app.services.connector_service import get_connector
 from app.workers.sync_tasks import execute_sync_run
@@ -21,11 +22,14 @@ from app.workers.sync_tasks import execute_sync_run
 router = APIRouter(prefix="/connections", tags=["connections"])
 
 @router.post("", response_model=ConnectionOut)
-def create_connection(item: ConnectionCreateRequest, db: Session = Depends(get_db)):
-    settings = get_settings()
-    organization_id = item.organization_id or settings.default_organization_id
+def create_connection(
+    item: ConnectionCreateRequest,
+    db: Session = Depends(get_db),
+    org: Organization = Depends(get_current_org),
+    user: User = Depends(get_current_user),
+):
     db_obj = Connection(
-        organization_id=organization_id,
+        organization_id=org.id,
         advertiser_id=item.advertiser_id,
         platform=item.platform,
         name=item.name,
@@ -37,20 +41,34 @@ def create_connection(item: ConnectionCreateRequest, db: Session = Depends(get_d
     return db_obj
 
 @router.get("", response_model=ConnectionListResponse)
-def list_connections(db: Session = Depends(get_db)):
-    items = db.query(Connection).all()
+def list_connections(
+    db: Session = Depends(get_db),
+    org: Organization = Depends(get_current_org),
+    user: User = Depends(get_current_user),
+):
+    items = db.query(Connection).filter(Connection.organization_id == org.id).all()
     return {"items": items}
 
 @router.get("/{connection_id}", response_model=ConnectionOut)
-def get_connection(connection_id: int, db: Session = Depends(get_db)):
-    conn = db.query(Connection).get(connection_id)
+def get_connection(
+    connection_id: int,
+    db: Session = Depends(get_db),
+    org: Organization = Depends(get_current_org),
+    user: User = Depends(get_current_user),
+):
+    conn = db.query(Connection).filter(Connection.id == connection_id, Connection.organization_id == org.id).first()
     if not conn:
         raise HTTPException(status_code=404, detail="Connection not found")
     return conn
 
 @router.post("/{connection_id}/check", response_model=ConnectionTestResponse)
-def check_connection(connection_id: int, db: Session = Depends(get_db)):
-    conn = db.query(Connection).get(connection_id)
+def check_connection(
+    connection_id: int,
+    db: Session = Depends(get_db),
+    org: Organization = Depends(get_current_org),
+    user: User = Depends(get_current_user),
+):
+    conn = db.query(Connection).filter(Connection.id == connection_id, Connection.organization_id == org.id).first()
     if not conn:
         raise HTTPException(status_code=404, detail="Connection not found")
     connector = get_connector(conn.platform, conn.credentials_json)
@@ -74,8 +92,10 @@ def create_connection_sync_run(
     connection_id: int,
     payload: ConnectionSyncRequest,
     db: Session = Depends(get_db),
+    org: Organization = Depends(get_current_org),
+    user: User = Depends(get_current_user),
 ):
-    conn = db.query(Connection).get(connection_id)
+    conn = db.query(Connection).filter(Connection.id == connection_id, Connection.organization_id == org.id).first()
     if not conn:
         raise HTTPException(status_code=404, detail="Connection not found")
 
@@ -118,8 +138,13 @@ def list_connection_sync_runs(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
+    org: Organization = Depends(get_current_org),
+    user: User = Depends(get_current_user),
 ):
-    query = db.query(SyncRun).filter(SyncRun.connection_id == connection_id)
+    query = db.query(SyncRun).filter(
+        SyncRun.connection_id == connection_id,
+        SyncRun.organization_id == org.id,
+    )
     total = query.count()
     items = query.order_by(desc(SyncRun.created_at)).limit(limit).offset(offset).all()
     return {"items": items, "total": total}

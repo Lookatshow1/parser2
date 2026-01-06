@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     dev_mode: bool = False
     cors_origins: str = "*"
     env: str = "dev"
+    secret_key: str = "dev_secret"
+    access_token_expire_minutes: int = 60
+    access_token_algorithm: str = "HS256"
 
 
 @lru_cache
