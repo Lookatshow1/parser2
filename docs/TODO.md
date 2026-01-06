@@ -73,6 +73,20 @@
 Статус: done  
 Проверка: `make selftest` и `docker compose run --rm api pytest -q`
 
+## 5) Auth + Organizations (стадия 0–1)
+
+5.1 Auth (JWT + /me)  
+Статус: done  
+Проверка: `pytest -q tests/test_auth_and_orgs.py`
+
+5.2 Organizations + membership + active org  
+Статус: done  
+Проверка: `pytest -q tests/test_auth_and_orgs.py`
+
+5.3 Org scoping для connections/sync_runs/job_runs/metrics/dashboard/erir  
+Статус: done  
+Проверка: `pytest -q tests/test_connections_sync.py` и `pytest -q tests/test_erir_dev.py`
+
 ## 5) ЕРИР dev (шаг к стадии 4)
 
 5.1 Dev endpoint /api/erir/dev/register создаёт JobRun + ErirEvent  
@@ -89,6 +103,7 @@
 - Добавлены connection-level индексы и уникальные ключи для metric_snapshots (campaign/ad_group/ad).
 - Web запускается в dev-режиме через Next.js; добавлен Babel-конфиг для стабильного старта без SWC.
 - Celery worker слушает `main-queue` и `celery`, а таски явно импортируются.
+- Добавлены auth endpoints + membership; UI хранит токен и X-Org-Id.
 
 ## Next (после MVP)
 

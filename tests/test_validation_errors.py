@@ -1,10 +1,11 @@
 from fastapi.testclient import TestClient
 
 
-def test_connection_validation_error_for_missing_credentials(client: TestClient):
+def test_connection_validation_error_for_missing_credentials(client: TestClient, auth_context):
     response = client.post(
         "/api/connections",
         json={"platform": "yandex", "credentials_json": {}},
+        headers=auth_context["headers"],
     )
     assert response.status_code == 422
     payload = response.json()

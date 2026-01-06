@@ -5,10 +5,11 @@ from app.db.models import ErirEvent, ErirStatus, JobRun, JobStatus
 from app.workers.erir_tasks import execute_erir_register
 
 
-def test_erir_dev_register(client: TestClient, db: Session):
+def test_erir_dev_register(client: TestClient, db: Session, auth_context):
     resp = client.post(
         "/api/erir/dev/register",
         json={"payload_json": {"note": "test"}},
+        headers=auth_context["headers"],
     )
     assert resp.status_code == 200
     data = resp.json()

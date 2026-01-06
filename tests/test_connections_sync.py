@@ -5,7 +5,7 @@ from app.db.models import Advertiser, JobRun, MetricSnapshot, SyncRun
 from app.workers.sync_tasks import execute_sync_run
 
 
-def test_connection_sync_creates_metrics_and_dashboard(client: TestClient, db: Session):
+def test_connection_sync_creates_metrics_and_dashboard(client: TestClient, db: Session, auth_context):
     advertiser = Advertiser(name="Stub Advertiser")
     db.add(advertiser)
     db.commit()
@@ -14,6 +14,7 @@ def test_connection_sync_creates_metrics_and_dashboard(client: TestClient, db: S
     resp = client.post(
         "/api/connections",
         json={"platform": "stub", "credentials_json": {}, "advertiser_id": advertiser.id},
+        headers=auth_context["headers"],
     )
     assert resp.status_code == 200
     connection_id = resp.json()["id"]
@@ -24,6 +25,7 @@ def test_connection_sync_creates_metrics_and_dashboard(client: TestClient, db: S
             "connection_id": connection_id,
             "params_json": {"date_from": "2023-01-01", "date_to": "2023-01-03"},
         },
+        headers=auth_context["headers"],
     )
     assert sync_resp.status_code == 201
     run_id = sync_resp.json()["id"]
@@ -58,6 +60,7 @@ def test_connection_sync_creates_metrics_and_dashboard(client: TestClient, db: S
             "date_from": "2023-01-01",
             "date_to": "2023-01-03",
         },
+        headers=auth_context["headers"],
     )
     assert dashboard_resp.status_code == 200
     data = dashboard_resp.json()
@@ -65,12 +68,20 @@ def test_connection_sync_creates_metrics_and_dashboard(client: TestClient, db: S
     assert data["totals"]["clicks"] == 60
     assert data["totals"]["spend"] == 1500
 
-    list_resp = client.get("/api/sync-runs", params={"connection_id": connection_id})
+    list_resp = client.get(
+        "/api/sync-runs",
+        params={"connection_id": connection_id},
+        headers=auth_context["headers"],
+    )
     assert list_resp.status_code == 200
     listed_ids = [item["id"] for item in list_resp.json()]
     assert run_id in listed_ids
 
-    filtered_resp = client.get("/api/sync-runs", params={"connection_id": connection_id, "status": "success"})
+    filtered_resp = client.get(
+        "/api/sync-runs",
+        params={"connection_id": connection_id, "status": "success"},
+        headers=auth_context["headers"],
+    )
     assert filtered_resp.status_code == 200
     filtered_ids = [item["id"] for item in filtered_resp.json()]
     assert run_id in filtered_ids
@@ -81,6 +92,7 @@ def test_connection_sync_creates_metrics_and_dashboard(client: TestClient, db: S
             "connection_id": connection_id,
             "params_json": {"date_from": "2023-01-01", "date_to": "2023-01-03"},
         },
+        headers=auth_context["headers"],
     )
     assert second_resp.status_code == 201
     second_run_id = second_resp.json()["id"]

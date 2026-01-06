@@ -20,19 +20,36 @@ Open http://localhost:3000 after `make up`.
 ## Smoke flow (API)
 
 ```bash
+curl -sS -X POST http://localhost:8000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","password":"secret123"}'
+
+TOKEN=$(curl -sS -X POST http://localhost:8000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","password":"secret123"}' | python3 -c "import sys, json; print(json.load(sys.stdin)['access_token'])")
+
+ORG_ID=$(curl -sS -X POST http://localhost:8000/api/orgs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ${TOKEN}" \
+  -d '{"name":"Demo Org"}' | python3 -c "import sys, json; print(json.load(sys.stdin)['id'])")
+
 curl -sS -X POST http://localhost:8000/api/connections \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ${TOKEN}" \
+  -H "X-Org-Id: ${ORG_ID}" \
   -d '{"platform":"stub","credentials_json":{}}'
 
 curl -sS -X POST http://localhost:8000/api/sync-runs \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ${TOKEN}" \
+  -H "X-Org-Id: ${ORG_ID}" \
   -d '{"connection_id":1,"params_json":{"date_from":"2023-01-01","date_to":"2023-01-03"}}'
 
-curl -sS http://localhost:8000/api/sync-runs/1
-curl -sS "http://localhost:8000/api/job-runs?connection_id=1"
+curl -sS http://localhost:8000/api/sync-runs/1 -H "Authorization: Bearer ${TOKEN}" -H "X-Org-Id: ${ORG_ID}"
+curl -sS "http://localhost:8000/api/job-runs?connection_id=1" -H "Authorization: Bearer ${TOKEN}" -H "X-Org-Id: ${ORG_ID}"
 
-curl -sS "http://localhost:8000/api/metrics?connection_id=1&date_from=2023-01-01&date_to=2023-01-03"
-curl -sS "http://localhost:8000/api/dashboard/summary?connection_id=1&date_from=2023-01-01&date_to=2023-01-03"
+curl -sS "http://localhost:8000/api/metrics?connection_id=1&date_from=2023-01-01&date_to=2023-01-03" -H "Authorization: Bearer ${TOKEN}" -H "X-Org-Id: ${ORG_ID}"
+curl -sS "http://localhost:8000/api/dashboard/summary?connection_id=1&date_from=2023-01-01&date_to=2023-01-03" -H "Authorization: Bearer ${TOKEN}" -H "X-Org-Id: ${ORG_ID}"
 ```
 
 ## Health checks
@@ -58,6 +75,7 @@ make test
 ```
 
 Self-test также проверяет web, smoke синк и идемпотентность (повторный sync не увеличивает число snapshot).
+Теперь self-test также проверяет auth и выбор организации.
 
 Перед проверками можно выполнить быструю диагностику Docker:
 

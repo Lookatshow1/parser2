@@ -11,7 +11,8 @@ from app.main import create_app
 from app.core.config import get_settings
 from app.db.session import get_db
 from app.db.base import Base
-from app.db.models import Advertiser
+from app.db.models import Advertiser, Membership, MembershipRole, Organization, User
+from app.services.auth_service import create_access_token, get_password_hash
 from app.db import session as db_session_module
 
 
@@ -93,3 +94,29 @@ def client(db_session):
     app.dependency_overrides[get_db] = _get_test_db
     with TestClient(app) as client:
         yield client
+
+
+@pytest.fixture()
+def auth_context(db_session):
+    user = User(
+        email="user@example.com",
+        password_hash=get_password_hash("password123"),
+        is_active=True,
+    )
+    org = Organization(name="Test Org")
+    db_session.add_all([user, org])
+    db_session.commit()
+    db_session.refresh(user)
+    db_session.refresh(org)
+
+    membership = Membership(user_id=user.id, organization_id=org.id, role=MembershipRole.owner.value)
+    db_session.add(membership)
+    user.active_organization_id = org.id
+    db_session.commit()
+
+    token = create_access_token(str(user.id))["access_token"]
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "X-Org-Id": str(org.id),
+    }
+    return {"user": user, "org": org, "headers": headers}
