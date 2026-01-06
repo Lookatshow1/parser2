@@ -53,3 +53,22 @@ def get_current_org(
     if not org:
         raise HTTPException(status_code=404, detail="Organization not found")
     return org
+
+
+def get_current_membership(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    x_org_id: int | None = Header(default=None, alias="X-Org-Id"),
+) -> Membership:
+    org_id = x_org_id or user.active_organization_id
+    if not org_id:
+        raise HTTPException(status_code=400, detail="Select organization")
+
+    membership = (
+        db.query(Membership)
+        .filter(Membership.user_id == user.id, Membership.organization_id == org_id)
+        .first()
+    )
+    if not membership:
+        raise HTTPException(status_code=403, detail="Forbidden for this organization")
+    return membership

@@ -3,7 +3,7 @@ from decimal import Decimal
 from uuid import UUID
 from typing import Optional, Any, List
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, model_validator, EmailStr
 
 from app.db.models import Platform, SyncRunType, SyncRunStatus, ConnectionStatus
 from app.db.models import MembershipRole
@@ -130,6 +130,49 @@ class MembershipOut(BaseModel):
 
 class OrganizationListResponse(BaseModel):
     items: list[OrganizationOut]
+
+
+class OrgInviteCreateRequest(BaseModel):
+    email: EmailStr
+    role: MembershipRole
+    expires_in_days: int | None = 7
+
+
+class OrgInviteAcceptRequest(BaseModel):
+    token: str
+
+
+class OrgInviteOut(BaseModel):
+    id: int
+    organization_id: int
+    invited_email: EmailStr
+    role: MembershipRole
+    expires_at: datetime
+    accepted_at: datetime | None = None
+    accepted_by_user_id: int | None = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class OrgInviteCreateResponse(OrgInviteOut):
+    invite_token: str
+
+
+class OrgInviteListResponse(BaseModel):
+    items: list[OrgInviteOut]
+
+
+class OrgMemberOut(BaseModel):
+    user_id: int
+    email: EmailStr
+    role: MembershipRole
+    created_at: datetime
+
+
+class OrgMemberRoleUpdateRequest(BaseModel):
+    role: MembershipRole
 
 
 class HealthDb(BaseModel):

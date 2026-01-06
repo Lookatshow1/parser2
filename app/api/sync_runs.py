@@ -6,10 +6,11 @@ from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
 from app.api.schemas import ConnectionSyncRunCreateRequest, SyncRunResponse
-from app.api.deps import get_current_org, get_current_user
+from app.api.deps import get_current_membership, get_current_org, get_current_user
 from app.db.models import Connection, SyncRun, SyncRunStatus, SyncRunType, Organization, User
 from app.db.session import get_db
 from app.jobs.service import create_job
+from app.services.rbac import can_run_sync
 from app.workers.sync_tasks import execute_sync_run
 
 router = APIRouter(prefix="/sync-runs", tags=["sync-runs"])
@@ -20,7 +21,10 @@ def create_sync_run(
     db: Session = Depends(get_db),
     org: Organization = Depends(get_current_org),
     user: User = Depends(get_current_user),
+    membership=Depends(get_current_membership),
 ):
+    if not can_run_sync(membership.role):
+        raise HTTPException(status_code=403, detail="Insufficient role to run sync")
     connection = db.query(Connection).filter(
         Connection.id == payload.connection_id,
         Connection.organization_id == org.id,

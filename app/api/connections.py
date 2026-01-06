@@ -13,10 +13,11 @@ from app.api.schemas import (
     SyncRunListResponse,
     SyncRunResponse,
 )
-from app.api.deps import get_current_org, get_current_user
+from app.api.deps import get_current_membership, get_current_org, get_current_user
 from app.db.models import Organization, User
 from app.jobs.service import create_job
 from app.services.connector_service import get_connector
+from app.services.rbac import can_run_sync, can_write_connections
 from app.workers.sync_tasks import execute_sync_run
 
 router = APIRouter(prefix="/connections", tags=["connections"])
@@ -27,7 +28,10 @@ def create_connection(
     db: Session = Depends(get_db),
     org: Organization = Depends(get_current_org),
     user: User = Depends(get_current_user),
+    membership=Depends(get_current_membership),
 ):
+    if not can_write_connections(membership.role):
+        raise HTTPException(status_code=403, detail="Insufficient role to create connection")
     db_obj = Connection(
         organization_id=org.id,
         advertiser_id=item.advertiser_id,
@@ -67,7 +71,10 @@ def check_connection(
     db: Session = Depends(get_db),
     org: Organization = Depends(get_current_org),
     user: User = Depends(get_current_user),
+    membership=Depends(get_current_membership),
 ):
+    if not can_write_connections(membership.role):
+        raise HTTPException(status_code=403, detail="Insufficient role to check connection")
     conn = db.query(Connection).filter(Connection.id == connection_id, Connection.organization_id == org.id).first()
     if not conn:
         raise HTTPException(status_code=404, detail="Connection not found")
@@ -94,7 +101,10 @@ def create_connection_sync_run(
     db: Session = Depends(get_db),
     org: Organization = Depends(get_current_org),
     user: User = Depends(get_current_user),
+    membership=Depends(get_current_membership),
 ):
+    if not can_run_sync(membership.role):
+        raise HTTPException(status_code=403, detail="Insufficient role to run sync")
     conn = db.query(Connection).filter(Connection.id == connection_id, Connection.organization_id == org.id).first()
     if not conn:
         raise HTTPException(status_code=404, detail="Connection not found")
