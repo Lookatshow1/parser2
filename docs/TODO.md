@@ -87,6 +87,10 @@
 Статус: done  
 Проверка: `pytest -q tests/test_connections_sync.py` и `pytest -q tests/test_erir_dev.py`
 
+5.4 Org invites + роли + управление участниками  
+Статус: done  
+Проверка: `pytest -q tests/test_org_invites.py`
+
 ## 5) ЕРИР dev (шаг к стадии 4)
 
 5.1 Dev endpoint /api/erir/dev/register создаёт JobRun + ErirEvent  
@@ -111,3 +115,4 @@
 - Idempotency ключи и retry-политика для коннекторов (429/5xx).
 - Расширение observability: correlation id для job/sync + structured logs.
 - ЕРИР: хранение токенов, повторная отправка событий, отдельный статус-поток.
+- Инвайты: рассылка email + ревокация инвайтов + аудит действий.

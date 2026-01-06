@@ -33,23 +33,37 @@ ORG_ID=$(curl -sS -X POST http://localhost:8000/api/orgs \
   -H "Authorization: Bearer ${TOKEN}" \
   -d '{"name":"Demo Org"}' | python3 -c "import sys, json; print(json.load(sys.stdin)['id'])")
 
-curl -sS -X POST http://localhost:8000/api/connections \
+INVITE_TOKEN=$(curl -sS -X POST "http://localhost:8000/api/orgs/${ORG_ID}/invites" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer ${TOKEN}" \
+  -d '{"email":"member@example.com","role":"member"}' | python3 -c "import sys, json; print(json.load(sys.stdin)['invite_token'])")
+
+MEMBER_TOKEN=$(curl -sS -X POST http://localhost:8000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"member@example.com","password":"secret123"}' | python3 -c "import sys, json; print(json.load(sys.stdin)['access_token'])")
+
+curl -sS -X POST http://localhost:8000/api/orgs/invites/accept \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ${MEMBER_TOKEN}" \
+  -d "{\"token\":\"${INVITE_TOKEN}\"}"
+
+curl -sS -X POST http://localhost:8000/api/connections \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ${MEMBER_TOKEN}" \
   -H "X-Org-Id: ${ORG_ID}" \
   -d '{"platform":"stub","credentials_json":{}}'
 
 curl -sS -X POST http://localhost:8000/api/sync-runs \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer ${TOKEN}" \
+  -H "Authorization: Bearer ${MEMBER_TOKEN}" \
   -H "X-Org-Id: ${ORG_ID}" \
   -d '{"connection_id":1,"params_json":{"date_from":"2023-01-01","date_to":"2023-01-03"}}'
 
-curl -sS http://localhost:8000/api/sync-runs/1 -H "Authorization: Bearer ${TOKEN}" -H "X-Org-Id: ${ORG_ID}"
-curl -sS "http://localhost:8000/api/job-runs?connection_id=1" -H "Authorization: Bearer ${TOKEN}" -H "X-Org-Id: ${ORG_ID}"
+curl -sS http://localhost:8000/api/sync-runs/1 -H "Authorization: Bearer ${MEMBER_TOKEN}" -H "X-Org-Id: ${ORG_ID}"
+curl -sS "http://localhost:8000/api/job-runs?connection_id=1" -H "Authorization: Bearer ${MEMBER_TOKEN}" -H "X-Org-Id: ${ORG_ID}"
 
-curl -sS "http://localhost:8000/api/metrics?connection_id=1&date_from=2023-01-01&date_to=2023-01-03" -H "Authorization: Bearer ${TOKEN}" -H "X-Org-Id: ${ORG_ID}"
-curl -sS "http://localhost:8000/api/dashboard/summary?connection_id=1&date_from=2023-01-01&date_to=2023-01-03" -H "Authorization: Bearer ${TOKEN}" -H "X-Org-Id: ${ORG_ID}"
+curl -sS "http://localhost:8000/api/metrics?connection_id=1&date_from=2023-01-01&date_to=2023-01-03" -H "Authorization: Bearer ${MEMBER_TOKEN}" -H "X-Org-Id: ${ORG_ID}"
+curl -sS "http://localhost:8000/api/dashboard/summary?connection_id=1&date_from=2023-01-01&date_to=2023-01-03" -H "Authorization: Bearer ${MEMBER_TOKEN}" -H "X-Org-Id: ${ORG_ID}"
 ```
 
 ## Health checks
@@ -75,7 +89,7 @@ make test
 ```
 
 Self-test также проверяет web, smoke синк и идемпотентность (повторный sync не увеличивает число snapshot).
-Теперь self-test также проверяет auth и выбор организации.
+Теперь self-test также проверяет auth + инвайт + membership.
 
 Перед проверками можно выполнить быструю диагностику Docker:
 
