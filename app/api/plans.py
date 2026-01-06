@@ -9,6 +9,7 @@ from app.api.schemas import (
     StartTestRequest,
     StartTestResponse,
 )
+from app.core.config import get_settings
 from app.db.models import CampaignPlan
 from app.db.session import get_db
 from app.services.experiment_engine import ExperimentEngine
@@ -32,7 +33,9 @@ def get_plan(plan_id: int, db: Session = Depends(get_db)):
 
 @router.post("", response_model=PlanResponse, status_code=status.HTTP_201_CREATED)
 def create_plan(payload: PlanCreateRequest, db: Session = Depends(get_db)):
+    settings = get_settings()
     plan = CampaignPlan(
+        organization_id=settings.default_organization_id,
         advertiser_id=payload.advertiser_id,
         name=payload.name,
         platform=payload.platform,

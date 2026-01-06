@@ -33,7 +33,7 @@ def create_job(
         organization_id=organization_id,
         connection_id=connection_id,
         job_type=job_type,
-        status=JobStatus.queued,
+        status=JobStatus.pending,
         context_json=sanitize_payload(context)
     )
     db.add(job)
@@ -53,7 +53,7 @@ def mark_running(db: Session, job_id: int) -> JobRun:
 def mark_succeeded(db: Session, job_id: int, result: dict) -> JobRun:
     job = db.query(JobRun).get(job_id)
     if job:
-        job.status = JobStatus.succeeded
+        job.status = JobStatus.success
         job.finished_at = datetime.now(timezone.utc)
         job.result_json = sanitize_payload(result)
         db.commit()

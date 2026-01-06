@@ -2,42 +2,75 @@ import os
 from datetime import date
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
-from app.db.models import Connection, CampaignPlan, Experiment, Platform, MetricSnapshot, ExperimentCampaign
+from app.db.models import Connection, CampaignPlan, Experiment, ExperimentStatus, Platform, MetricSnapshot, ExperimentCampaign
 
-def test_dashboard_read_api(client: TestClient, db: Session):
+def test_dashboard_read_api(client: TestClient, db: Session, default_org_id: int):
     # 1. Setup Data
-    conn = Connection(platform=Platform.yandex, name="Test Yandex", credentials_json={"token": "fake"})
+    conn = Connection(
+        organization_id=default_org_id,
+        platform=Platform.yandex,
+        name="Test Yandex",
+        credentials_json={"token": "fake"},
+    )
     db.add(conn)
     db.commit()
 
-    plan = CampaignPlan(name="Test Plan", platform=Platform.yandex, advertiser_id=1, connection_id=conn.id)
+    plan = CampaignPlan(
+        organization_id=default_org_id,
+        name="Test Plan",
+        platform=Platform.yandex,
+        advertiser_id=1,
+        connection_id=conn.id,
+    )
     db.add(plan)
     db.commit()
 
-    exp = Experiment(plan_id=plan.id, status="running")
+    exp = Experiment(plan_id=plan.id, organization_id=default_org_id, status=ExperimentStatus.running)
     db.add(exp)
     db.commit()
 
     # Add campaigns
-    c1 = ExperimentCampaign(experiment_id=exp.id, platform=Platform.yandex, campaign_external_id="111")
-    c2 = ExperimentCampaign(experiment_id=exp.id, platform=Platform.yandex, campaign_external_id="222")
+    c1 = ExperimentCampaign(
+        organization_id=default_org_id,
+        experiment_id=exp.id,
+        platform=Platform.yandex,
+        campaign_external_id="111",
+    )
+    c2 = ExperimentCampaign(
+        organization_id=default_org_id,
+        experiment_id=exp.id,
+        platform=Platform.yandex,
+        campaign_external_id="222",
+    )
     db.add_all([c1, c2])
 
     # Add metrics
     # Day 1
     m1 = MetricSnapshot(
-        date=date(2023, 1, 1), platform=Platform.yandex, campaign_external_id="111",
+        organization_id=default_org_id,
+        date=date(2023, 1, 1),
+        platform=Platform.yandex,
+        level="campaign",
+        campaign_external_id="111",
         experiment_id=exp.id, plan_id=plan.id, connection_id=conn.id,
         impressions=1000, clicks=50, spend=500
     )
     m2 = MetricSnapshot(
-        date=date(2023, 1, 1), platform=Platform.yandex, campaign_external_id="222",
+        organization_id=default_org_id,
+        date=date(2023, 1, 1),
+        platform=Platform.yandex,
+        level="campaign",
+        campaign_external_id="222",
         experiment_id=exp.id, plan_id=plan.id, connection_id=conn.id,
         impressions=2000, clicks=80, spend=800
     )
     # Day 2
     m3 = MetricSnapshot(
-        date=date(2023, 1, 2), platform=Platform.yandex, campaign_external_id="111",
+        organization_id=default_org_id,
+        date=date(2023, 1, 2),
+        platform=Platform.yandex,
+        level="campaign",
+        campaign_external_id="111",
         experiment_id=exp.id, plan_id=plan.id, connection_id=conn.id,
         impressions=1500, clicks=60, spend=600
     )

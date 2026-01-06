@@ -2,21 +2,33 @@ import os
 from datetime import date
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
-from app.db.models import Connection, CampaignPlan, Experiment, Platform, SyncRun, SyncRunStatus, SyncRunType, ExperimentCampaign, MetricSnapshot
+from app.db.models import Connection, CampaignPlan, Experiment, ExperimentStatus, Platform, SyncRun, SyncRunStatus, SyncRunType, ExperimentCampaign, MetricSnapshot
+from app.workers.sync_tasks import execute_sync_run
 
-def test_ozon_full_sync_writes_campaigns_and_metrics(client: TestClient, db: Session):
+def test_ozon_full_sync_writes_campaigns_and_metrics(client: TestClient, db: Session, default_org_id: int):
     # 1. Setup
     os.environ["OZON_PERF_MOCK"] = "1"
 
-    conn = Connection(platform=Platform.ozon, name="Test Ozon", credentials_json={"client_id": "fake", "client_secret": "fake"})
+    conn = Connection(
+        organization_id=default_org_id,
+        platform=Platform.ozon,
+        name="Test Ozon",
+        credentials_json={"client_id": "fake", "client_secret": "fake"},
+    )
     db.add(conn)
     db.commit()
 
-    plan = CampaignPlan(name="Test Plan Ozon", platform=Platform.ozon, advertiser_id=1, connection_id=conn.id)
+    plan = CampaignPlan(
+        organization_id=default_org_id,
+        name="Test Plan Ozon",
+        platform=Platform.ozon,
+        advertiser_id=1,
+        connection_id=conn.id,
+    )
     db.add(plan)
     db.commit()
 
-    exp = Experiment(plan_id=plan.id, status="running")
+    exp = Experiment(plan_id=plan.id, organization_id=default_org_id, status=ExperimentStatus.running)
     db.add(exp)
     db.commit()
 
@@ -31,7 +43,8 @@ def test_ozon_full_sync_writes_campaigns_and_metrics(client: TestClient, db: Ses
     assert resp.status_code == 200
     run_id = resp.json()["id"]
 
-    # In eager mode, task runs synchronously.
+    # Execute task inline for tests.
+    execute_sync_run(run_id)
 
     # 3. Verify SyncRun status
     run = db.query(SyncRun).get(run_id)

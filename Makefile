@@ -1,10 +1,19 @@
-.PHONY: up down reset-db migrate heads current history test seed selftest db-shell
+.PHONY: up down reset-db migrate heads current history test seed selftest db-shell logs ps logs-worker
 
 up:
 	docker compose up -d db redis api worker
 
 down:
 	docker compose down --volumes
+
+logs:
+	docker compose logs -f
+
+logs-worker:
+	docker compose logs -f worker
+
+ps:
+	docker compose ps
 
 reset-db:
 	docker compose down --volumes

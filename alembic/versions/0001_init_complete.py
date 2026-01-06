@@ -222,7 +222,7 @@ def upgrade() -> None:
     op.create_table('job_runs',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('job_type', sa.String(), nullable=False),
-        sa.Column('status', sa.Enum('queued', 'running', 'succeeded', 'failed', 'canceled', name='job_status_enum'), nullable=False),
+        sa.Column('status', sa.Enum('pending', 'running', 'success', 'failed', 'canceled', name='job_status_enum'), nullable=False),
         sa.Column('context_json', postgresql.JSONB(astext_type=sa.Text()), server_default='{}', nullable=False),
         sa.Column('result_json', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
         sa.Column('error_text', sa.Text(), nullable=True),

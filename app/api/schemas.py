@@ -259,7 +259,7 @@ class DashboardDailyItem(BaseModel):
 
 
 class DashboardSummaryResponse(BaseModel):
-    advertiser_id: int
+    connection_id: int
     date_from: date
     date_to: date
     totals: DashboardTotals

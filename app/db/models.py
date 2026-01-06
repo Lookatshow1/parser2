@@ -344,9 +344,9 @@ class ConversionEvent(Base):
 
 
 class JobStatus(str, enum.Enum):
-    queued = "queued"
+    pending = "pending"
     running = "running"
-    succeeded = "succeeded"
+    success = "success"
     failed = "failed"
     canceled = "canceled"
 
@@ -359,7 +359,7 @@ class JobRun(Base):
     connection_id: Mapped[int | None] = mapped_column(ForeignKey("connections.id", ondelete="SET NULL"), nullable=True)
     job_type: Mapped[str] = mapped_column(String, nullable=False)
     status: Mapped[JobStatus] = mapped_column(
-        Enum(JobStatus, name="job_status_enum"), default=JobStatus.queued, nullable=False
+        Enum(JobStatus, name="job_status_enum"), default=JobStatus.pending, nullable=False
     )
     context_json: Mapped[dict] = mapped_column(JSONType, nullable=False, server_default='{}')
     result_json: Mapped[dict | None] = mapped_column(JSONType, nullable=True)

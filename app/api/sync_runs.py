@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.api.schemas import ConnectionSyncRunCreateRequest, SyncRunResponse
 from app.db.models import Connection, SyncRun, SyncRunStatus, SyncRunType
 from app.db.session import get_db
+from app.jobs.service import create_job
 from app.workers.sync_tasks import execute_sync_run
 
 router = APIRouter(prefix="/sync-runs", tags=["sync-runs"])
@@ -21,6 +22,15 @@ def create_sync_run(payload: ConnectionSyncRunCreateRequest, db: Session = Depen
         date_from = date_to - timedelta(days=2)
         params.setdefault("date_from", date_from.isoformat())
         params.setdefault("date_to", date_to.isoformat())
+
+    job = create_job(
+        db,
+        job_type="connection_sync",
+        context={"connection_id": connection.id, **params},
+        organization_id=connection.organization_id,
+        connection_id=connection.id,
+    )
+    params["job_run_id"] = job.id
 
     run = SyncRun(
         organization_id=connection.organization_id,

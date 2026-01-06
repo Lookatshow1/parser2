@@ -8,6 +8,7 @@ from sqlalchemy.engine import Engine
 from fastapi.testclient import TestClient
 
 from app.main import create_app
+from app.core.config import get_settings
 from app.db.session import get_db
 from app.db.base import Base
 
@@ -51,6 +52,16 @@ def db_session(connection):
         yield session
     finally:
         session.close()
+
+
+@pytest.fixture(scope="session")
+def default_org_id() -> int:
+    return get_settings().default_organization_id
+
+
+@pytest.fixture()
+def db(db_session):
+    return db_session
 
 
 @pytest.fixture()

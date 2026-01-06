@@ -6,22 +6,28 @@ from uuid import uuid4
 
 from sqlalchemy import text
 
-from app.db.models import CampaignPlan, Experiment
+from app.db.models import CampaignPlan, Experiment, ExperimentStatus, Platform
 
 
-def seed_plan(session):
-    plan = CampaignPlan(internal_code="campaign-123", url="https://example.com", advertiser_id=1)
+def seed_plan(session, organization_id: int):
+    plan = CampaignPlan(
+        organization_id=organization_id,
+        advertiser_id=1,
+        name="Idempotency Plan",
+        platform=Platform.yandex,
+        internal_code="campaign-123",
+    )
     session.add(plan)
     session.commit()
     session.refresh(plan)
-    experiment = Experiment(plan_id=plan.id)
+    experiment = Experiment(plan_id=plan.id, organization_id=organization_id, status=ExperimentStatus.draft)
     session.add(experiment)
     session.commit()
     return plan
 
 
-def test_lead_event_idempotent(client, db_session):
-    seed_plan(db_session)
+def test_lead_event_idempotent(client, db_session, default_org_id):
+    seed_plan(db_session, default_org_id)
 
     payload = {
         "event_id": str(uuid4()),
@@ -44,8 +50,8 @@ def test_lead_event_idempotent(client, db_session):
     assert count == 1
 
 
-def test_purchase_event_idempotent(client, db_session):
-    seed_plan(db_session)
+def test_purchase_event_idempotent(client, db_session, default_org_id):
+    seed_plan(db_session, default_org_id)
 
     payload = {
         "event_id": str(uuid4()),

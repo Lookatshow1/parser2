@@ -3,20 +3,31 @@ import pytest
 from datetime import date
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
-from app.db.models import Connection, CampaignPlan, Experiment, Platform, SyncRun, SyncRunStatus, SyncRunType
+from app.db.models import Connection, CampaignPlan, Experiment, ExperimentStatus, Platform, SyncRun, SyncRunStatus, SyncRunType
 from app.workers.sync_tasks import execute_sync_run
 
-def test_sync_creates_run_and_enqueues_task(client: TestClient, db: Session):
+def test_sync_creates_run_and_enqueues_task(client: TestClient, db: Session, default_org_id: int):
     # 1. Setup
-    conn = Connection(platform=Platform.yandex, name="Test Yandex", credentials_json={"token": "fake"})
+    conn = Connection(
+        organization_id=default_org_id,
+        platform=Platform.yandex,
+        name="Test Yandex",
+        credentials_json={"token": "fake"},
+    )
     db.add(conn)
     db.commit()
 
-    plan = CampaignPlan(name="Test Plan", platform=Platform.yandex, advertiser_id=1, connection_id=conn.id)
+    plan = CampaignPlan(
+        organization_id=default_org_id,
+        name="Test Plan",
+        platform=Platform.yandex,
+        advertiser_id=1,
+        connection_id=conn.id,
+    )
     db.add(plan)
     db.commit()
 
-    exp = Experiment(plan_id=plan.id, status="running")
+    exp = Experiment(plan_id=plan.id, organization_id=default_org_id, status=ExperimentStatus.running)
     db.add(exp)
     db.commit()
 
@@ -38,21 +49,33 @@ def test_sync_creates_run_and_enqueues_task(client: TestClient, db: Session):
     assert run is not None
     assert run.status == SyncRunStatus.queued
 
-def test_sync_run_success_in_mock(db: Session):
+def test_sync_run_success_in_mock(db: Session, default_org_id: int):
     # 1. Setup
-    conn = Connection(platform=Platform.yandex, name="Test Yandex", credentials_json={"token": "fake"})
+    conn = Connection(
+        organization_id=default_org_id,
+        platform=Platform.yandex,
+        name="Test Yandex",
+        credentials_json={"token": "fake"},
+    )
     db.add(conn)
     db.commit()
 
-    plan = CampaignPlan(name="Test Plan", platform=Platform.yandex, advertiser_id=1, connection_id=conn.id)
+    plan = CampaignPlan(
+        organization_id=default_org_id,
+        name="Test Plan",
+        platform=Platform.yandex,
+        advertiser_id=1,
+        connection_id=conn.id,
+    )
     db.add(plan)
     db.commit()
 
-    exp = Experiment(plan_id=plan.id, status="running")
+    exp = Experiment(plan_id=plan.id, organization_id=default_org_id, status=ExperimentStatus.running)
     db.add(exp)
     db.commit()
 
     run = SyncRun(
+        organization_id=default_org_id,
         experiment_id=exp.id,
         platform=Platform.yandex,
         run_type=SyncRunType.full,
@@ -73,7 +96,7 @@ def test_sync_run_success_in_mock(db: Session):
     assert run.finished_at is not None
     assert run.error_text is None
 
-def test_prevent_parallel_runs(db: Session):
+def test_prevent_parallel_runs(db: Session, default_org_id: int):
     # This test is tricky to simulate with advisory locks in a single thread/transaction flow easily
     # without threading or multiprocessing, because advisory locks are session/transaction bound.
     # However, we can verify that the lock logic is called.
@@ -81,19 +104,31 @@ def test_prevent_parallel_runs(db: Session):
     # Here we will just verify that if we manually acquire lock, the task fails.
 
     # 1. Setup
-    conn = Connection(platform=Platform.yandex, name="Test Yandex", credentials_json={"token": "fake"})
+    conn = Connection(
+        organization_id=default_org_id,
+        platform=Platform.yandex,
+        name="Test Yandex",
+        credentials_json={"token": "fake"},
+    )
     db.add(conn)
     db.commit()
 
-    plan = CampaignPlan(name="Test Plan", platform=Platform.yandex, advertiser_id=1, connection_id=conn.id)
+    plan = CampaignPlan(
+        organization_id=default_org_id,
+        name="Test Plan",
+        platform=Platform.yandex,
+        advertiser_id=1,
+        connection_id=conn.id,
+    )
     db.add(plan)
     db.commit()
 
-    exp = Experiment(plan_id=plan.id, status="running")
+    exp = Experiment(plan_id=plan.id, organization_id=default_org_id, status=ExperimentStatus.running)
     db.add(exp)
     db.commit()
 
     run = SyncRun(
+        organization_id=default_org_id,
         experiment_id=exp.id,
         platform=Platform.yandex,
         run_type=SyncRunType.campaigns,

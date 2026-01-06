@@ -1,14 +1,19 @@
 from sqlalchemy import text
 
-from app.db.models import CampaignPlan, CreativeVariant, Experiment, Platform
+from app.db.models import CampaignPlan, CreativeVariant, Experiment, ExperimentStatus, Platform
 
 
-def seed_creative(session):
-    plan = CampaignPlan(url="https://example.com", advertiser_id=1)
+def seed_creative(session, organization_id: int):
+    plan = CampaignPlan(
+        organization_id=organization_id,
+        advertiser_id=1,
+        name="Compliance Plan",
+        platform=Platform.ozon,
+    )
     session.add(plan)
     session.commit()
     session.refresh(plan)
-    experiment = Experiment(plan_id=plan.id)
+    experiment = Experiment(plan_id=plan.id, organization_id=organization_id, status=ExperimentStatus.draft)
     session.add(experiment)
     session.commit()
     session.refresh(experiment)
@@ -25,8 +30,8 @@ def seed_creative(session):
     return creative
 
 
-def test_register_compliance_token(client, db_session):
-    creative = seed_creative(db_session)
+def test_register_compliance_token(client, db_session, default_org_id):
+    creative = seed_creative(db_session, default_org_id)
 
     payload = {
         "platform": "ozon",

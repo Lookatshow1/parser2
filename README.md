@@ -4,7 +4,7 @@
 
 ```bash
 cp .env.example .env
-docker compose up --build
+docker compose up --build -d db redis api worker
 docker compose run --rm api alembic upgrade head
 ```
 
@@ -31,7 +31,7 @@ curl http://localhost:8000/openapi.json
 ## Tests
 
 ```bash
-pytest
+docker compose run --rm api pytest -q
 ```
 
 ## Самопроверка

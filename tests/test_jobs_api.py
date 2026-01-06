@@ -9,7 +9,7 @@ def test_jobs_flow(client: TestClient, db: Session):
     data = response.json()
     job_id = data["id"]
     assert data["job_type"] == "dev_demo"
-    assert data["status"] == "succeeded"
+    assert data["status"] == "success"
     assert data["result_json"]["ok"] is True
 
     # 2. List jobs
@@ -20,7 +20,7 @@ def test_jobs_flow(client: TestClient, db: Session):
     found = next((j for j in items if j["id"] == job_id), None)
     assert found is not None
     assert found["job_type"] == "dev_demo"
-    assert found["status"] == "succeeded"
+    assert found["status"] == "success"
 
     # 3. Get specific job
     response = client.get(f"/api/jobs/{job_id}")
@@ -28,5 +28,5 @@ def test_jobs_flow(client: TestClient, db: Session):
     data = response.json()
     assert data["id"] == job_id
     assert data["job_type"] == "dev_demo"
-    assert data["status"] == "succeeded"
+    assert data["status"] == "success"
     assert data["result_json"]["ok"] is True
