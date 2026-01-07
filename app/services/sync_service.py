@@ -153,7 +153,7 @@ def sync_connection_metrics(
         raise ValueError("Connection not found")
 
     connector = get_connector(connection.platform, connection.credentials_json)
-    records = connector.fetch_metrics(date_from, date_to)
+    records = connector.fetch_metrics(date_from, date_to, connection_id=connection.id)
     stats = {"inserted": 0, "updated": 0, "unchanged": 0, "total": len(records)}
 
     for record in records:

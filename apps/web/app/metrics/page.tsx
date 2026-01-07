@@ -24,6 +24,8 @@ export default function MetricsPage() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const chartWidth = 640;
+  const chartHeight = 180;
 
   const defaultDateRange = useMemo(() => {
     const to = new Date();
@@ -85,6 +87,21 @@ export default function MetricsPage() {
     }
   };
 
+  const buildSeries = (key: string) => {
+    if (metrics.length === 0) {
+      return "";
+    }
+    const values = metrics.map((row) => Number(row[key] ?? 0));
+    const maxVal = Math.max(...values, 1);
+    return values
+      .map((val, idx) => {
+        const x = (idx / Math.max(values.length - 1, 1)) * chartWidth;
+        const y = chartHeight - (val / maxVal) * chartHeight;
+        return `${x},${y}`;
+      })
+      .join(" ");
+  };
+
   return (
     <div className="space-y-6">
       <div className="card space-y-3">
@@ -117,6 +134,27 @@ export default function MetricsPage() {
           <div className="rounded bg-slate-900/60 p-3">CPM: {summary.cpm ?? "n/a"}</div>
           <div className="rounded bg-slate-900/60 p-3">CPA: {summary.cpa ?? "n/a"}</div>
           <div className="rounded bg-slate-900/60 p-3">ROAS: {summary.roas ?? "n/a"}</div>
+        </div>
+      )}
+
+      {metrics.length > 0 && (
+        <div className="card space-y-3">
+          <h2 className="text-lg font-semibold">Trend</h2>
+          <svg width={chartWidth} height={chartHeight} className="w-full bg-slate-900/40 rounded">
+            <polyline
+              fill="none"
+              stroke="#38bdf8"
+              strokeWidth="2"
+              points={buildSeries("spend")}
+            />
+            <polyline
+              fill="none"
+              stroke="#a3e635"
+              strokeWidth="2"
+              points={buildSeries("clicks")}
+            />
+          </svg>
+          <div className="text-xs text-slate-400">Blue: spend, Green: clicks</div>
         </div>
       )}
 

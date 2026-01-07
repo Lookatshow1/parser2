@@ -22,12 +22,19 @@ class StubConnector(AdsConnector):
     def sync_status(self, external_ids: dict) -> dict:
         return {"campaign_id": "active"}
 
-    def fetch_metrics(self, date_from, date_to) -> list[MetricRecord]:
+    def fetch_metrics(self, date_from, date_to, connection_id: int | None = None) -> list[MetricRecord]:
         results: list[MetricRecord] = []
         campaigns = self.list_campaigns()
         current = date_from
+        seed = connection_id or 1
         while current <= date_to:
+            day_index = (current - date_from).days
             for camp in campaigns:
+                base = (seed * 37) + (day_index * 11) + (int(camp["id"].split("_")[-1]) * 7)
+                impressions = 100 + (base % 200)
+                clicks = max(1, impressions // 10)
+                cost = clicks * 25
+                conversions = clicks // 5
                 results.append(
                     {
                         "date": current,
@@ -36,12 +43,15 @@ class StubConnector(AdsConnector):
                         "campaign_external_id": str(camp["id"]),
                         "ad_group_external_id": None,
                         "ad_external_id": None,
-                        "impressions": 100,
-                        "clicks": 10,
-                        "spend": 250,
+                        "impressions": impressions,
+                        "clicks": clicks,
+                        "spend": cost,
                         "leads": 0,
-                        "purchases": 0,
+                        "purchases": conversions,
                         "revenue": 0,
+                        "conversions": conversions,
+                        "cost": cost,
+                        "currency": "RUB",
                     }
                 )
             current = current + timedelta(days=1)

@@ -30,6 +30,19 @@ def create_sync_run(
     if not connection:
         raise HTTPException(status_code=404, detail="Connection not found")
 
+    active_run = (
+        db.query(SyncRun)
+        .filter(
+            SyncRun.connection_id == connection.id,
+            SyncRun.organization_id == org.id,
+            SyncRun.status.in_([SyncRunStatus.queued, SyncRunStatus.running]),
+        )
+        .order_by(desc(SyncRun.created_at))
+        .first()
+    )
+    if active_run:
+        raise HTTPException(status_code=409, detail=f"Sync already running (run_id={active_run.id})")
+
     params = dict(payload.params_json or {})
     if "date_from" not in params or "date_to" not in params:
         date_to = date.today()
@@ -62,7 +75,7 @@ def get_sync_run(
 def list_sync_runs(
     connection_id: Optional[int] = Query(None, ge=1),
     status: Optional[SyncRunStatus] = None,
-    limit: int = Query(50, ge=1, le=200),
+    limit: int = Query(20, ge=1, le=200),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
     org: Organization = Depends(get_current_org),

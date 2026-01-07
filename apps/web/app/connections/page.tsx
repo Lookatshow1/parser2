@@ -166,8 +166,9 @@ export default function ConnectionsPage() {
     }
   };
 
-  const handleSync = async () => {
-    if (!selectedConnectionId) {
+  const handleSync = async (connectionId?: number) => {
+    const targetId = connectionId ?? selectedConnectionId;
+    if (!targetId) {
       setError("Select a connection to sync");
       return;
     }
@@ -175,13 +176,14 @@ export default function ConnectionsPage() {
     setNotice(null);
     try {
       const run = await syncConnection({
-        connection_id: selectedConnectionId,
+        connection_id: targetId,
         date_from: dateFrom,
         date_to: dateTo,
       });
       setNotice(`Sync queued (run #${run.id})`);
-      await refreshSyncRuns(selectedConnectionId);
-      await refreshMetrics(selectedConnectionId);
+      setSelectedConnectionId(targetId);
+      await refreshSyncRuns(targetId);
+      await refreshMetrics(targetId);
     } catch (err) {
       setError((err as Error).message);
     }
@@ -308,6 +310,9 @@ export default function ConnectionsPage() {
               <span>{item.platform}</span>
               <span>{item.status}</span>
               <span className="text-xs text-slate-400">
+                Last sync: {item.last_sync_status ?? "n/a"}
+              </span>
+              <span className="text-xs text-slate-400">
                 Auto-sync: {item.auto_sync_enabled ? "on" : "off"}
                 {item.auto_sync_enabled ? ` (${item.auto_sync_every_minutes ?? 0}m / ${item.auto_sync_window_days ?? 0}d)` : ""}
               </span>
@@ -321,6 +326,13 @@ export default function ConnectionsPage() {
                   className="bg-slate-700 hover:bg-slate-600 text-xs px-3 py-1 rounded"
                 >
                   View
+                </button>
+                <button
+                  onClick={() => handleSync(item.id)}
+                  disabled={item.last_sync_status === "queued" || item.last_sync_status === "running"}
+                  className="bg-slate-700 hover:bg-slate-600 text-xs px-3 py-1 rounded disabled:opacity-50"
+                >
+                  Sync
                 </button>
                 <button
                   onClick={() => toggleAutoSync(item.id, !item.auto_sync_enabled)}
@@ -360,7 +372,7 @@ export default function ConnectionsPage() {
           <input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
         </div>
         <div className="flex gap-2">
-          <button onClick={handleSync}>Run sync</button>
+          <button onClick={() => handleSync()}>Run sync</button>
           {selectedConnectionId && (
             <>
               <button onClick={() => refreshSyncRuns(selectedConnectionId)} className="bg-slate-700 hover:bg-slate-600">

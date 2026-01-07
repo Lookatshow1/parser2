@@ -22,6 +22,9 @@ class MetricRecord(TypedDict):
     leads: int
     purchases: int
     revenue: int
+    conversions: int | None
+    cost: int | None
+    currency: str | None
 
 
 class AdsConnector(ABC):
@@ -42,7 +45,7 @@ class AdsConnector(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def fetch_metrics(self, date_from: date, date_to: date) -> list[MetricRecord]:
+    def fetch_metrics(self, date_from: date, date_to: date, connection_id: int | None = None) -> list[MetricRecord]:
         raise NotImplementedError
 
     @abstractmethod

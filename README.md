@@ -81,6 +81,7 @@ curl -sS "http://localhost:8000/api/dashboard/summary?connection_id=1&date_from=
 ## Connector credentials (structure)
 
 These are only structural checks now; real API calls are not required for stub/self-test.
+Dev demo uses stub connector with deterministic metrics per connection and date range.
 
 - Yandex: `{"token":"..."}` (optional `login`)
 - VK Ads: `{"access_token":"...","version":"5.131","account_id":"..."}`

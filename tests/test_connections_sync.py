@@ -1,7 +1,10 @@
+from datetime import date
+
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.db.models import Advertiser, JobRun, MetricSnapshot, SyncRun
+from app.connectors.stub import StubConnector
 from app.workers.sync_tasks import execute_sync_run
 
 
@@ -64,9 +67,17 @@ def test_connection_sync_creates_metrics_and_dashboard(client: TestClient, db: S
     )
     assert dashboard_resp.status_code == 200
     data = dashboard_resp.json()
-    assert data["totals"]["impressions"] == 600
-    assert data["totals"]["clicks"] == 60
-    assert data["totals"]["spend"] == 1500
+    stub_metrics = StubConnector().fetch_metrics(
+        date_from=date(2023, 1, 1),
+        date_to=date(2023, 1, 3),
+        connection_id=connection_id,
+    )
+    total_impressions = sum(item["impressions"] for item in stub_metrics)
+    total_clicks = sum(item["clicks"] for item in stub_metrics)
+    total_spend = sum(item["spend"] for item in stub_metrics)
+    assert data["totals"]["impressions"] == total_impressions
+    assert data["totals"]["clicks"] == total_clicks
+    assert data["totals"]["spend"] == total_spend
 
     list_resp = client.get(
         "/api/sync-runs",
@@ -109,3 +120,38 @@ def test_connection_sync_creates_metrics_and_dashboard(client: TestClient, db: S
     assert second_run.result_json["inserted"] == 0
     assert second_run.result_json["updated"] == 0
     assert second_run.result_json["unchanged"] == 6
+
+
+def test_sync_conflict_when_running(client: TestClient, db: Session, auth_context):
+    advertiser = Advertiser(name="Conflict Advertiser")
+    db.add(advertiser)
+    db.commit()
+    db.refresh(advertiser)
+
+    resp = client.post(
+        "/api/connections",
+        json={"platform": "stub", "credentials_json": {}, "advertiser_id": advertiser.id},
+        headers=auth_context["headers"],
+    )
+    assert resp.status_code == 200
+    connection_id = resp.json()["id"]
+
+    sync_resp = client.post(
+        "/api/sync-runs",
+        json={
+            "connection_id": connection_id,
+            "params_json": {"date_from": "2023-01-01", "date_to": "2023-01-03"},
+        },
+        headers=auth_context["headers"],
+    )
+    assert sync_resp.status_code == 201
+
+    conflict_resp = client.post(
+        "/api/sync-runs",
+        json={
+            "connection_id": connection_id,
+            "params_json": {"date_from": "2023-01-01", "date_to": "2023-01-03"},
+        },
+        headers=auth_context["headers"],
+    )
+    assert conflict_resp.status_code == 409

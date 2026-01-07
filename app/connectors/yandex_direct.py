@@ -42,7 +42,7 @@ class YandexDirectConnector(AdsConnector):
     def sync_status(self, external_ids: dict) -> dict:
         return {"campaign_id": "active"}
 
-    def fetch_metrics(self, date_from: date, date_to: date) -> list[MetricRecord]:
+    def fetch_metrics(self, date_from: date, date_to: date, connection_id: int | None = None) -> list[MetricRecord]:
         if self.is_mock:
             campaigns = self.list_campaigns()
             campaign_ids = [str(camp["id"]) for camp in campaigns]
@@ -61,6 +61,9 @@ class YandexDirectConnector(AdsConnector):
                     "leads": int(float(row.get("Leads") or 0)),
                     "purchases": int(float(row.get("Purchases") or 0)),
                     "revenue": int(float(row.get("Revenue") or 0)),
+                    "conversions": None,
+                    "cost": int(float(row.get("Cost") or 0)),
+                    "currency": "RUB",
                 }
                 for row in rows
             ]
@@ -95,6 +98,9 @@ class YandexDirectConnector(AdsConnector):
                 "leads": snap.leads,
                 "purchases": snap.purchases,
                 "revenue": snap.revenue,
+                "conversions": None,
+                "cost": snap.spend,
+                "currency": "RUB",
             }
             for snap in self._parse_tsv(report, skip_header=settings.yandex_reports_skip_header)
         ]

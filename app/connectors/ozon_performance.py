@@ -38,7 +38,7 @@ class OzonPerformanceConnector(AdsConnector):
     def sync_status(self, external_ids: dict) -> dict:
         return {"campaign_id": "active"}
 
-    def fetch_metrics(self, date_from: date, date_to: date) -> list[MetricRecord]:
+    def fetch_metrics(self, date_from: date, date_to: date, connection_id: int | None = None) -> list[MetricRecord]:
         if self.is_mock:
             campaigns = self.list_campaigns()
             campaign_ids = [str(camp["id"]) for camp in campaigns]
@@ -57,6 +57,9 @@ class OzonPerformanceConnector(AdsConnector):
                     "leads": 0,
                     "purchases": 0,
                     "revenue": 0,
+                    "conversions": None,
+                    "cost": int(float(row.get("Cost") or 0)),
+                    "currency": "RUB",
                 }
                 for row in rows
             ]

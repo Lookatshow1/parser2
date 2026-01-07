@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from app.db.session import get_db
-from app.db.models import Connection, ConnectionStatus, SyncRun
+from app.db.models import Connection, ConnectionStatus, SyncRun, SyncRunStatus
 from app.api.schemas import (
     ConnectionCreateRequest,
     ConnectionOut,
@@ -16,7 +16,7 @@ from app.api.schemas import (
 from app.api.deps import get_current_membership, get_current_org, get_current_user
 from app.db.models import Organization, User
 from app.services.connector_service import get_connector
-from app.services.sync_run_service import create_connection_sync_run
+from app.services.sync_run_service import create_connection_sync_run as create_sync_run
 from app.services.rbac import can_run_sync, can_write_connections
 
 router = APIRouter(prefix="/connections", tags=["connections"])
@@ -36,7 +36,7 @@ def create_connection(
         advertiser_id=item.advertiser_id,
         platform=item.platform,
         name=item.name,
-        credentials_json=item.credentials_json,
+        credentials_json=item.credentials_json or {},
         auto_sync_enabled=item.auto_sync_enabled,
         auto_sync_every_minutes=item.auto_sync_every_minutes,
         auto_sync_window_days=item.auto_sync_window_days,
@@ -45,6 +45,22 @@ def create_connection(
     db.commit()
     db.refresh(db_obj)
     return db_obj
+
+
+def _get_last_sync_by_connection(db: Session, connection_ids: list[int]) -> dict[int, SyncRun]:
+    if not connection_ids:
+        return {}
+    runs = (
+        db.query(SyncRun)
+        .filter(SyncRun.connection_id.in_(connection_ids))
+        .order_by(desc(SyncRun.created_at))
+        .all()
+    )
+    last_by_conn: dict[int, SyncRun] = {}
+    for run in runs:
+        if run.connection_id and run.connection_id not in last_by_conn:
+            last_by_conn[run.connection_id] = run
+    return last_by_conn
 
 
 @router.patch("/{connection_id}", response_model=ConnectionOut)
@@ -80,7 +96,16 @@ def list_connections(
     user: User = Depends(get_current_user),
 ):
     items = db.query(Connection).filter(Connection.organization_id == org.id).all()
-    return {"items": items}
+    last_by_conn = _get_last_sync_by_connection(db, [c.id for c in items])
+    result_items = []
+    for item in items:
+        last = last_by_conn.get(item.id)
+        payload = ConnectionOut.model_validate(item).model_dump()
+        if last:
+            payload["last_sync_status"] = last.status
+            payload["last_sync_finished_at"] = last.finished_at
+        result_items.append(payload)
+    return {"items": result_items}
 
 @router.get("/{connection_id}", response_model=ConnectionOut)
 def get_connection(
@@ -92,7 +117,17 @@ def get_connection(
     conn = db.query(Connection).filter(Connection.id == connection_id, Connection.organization_id == org.id).first()
     if not conn:
         raise HTTPException(status_code=404, detail="Connection not found")
-    return conn
+    last = (
+        db.query(SyncRun)
+        .filter(SyncRun.connection_id == conn.id)
+        .order_by(desc(SyncRun.created_at))
+        .first()
+    )
+    payload = ConnectionOut.model_validate(conn).model_dump()
+    if last:
+        payload["last_sync_status"] = last.status
+        payload["last_sync_finished_at"] = last.finished_at
+    return payload
 
 @router.post("/{connection_id}/check", response_model=ConnectionTestResponse)
 def check_connection(
@@ -138,7 +173,20 @@ def create_connection_sync_run(
     if not conn:
         raise HTTPException(status_code=404, detail="Connection not found")
 
-    run = create_connection_sync_run(
+    active_run = (
+        db.query(SyncRun)
+        .filter(
+            SyncRun.connection_id == conn.id,
+            SyncRun.organization_id == org.id,
+            SyncRun.status.in_([SyncRunStatus.queued, SyncRunStatus.running]),
+        )
+        .order_by(desc(SyncRun.created_at))
+        .first()
+    )
+    if active_run:
+        raise HTTPException(status_code=409, detail=f"Sync already running (run_id={active_run.id})")
+
+    run = create_sync_run(
         db=db,
         connection=conn,
         date_from=payload.date_from,
@@ -150,7 +198,7 @@ def create_connection_sync_run(
 @router.get("/{connection_id}/sync-runs", response_model=SyncRunListResponse)
 def list_connection_sync_runs(
     connection_id: int,
-    limit: int = Query(50, ge=1, le=200),
+    limit: int = Query(20, ge=1, le=200),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
     org: Organization = Depends(get_current_org),

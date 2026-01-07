@@ -1,8 +1,11 @@
+from datetime import date
+
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.db.models import Advertiser
 from app.workers.sync_tasks import execute_sync_run
+from app.connectors.stub import StubConnector
 
 
 def test_dashboard_efficiency_calcs(client: TestClient, db: Session, auth_context):
@@ -43,8 +46,21 @@ def test_dashboard_efficiency_calcs(client: TestClient, db: Session, auth_contex
     )
     assert dashboard_resp.status_code == 200
     totals = dashboard_resp.json()["totals"]
-    assert totals["ctr"] == 0.1
-    assert totals["cpc"] == 25.0
-    assert totals["cpm"] == 2500.0
-    assert totals["cpa"] is None
+    stub_metrics = StubConnector().fetch_metrics(
+        date_from=date(2023, 1, 1),
+        date_to=date(2023, 1, 3),
+        connection_id=connection_id,
+    )
+    impressions = sum(item["impressions"] for item in stub_metrics)
+    clicks = sum(item["clicks"] for item in stub_metrics)
+    spend = sum(item["spend"] for item in stub_metrics)
+    purchases = sum(item["purchases"] for item in stub_metrics)
+    expected_ctr = round(clicks / impressions, 4)
+    expected_cpc = round(spend / clicks, 2)
+    expected_cpm = round((spend * 1000) / impressions, 2)
+    expected_cpa = round(spend / purchases, 2) if purchases else None
+    assert totals["ctr"] == expected_ctr
+    assert totals["cpc"] == expected_cpc
+    assert totals["cpm"] == expected_cpm
+    assert totals["cpa"] == expected_cpa
     assert totals["roas"] == 0.0

@@ -54,22 +54,55 @@ def get_optional_user(
     return user
 
 
+def _resolve_org_membership(
+    user: User,
+    db: Session,
+    x_org_id: int | None,
+) -> tuple[int, Membership]:
+    if x_org_id is not None:
+        membership = (
+            db.query(Membership)
+            .filter(Membership.user_id == user.id, Membership.organization_id == x_org_id)
+            .first()
+        )
+        if not membership:
+            raise HTTPException(status_code=403, detail="Forbidden for this organization")
+        return x_org_id, membership
+
+    if user.active_organization_id:
+        membership = (
+            db.query(Membership)
+            .filter(
+                Membership.user_id == user.id,
+                Membership.organization_id == user.active_organization_id,
+            )
+            .first()
+        )
+        if membership:
+            return user.active_organization_id, membership
+
+    membership = (
+        db.query(Membership)
+        .filter(Membership.user_id == user.id)
+        .order_by(Membership.id.asc())
+        .first()
+    )
+    if not membership:
+        raise HTTPException(status_code=409, detail="Select organization")
+
+    user.active_organization_id = membership.organization_id
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return membership.organization_id, membership
+
+
 def get_current_org(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
     x_org_id: int | None = Header(default=None, alias="X-Org-Id"),
 ) -> Organization:
-    org_id = x_org_id or user.active_organization_id
-    if not org_id:
-        raise HTTPException(status_code=409, detail="Select organization")
-
-    membership = (
-        db.query(Membership)
-        .filter(Membership.user_id == user.id, Membership.organization_id == org_id)
-        .first()
-    )
-    if not membership:
-        raise HTTPException(status_code=403, detail="Forbidden for this organization")
+    org_id, _membership = _resolve_org_membership(user, db, x_org_id)
 
     org = db.query(Organization).get(org_id)
     if not org:
@@ -82,15 +115,5 @@ def get_current_membership(
     db: Session = Depends(get_db),
     x_org_id: int | None = Header(default=None, alias="X-Org-Id"),
 ) -> Membership:
-    org_id = x_org_id or user.active_organization_id
-    if not org_id:
-        raise HTTPException(status_code=409, detail="Select organization")
-
-    membership = (
-        db.query(Membership)
-        .filter(Membership.user_id == user.id, Membership.organization_id == org_id)
-        .first()
-    )
-    if not membership:
-        raise HTTPException(status_code=403, detail="Forbidden for this organization")
+    _org_id, membership = _resolve_org_membership(user, db, x_org_id)
     return membership
