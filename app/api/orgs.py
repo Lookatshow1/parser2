@@ -14,6 +14,8 @@ from app.api.schemas import (
     OrgInviteCreateResponse,
     OrgInviteListResponse,
     OrgInviteOut,
+    OrgInviteResendRequest,
+    OrgInviteResendResponse,
     OrgAuditListResponse,
     OrgMemberOut,
     OrgMemberRoleUpdateRequest,
@@ -27,6 +29,7 @@ from app.db.session import get_db
 from app.services.rbac import can_invite, can_manage_members, can_change_roles, ROLE_OWNER
 from app.core.config import get_settings
 from app.services.audit import log_org_event
+from app.services.email_service import send_invite_email
 
 router = APIRouter(prefix="/orgs", tags=["orgs"])
 
@@ -46,6 +49,63 @@ def _is_invite_active(invite: OrgInvite, now: datetime) -> bool:
         and invite.revoked_at is None
         and invite.expires_at > now
     )
+
+
+def _build_join_url(raw_token: str) -> str | None:
+    settings = get_settings()
+    if not settings.web_base_url:
+        return None
+    base = settings.web_base_url.rstrip("/")
+    return f"{base}/invite?token={raw_token}"
+
+
+def _send_invite_and_track(
+    db: Session,
+    invite: OrgInvite,
+    raw_token: str,
+    action_success: str,
+    action_failure: str,
+    request: Request | None,
+    actor_user_id: int | None,
+    org_name: str,
+) -> None:
+    join_url = _build_join_url(raw_token)
+    sent, error = send_invite_email(
+        to_email=invite.invited_email,
+        org_name=org_name,
+        role=invite.role,
+        expires_at=invite.expires_at,
+        join_url=join_url,
+        raw_token=raw_token,
+    )
+    invite.send_count = (invite.send_count or 0) + 1
+    if sent:
+        invite.sent_at = datetime.now(timezone.utc)
+        invite.last_error = None
+        log_org_event(
+            db,
+            organization_id=invite.organization_id,
+            actor_user_id=actor_user_id,
+            action=action_success,
+            subject_type="invite",
+            subject_id=invite.id,
+            meta={"email": invite.invited_email, "role": invite.role},
+            request=request,
+        )
+    else:
+        invite.last_error = error
+        log_org_event(
+            db,
+            organization_id=invite.organization_id,
+            actor_user_id=actor_user_id,
+            action=action_failure,
+            subject_type="invite",
+            subject_id=invite.id,
+            meta={"email": invite.invited_email, "role": invite.role, "error": error or "send_failed"},
+            request=request,
+        )
+    db.commit()
+    db.refresh(invite)
 
 
 def _require_membership(db: Session, user_id: int, org_id: int) -> Membership:
@@ -150,6 +210,9 @@ def create_invite(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    org = db.query(Organization).get(org_id)
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
     membership = _require_membership(db, user.id, org_id)
     if not can_invite(membership.role):
         raise HTTPException(status_code=403, detail="Insufficient role for inviting")
@@ -208,16 +271,6 @@ def create_invite(
         db.rollback()
         raise HTTPException(status_code=409, detail="Active invite already exists") from None
     db.refresh(invite)
-    settings = get_settings()
-    join_url = None
-    if settings.web_base_url:
-        base = settings.web_base_url.rstrip("/")
-        join_url = f"{base}/invite?token={raw_token}"
-    response = OrgInviteCreateResponse(
-        **OrgInviteOut.model_validate(invite).model_dump(),
-        invite_token=raw_token,
-        join_url=join_url,
-    )
     log_org_event(
         db,
         organization_id=org_id,
@@ -227,6 +280,22 @@ def create_invite(
         subject_id=invite.id,
         meta={"email": invite.invited_email, "role": invite.role},
         request=request,
+    )
+    _send_invite_and_track(
+        db=db,
+        invite=invite,
+        raw_token=raw_token,
+        action_success="invite_sent",
+        action_failure="invite_send_failed",
+        request=request,
+        actor_user_id=user.id,
+        org_name=org.name,
+    )
+    join_url = _build_join_url(raw_token)
+    response = OrgInviteCreateResponse(
+        **OrgInviteOut.model_validate(invite).model_dump(),
+        invite_token=raw_token,
+        join_url=join_url,
     )
     return response
 
@@ -509,6 +578,87 @@ def revoke_invite(
         request=request,
     )
     return {"ok": True}
+
+
+@router.post("/{org_id}/invites/{invite_id}/resend", response_model=OrgInviteResendResponse)
+def resend_invite(
+    org_id: int,
+    invite_id: int,
+    payload: OrgInviteResendRequest,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    org = db.query(Organization).get(org_id)
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    membership = _require_membership(db, user.id, org_id)
+    if not can_invite(membership.role):
+        raise HTTPException(status_code=403, detail="Insufficient role for invites")
+
+    invite = (
+        db.query(OrgInvite)
+        .filter(OrgInvite.id == invite_id, OrgInvite.organization_id == org_id)
+        .first()
+    )
+    if not invite:
+        raise HTTPException(status_code=404, detail="Invite not found")
+    if invite.status == "accepted" or invite.accepted_at:
+        raise HTTPException(status_code=409, detail="Invite already accepted")
+    if invite.status == "revoked" or invite.revoked_at:
+        raise HTTPException(status_code=409, detail="Invite revoked")
+
+    raw_token = secrets.token_urlsafe(32)
+    token_hash = _hash_token(raw_token)
+    expires_in_days = payload.expires_in_days or 7
+    new_expires_at = datetime.now(timezone.utc) + timedelta(days=expires_in_days)
+
+    join_url = _build_join_url(raw_token)
+    sent, error = send_invite_email(
+        to_email=invite.invited_email,
+        org_name=org.name,
+        role=invite.role,
+        expires_at=new_expires_at,
+        join_url=join_url,
+        raw_token=raw_token,
+    )
+    invite.send_count = (invite.send_count or 0) + 1
+    if sent:
+        invite.token_hash = token_hash
+        invite.expires_at = new_expires_at
+        invite.status = "pending"
+        invite.sent_at = datetime.now(timezone.utc)
+        invite.last_error = None
+        log_org_event(
+            db,
+            organization_id=org_id,
+            actor_user_id=user.id,
+            action="invite_resent",
+            subject_type="invite",
+            subject_id=invite.id,
+            meta={"email": invite.invited_email, "role": invite.role},
+            request=request,
+        )
+    else:
+        invite.last_error = error
+        log_org_event(
+            db,
+            organization_id=org_id,
+            actor_user_id=user.id,
+            action="invite_send_failed",
+            subject_type="invite",
+            subject_id=invite.id,
+            meta={"email": invite.invited_email, "role": invite.role, "error": error or "send_failed"},
+            request=request,
+        )
+    db.commit()
+    db.refresh(invite)
+    return OrgInviteResendResponse(
+        id=invite.id,
+        sent_at=invite.sent_at,
+        send_count=invite.send_count,
+        last_error=invite.last_error,
+    )
 
 
 @router.post("/{org_id}/leave", status_code=status.HTTP_200_OK)

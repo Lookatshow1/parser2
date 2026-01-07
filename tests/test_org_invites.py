@@ -78,6 +78,31 @@ def test_invite_preview_active(client: TestClient):
     assert body["invited_email"] == "preview@example.com"
 
 
+def test_invite_send_tracking_and_resend(client: TestClient):
+    token_owner = _register_and_login(client, "owner_send@example.com")
+    org_id = _create_org(client, token_owner, "Send Org")
+
+    invite_resp = client.post(
+        f"/api/orgs/{org_id}/invites",
+        json={"email": "send_user@example.com", "role": "member"},
+        headers={"Authorization": f"Bearer {token_owner}"},
+    )
+    assert invite_resp.status_code == 201
+    invite_body = invite_resp.json()
+    invite_id = invite_body["id"]
+    assert invite_body["send_count"] == 1
+    assert invite_body["sent_at"] is not None
+    assert invite_body["last_error"] in {None, ""}
+
+    resend = client.post(
+        f"/api/orgs/{org_id}/invites/{invite_id}/resend",
+        json={},
+        headers={"Authorization": f"Bearer {token_owner}"},
+    )
+    assert resend.status_code == 200
+    resend_body = resend.json()
+    assert resend_body["send_count"] == 2
+
 def test_signup_with_invite_token(client: TestClient):
     token_owner = _register_and_login(client, "owner_signup@example.com")
     org_id = _create_org(client, token_owner, "Signup Org")

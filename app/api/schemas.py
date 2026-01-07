@@ -188,6 +188,9 @@ class OrgInviteOut(BaseModel):
     revoked_by_user_id: int | None = None
     created_by_user_id: int
     created_at: datetime
+    sent_at: datetime | None = None
+    send_count: int = 0
+    last_error: str | None = None
 
     class Config:
         from_attributes = True
@@ -207,6 +210,17 @@ class OrgInviteAcceptResponse(BaseModel):
 
 class OrgInviteListResponse(BaseModel):
     items: list[OrgInviteOut]
+
+
+class OrgInviteResendRequest(BaseModel):
+    expires_in_days: int | None = None
+
+
+class OrgInviteResendResponse(BaseModel):
+    id: int
+    sent_at: datetime | None = None
+    send_count: int
+    last_error: str | None = None
 
 
 class OrgMemberOut(BaseModel):

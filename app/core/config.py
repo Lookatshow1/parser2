@@ -43,6 +43,42 @@ class Settings(BaseSettings):
         default=None,
         validation_alias=AliasChoices("WEB_BASE_URL", "FRONTEND_BASE_URL"),
     )
+    email_send_mode: str = Field(
+        default="smtp",
+        validation_alias=AliasChoices("EMAIL_SEND_MODE", "EMAIL_BACKEND"),
+    )
+    smtp_host: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("SMTP_HOST", "MAIL_HOST"),
+    )
+    smtp_port: int = Field(
+        default=25,
+        validation_alias=AliasChoices("SMTP_PORT", "MAIL_PORT"),
+    )
+    smtp_user: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("SMTP_USER", "MAIL_USER"),
+    )
+    smtp_password: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("SMTP_PASSWORD", "MAIL_PASSWORD"),
+    )
+    smtp_from: str = Field(
+        default="no-reply@example.com",
+        validation_alias=AliasChoices("SMTP_FROM", "MAIL_FROM"),
+    )
+    smtp_use_tls: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("SMTP_USE_TLS", "MAIL_USE_TLS"),
+    )
+    smtp_use_ssl: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("SMTP_USE_SSL", "MAIL_USE_SSL"),
+    )
+    smtp_timeout_seconds: int = Field(
+        default=10,
+        validation_alias=AliasChoices("SMTP_TIMEOUT", "MAIL_TIMEOUT"),
+    )
 
 
 @lru_cache
