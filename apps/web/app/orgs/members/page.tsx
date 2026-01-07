@@ -7,6 +7,7 @@ import {
   deleteMember,
   listInvites,
   listMembers,
+  resendInvite,
   revokeInvite,
   updateMemberRole,
 } from "../../../lib/api";
@@ -27,6 +28,9 @@ type Invite = {
   status: string;
   expires_at: string;
   created_by_user_id?: number | null;
+  sent_at?: string | null;
+  send_count?: number;
+  last_error?: string | null;
 };
 
 export default function OrgMembersPage() {
@@ -108,6 +112,19 @@ export default function OrgMembersPage() {
     setNotice(null);
     try {
       await revokeInvite(Number(orgId), inviteId);
+      await load();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
+  const handleResend = async (inviteId: number) => {
+    if (!orgId) return;
+    setError(null);
+    setNotice(null);
+    try {
+      await resendInvite(Number(orgId), inviteId, {});
+      setNotice("Invite resent");
       await load();
     } catch (err) {
       setError((err as Error).message);
@@ -211,14 +228,27 @@ export default function OrgMembersPage() {
                 <div className="text-slate-200">{invite.invited_email}</div>
                 <div className="text-xs text-slate-500">
                   Role: {invite.role} · Expires {new Date(invite.expires_at).toLocaleDateString()}
+                  {" · "}
+                  Sent: {invite.send_count ?? 0}
                 </div>
+                {invite.last_error && (
+                  <div className="text-xs text-rose-400">Last error: {invite.last_error}</div>
+                )}
               </div>
-              <button
-                onClick={() => handleRevoke(invite.id)}
-                className="bg-slate-700 hover:bg-slate-600 text-xs px-3 py-1 rounded"
-              >
-                Revoke
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleResend(invite.id)}
+                  className="bg-slate-700 hover:bg-slate-600 text-xs px-3 py-1 rounded"
+                >
+                  Resend
+                </button>
+                <button
+                  onClick={() => handleRevoke(invite.id)}
+                  className="bg-rose-700 hover:bg-rose-600 text-xs px-3 py-1 rounded"
+                >
+                  Revoke
+                </button>
+              </div>
             </div>
           ))}
           {invites.length === 0 && <div className="text-slate-400">No active invites.</div>}

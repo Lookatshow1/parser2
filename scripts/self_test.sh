@@ -5,7 +5,7 @@ make doctor
 
 make reset-db
 
-docker compose up -d api worker web beat
+docker compose up -d api worker web beat mailhog
 
 echo "Waiting for API..."
 for _ in {1..120}; do
@@ -31,6 +31,19 @@ done
 
 if ! curl -fsS --max-time 30 "http://localhost:3000" >/dev/null; then
   echo "Web did not become ready in time." >&2
+  exit 1
+fi
+
+echo "Waiting for MailHog..."
+for _ in {1..60}; do
+  if curl -fsS --max-time 3 "http://localhost:8025/api/v2/messages" >/dev/null; then
+    break
+  fi
+  sleep 1
+done
+
+if ! curl -fsS --max-time 3 "http://localhost:8025/api/v2/messages" >/dev/null; then
+  echo "MailHog did not become ready in time." >&2
   exit 1
 fi
 
@@ -71,6 +84,22 @@ INVITE_TOKEN=$(curl -fsS --max-time 10 -X POST "http://localhost:8000/api/orgs/$
   -H "${AUTH_HEADER}" \
   -d "{\"email\":\"${INVITED_EMAIL}\",\"role\":\"member\"}" \
   | python3 -c "import sys, json; print(json.load(sys.stdin)['invite_token'])")
+
+MAILHOG_INVITE_FOUND=0
+for _ in {1..60}; do
+  if curl -fsS --max-time 3 "http://localhost:8025/api/v2/messages" \
+    | python3 -c "import json, sys; data=json.load(sys.stdin); email='invitee@example.com'; found=any(f\"{t.get('Mailbox')}@{t.get('Domain')}\".lower()==email for item in data.get('items', []) for t in item.get('To', [])); sys.exit(0 if found else 1)"
+  then
+    MAILHOG_INVITE_FOUND=1
+    break
+  fi
+  sleep 1
+done
+
+if [ "$MAILHOG_INVITE_FOUND" -ne 1 ]; then
+  echo "Invite email was not delivered to MailHog." >&2
+  exit 1
+fi
 
 curl -fsS --max-time 10 -X POST "http://localhost:8000/api/auth/register" \
   -H "Content-Type: application/json" \

@@ -119,6 +119,10 @@
 Статус: done  
 Проверка: `pytest -q tests/test_auth_and_orgs.py`
 
+5.6 Email инвайты + resend + наблюдаемость (MailHog)  
+Статус: done  
+Проверка: `pytest -q tests/test_org_invites.py`
+
 ## 5) ЕРИР dev (шаг к стадии 4)
 
 5.1 Dev endpoint /api/erir/dev/register создаёт JobRun + ErirEvent  
@@ -149,6 +153,7 @@
 - Audit log: org_audit_events пишет invite_created/accepted/revoked и member_* события с meta без токенов.
 - Invite signup: /api/invites/{token}/preview + регистрация с invite_token, проверка email обязательна.
 - Invite flow: preview -> signup with invite_token or login -> /invite/[token] -> accept.
+- Инвайты отправляются по email (MailHog), есть resend, поля sent_at/send_count/last_error и audit invite_sent/invite_resent.
 
 ## Next (после MVP)
 
@@ -157,10 +162,9 @@
 - Автосинк: доп. ограничения по лимитам и окна, настройка через UI.
 - Расширение observability: correlation id для job/sync + structured logs.
 - ЕРИР: хранение токенов, повторная отправка событий, отдельный статус-поток.
-- Инвайты: рассылка email + аудит действий.
+- Инвайты: шаблоны писем и реальный SMTP/провайдер для prod.
 - Роли: аудит изменений и журнал событий.
 - Приглашения без регистрации (invite signup).
-- Email отправка инвайтов + базовый провайдер (feature flag).
 - Экран ошибок и метрики конверсии invite signup.
 - Расширение аудита: добавить события для connections/sync_runs и UI фильтры.
 - Credentials: шифрование at-rest и ротация ключа (Fernet).

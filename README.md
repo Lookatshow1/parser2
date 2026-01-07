@@ -17,6 +17,17 @@ make up
 Frontend reads `NEXT_PUBLIC_API_BASE_URL` for backend base URL.
 Open http://localhost:3000 after `make up`.
 
+## Email invites (MailHog)
+
+Local dev uses MailHog to capture outgoing invite emails.
+
+```bash
+make up
+```
+
+MailHog UI: http://localhost:8025  
+SMTP endpoint: localhost:1025
+
 ## Smoke flow (API)
 
 ```bash

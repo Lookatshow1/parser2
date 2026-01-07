@@ -140,6 +140,9 @@ export type OrgInvite = {
   revoked_at?: string | null;
   revoked_by_user_id?: number | null;
   created_by_user_id?: number | null;
+  sent_at?: string | null;
+  send_count?: number;
+  last_error?: string | null;
 };
 
 export type OrgMember = {
@@ -404,6 +407,16 @@ export async function revokeInvite(orgId: number, inviteId: number) {
   return request<{ ok: boolean }>(`/orgs/${orgId}/invites/${inviteId}/revoke`, {
     method: "POST"
   });
+}
+
+export async function resendInvite(orgId: number, inviteId: number, payload?: { expires_in_days?: number }) {
+  return request<{ id: number; sent_at?: string | null; send_count: number; last_error?: string | null }>(
+    `/orgs/${orgId}/invites/${inviteId}/resend`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload ?? {})
+    }
+  );
 }
 
 export async function leaveOrg(orgId: number) {
