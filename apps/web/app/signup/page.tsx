@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { loginUser } from "../../lib/api";
+import { registerUserWithInvite } from "../../lib/api";
 import { setRefreshToken, setToken } from "../../lib/session";
 
-export default function LoginPage() {
+export default function SignupPage() {
   const params = useSearchParams();
   const router = useRouter();
   const inviteToken = params.get("invite");
@@ -15,19 +15,15 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const handleLogin = async () => {
+  const inviteLabel = useMemo(() => (inviteToken ? "Invite detected" : null), [inviteToken]);
+
+  const handleSignup = async () => {
     setError(null);
     setNotice(null);
     try {
-      const token = await loginUser({ email, password });
-      setToken(token.access_token);
-      setRefreshToken(token.refresh_token);
-      setNotice("Logged in.");
-      if (inviteToken) {
-        router.push(`/invite/${encodeURIComponent(inviteToken)}`);
-        return;
-      }
-      router.push("/orgs");
+      await registerUserWithInvite({ email, password, invite_token: inviteToken || undefined });
+      setNotice("Account created. You can log in now.");
+      router.push(inviteToken ? `/login?invite=${encodeURIComponent(inviteToken)}` : "/login");
     } catch (err) {
       setError((err as Error).message);
     }
@@ -35,7 +31,8 @@ export default function LoginPage() {
 
   return (
     <div className="card space-y-4 max-w-md">
-      <h1 className="text-xl font-semibold">Login</h1>
+      <h1 className="text-xl font-semibold">Sign up</h1>
+      {inviteLabel && <div className="text-sm text-slate-400">{inviteLabel}</div>}
       {error && <div className="text-red-400">{error}</div>}
       {notice && <div className="text-green-400">{notice}</div>}
       <label className="text-sm text-slate-400">Email</label>
@@ -43,12 +40,9 @@ export default function LoginPage() {
       <label className="text-sm text-slate-400">Password</label>
       <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
       <div className="flex gap-2">
-        <button onClick={handleLogin}>Login</button>
-        <Link
-          href={inviteToken ? `/signup?invite=${encodeURIComponent(inviteToken)}` : "/signup"}
-          className="bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded text-sm"
-        >
-          Sign up
+        <button onClick={handleSignup}>Create account</button>
+        <Link href="/login" className="bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded text-sm">
+          Back to login
         </Link>
       </div>
     </div>

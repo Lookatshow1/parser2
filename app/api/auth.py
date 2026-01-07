@@ -10,6 +10,7 @@ from app.api.schemas import (
     AuthTokenResponse,
     AuthRefreshRequest,
     AuthRefreshResponse,
+    OrgInviteAcceptRequest,
 )
 from app.db.models import RefreshToken, User, Organization, Membership, MembershipRole
 from app.db.session import get_db
@@ -21,6 +22,8 @@ from app.services.auth_service import (
     verify_password,
 )
 from app.api.deps import get_current_user
+from app.api.orgs import _accept_invite, _hash_token
+from app.services.invite_service import get_invite_by_token, resolve_invite_status
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -32,6 +35,21 @@ def register(payload: AuthRegisterRequest, db: Session = Depends(get_db)):
     if existing:
         raise HTTPException(status_code=409, detail="Email already registered")
 
+    if payload.invite_token:
+        token_hash = _hash_token(payload.invite_token)
+        invite = get_invite_by_token(db, token_hash)
+        status = resolve_invite_status(invite)
+        if status == "not_found":
+            raise HTTPException(status_code=400, detail="invite_invalid")
+        if status == "expired":
+            raise HTTPException(status_code=400, detail="invite_expired")
+        if status == "revoked":
+            raise HTTPException(status_code=400, detail="invite_revoked")
+        if status == "accepted":
+            raise HTTPException(status_code=400, detail="invite_already_accepted")
+        if invite and email != invite.invited_email:
+            raise HTTPException(status_code=400, detail="invite_email_mismatch")
+
     user = User(
         email=email,
         password_hash=get_password_hash(payload.password),
@@ -39,6 +57,13 @@ def register(payload: AuthRegisterRequest, db: Session = Depends(get_db)):
     )
     db.add(user)
     db.flush()
+
+    if payload.invite_token:
+        db.commit()
+        db.refresh(user)
+        _accept_invite(OrgInviteAcceptRequest(token=payload.invite_token), user, db)
+        db.refresh(user)
+        return user
 
     org = Organization(name="Personal")
     db.add(org)

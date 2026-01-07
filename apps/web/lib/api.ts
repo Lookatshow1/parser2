@@ -67,6 +67,8 @@ export type ConnectionResponse = {
   status: string;
   name?: string | null;
   credentials_present?: boolean;
+  last_sync_status?: string | null;
+  last_sync_finished_at?: string | null;
   auto_sync_enabled?: boolean;
   auto_sync_every_minutes?: number;
   auto_sync_window_days?: number;
@@ -131,14 +133,33 @@ export type OrgInvite = {
   organization_id: number;
   invited_email: string;
   role: string;
+  status: string;
   expires_at: string;
   accepted_at: string | null;
+  accepted_by_user_id?: number | null;
+  revoked_at?: string | null;
+  revoked_by_user_id?: number | null;
+  created_by_user_id?: number | null;
 };
 
 export type OrgMember = {
   user_id: number;
   email: string;
   role: string;
+  joined_at: string;
+  is_you: boolean;
+};
+
+export type OrgAuditEvent = {
+  id: number;
+  organization_id: number;
+  actor_user_id: number | null;
+  action: string;
+  subject_type: string | null;
+  subject_id: number | null;
+  meta: Record<string, unknown>;
+  ip: string | null;
+  user_agent: string | null;
   created_at: string;
 };
 
@@ -268,6 +289,13 @@ export async function registerUser(payload: { email: string; password: string })
   });
 }
 
+export async function registerUserWithInvite(payload: { email: string; password: string; invite_token?: string | null }) {
+  return request<UserMe>("/auth/register", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
 export async function loginUser(payload: { email: string; password: string }) {
   return request<AuthToken>("/auth/login", {
     method: "POST",
@@ -308,7 +336,7 @@ export async function switchOrg(payload: { organization_id: number }) {
 }
 
 export async function createInvite(orgId: number, payload: { email: string; role: string; expires_in_days?: number }) {
-  return request<OrgInvite & { invite_token: string }>(`/orgs/${orgId}/invites`, {
+  return request<OrgInvite & { invite_token: string; join_url?: string | null }>(`/orgs/${orgId}/invites`, {
     method: "POST",
     body: JSON.stringify(payload)
   });
@@ -320,14 +348,43 @@ export async function listInvites(orgId: number, status?: string) {
 }
 
 export async function acceptInvite(payload: { token: string }) {
-  return request<Organization>("/orgs/invites/accept", {
+  return request<{ organization_id: number; organization_name: string; role: string; active_organization_id?: number | null }>("/invites/accept", {
     method: "POST",
     body: JSON.stringify(payload)
   });
 }
 
+export async function previewInvite(token: string) {
+  const response = await fetch(`${apiBase}/invites/${encodeURIComponent(token)}/preview`, {
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+  const data = await response.json();
+  if (!response.ok && response.status !== 404) {
+    const message = data?.error?.message || `Request failed with status ${response.status}`;
+    throw new Error(message);
+  }
+  return data as {
+    organization_id?: number | null;
+    organization_name?: string | null;
+    invited_email?: string | null;
+    role?: string | null;
+    expires_at?: string | null;
+    status: string;
+  };
+}
+
 export async function listMembers(orgId: number) {
   return request<OrgMember[]>(`/orgs/${orgId}/members`);
+}
+
+export async function listAuditEvents(orgId: number, payload?: { limit?: number; offset?: number }) {
+  const params = new URLSearchParams();
+  if (payload?.limit) params.set("limit", String(payload.limit));
+  if (payload?.offset) params.set("offset", String(payload.offset));
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  return request<{ items: OrgAuditEvent[]; total: number }>(`/orgs/${orgId}/audit${suffix}`);
 }
 
 export async function updateMemberRole(orgId: number, userId: number, payload: { role: string }) {
@@ -340,6 +397,18 @@ export async function updateMemberRole(orgId: number, userId: number, payload: {
 export async function deleteMember(orgId: number, userId: number) {
   return request<void>(`/orgs/${orgId}/members/${userId}`, {
     method: "DELETE"
+  });
+}
+
+export async function revokeInvite(orgId: number, inviteId: number) {
+  return request<{ ok: boolean }>(`/orgs/${orgId}/invites/${inviteId}/revoke`, {
+    method: "POST"
+  });
+}
+
+export async function leaveOrg(orgId: number) {
+  return request<{ active_organization_id: number | null }>(`/orgs/${orgId}/leave`, {
+    method: "POST"
   });
 }
 

@@ -39,6 +39,10 @@ class Settings(BaseSettings):
         default=7,
         validation_alias=AliasChoices("REFRESH_TTL_DAYS", "REFRESH_TOKEN_TTL_DAYS"),
     )
+    web_base_url: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("WEB_BASE_URL", "FRONTEND_BASE_URL"),
+    )
 
 
 @lru_cache

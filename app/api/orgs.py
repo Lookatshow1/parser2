@@ -2,17 +2,19 @@ import hashlib
 import secrets
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
-from app.api.deps import get_current_user, get_optional_user
+from app.api.deps import get_current_user
 from app.api.schemas import (
     OrgInviteAcceptRequest,
+    OrgInviteAcceptResponse,
     OrgInviteCreateRequest,
     OrgInviteCreateResponse,
     OrgInviteListResponse,
     OrgInviteOut,
+    OrgAuditListResponse,
     OrgMemberOut,
     OrgMemberRoleUpdateRequest,
     OrganizationCreateRequest,
@@ -20,16 +22,30 @@ from app.api.schemas import (
     OrganizationOut,
     OrganizationSwitchRequest,
 )
-from app.db.models import Membership, MembershipRole, OrgInvite, Organization, User
+from app.db.models import Membership, MembershipRole, OrgInvite, Organization, User, OrgAuditEvent
 from app.db.session import get_db
-from app.services.rbac import can_invite, can_manage_members, ROLE_OWNER
-from app.services.auth_service import get_password_hash
+from app.services.rbac import can_invite, can_manage_members, can_change_roles, ROLE_OWNER
+from app.core.config import get_settings
+from app.services.audit import log_org_event
 
 router = APIRouter(prefix="/orgs", tags=["orgs"])
 
 
 def _hash_token(raw_token: str) -> str:
     return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+
+
+def _normalize_email(value: str) -> str:
+    return value.strip().lower()
+
+
+def _is_invite_active(invite: OrgInvite, now: datetime) -> bool:
+    return (
+        invite.status == "pending"
+        and invite.accepted_at is None
+        and invite.revoked_at is None
+        and invite.expires_at > now
+    )
 
 
 def _require_membership(db: Session, user_id: int, org_id: int) -> Membership:
@@ -130,6 +146,7 @@ def switch_org(
 def create_invite(
     org_id: int,
     payload: OrgInviteCreateRequest,
+    request: Request,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -137,13 +154,18 @@ def create_invite(
     if not can_invite(membership.role):
         raise HTTPException(status_code=403, detail="Insufficient role for inviting")
 
+    if payload.role.value == MembershipRole.owner.value:
+        raise HTTPException(status_code=400, detail="Owner role cannot be invited")
+    if payload.role.value not in {MembershipRole.admin.value, MembershipRole.member.value}:
+        raise HTTPException(status_code=400, detail="Invalid invite role")
+
     raw_token = secrets.token_urlsafe(32)
     token_hash = _hash_token(raw_token)
 
     expires_in_days = payload.expires_in_days or 7
     expires_at = datetime.now(timezone.utc) + timedelta(days=expires_in_days)
 
-    normalized_email = str(payload.email).strip().lower()
+    normalized_email = _normalize_email(str(payload.email))
     existing_user = db.query(User).filter(User.email == normalized_email).first()
     if existing_user:
         existing_membership = (
@@ -153,6 +175,22 @@ def create_invite(
         )
         if existing_membership:
             raise HTTPException(status_code=409, detail="User already belongs to organization")
+
+    now = datetime.now(timezone.utc)
+    active_invite = (
+        db.query(OrgInvite)
+        .filter(
+            OrgInvite.organization_id == org_id,
+            OrgInvite.invited_email == normalized_email,
+            OrgInvite.status == "pending",
+            OrgInvite.accepted_at.is_(None),
+            OrgInvite.revoked_at.is_(None),
+            OrgInvite.expires_at > now,
+        )
+        .first()
+    )
+    if active_invite:
+        raise HTTPException(status_code=409, detail="Active invite already exists")
 
     invite = OrgInvite(
         organization_id=org_id,
@@ -170,7 +208,27 @@ def create_invite(
         db.rollback()
         raise HTTPException(status_code=409, detail="Active invite already exists") from None
     db.refresh(invite)
-    return OrgInviteCreateResponse(**OrgInviteOut.model_validate(invite).model_dump(), invite_token=raw_token)
+    settings = get_settings()
+    join_url = None
+    if settings.web_base_url:
+        base = settings.web_base_url.rstrip("/")
+        join_url = f"{base}/invite?token={raw_token}"
+    response = OrgInviteCreateResponse(
+        **OrgInviteOut.model_validate(invite).model_dump(),
+        invite_token=raw_token,
+        join_url=join_url,
+    )
+    log_org_event(
+        db,
+        organization_id=org_id,
+        actor_user_id=user.id,
+        action="invite_created",
+        subject_type="invite",
+        subject_id=invite.id,
+        meta={"email": invite.invited_email, "role": invite.role},
+        request=request,
+    )
+    return response
 
 
 @router.get("/{org_id}/invites", response_model=OrgInviteListResponse)
@@ -191,6 +249,7 @@ def list_invites(
             OrgInvite.organization_id == org_id,
             OrgInvite.status == "pending",
             OrgInvite.expires_at <= now,
+            OrgInvite.revoked_at.is_(None),
         )
         .all()
     )
@@ -202,42 +261,38 @@ def list_invites(
     query = db.query(OrgInvite).filter(OrgInvite.organization_id == org_id)
     if status_filter:
         query = query.filter(OrgInvite.status == status_filter)
+    else:
+        query = query.filter(
+            OrgInvite.status == "pending",
+            OrgInvite.revoked_at.is_(None),
+            OrgInvite.expires_at > now,
+        )
     items = query.order_by(OrgInvite.created_at.desc()).all()
     return {"items": items}
 
 
-@router.post("/invites/accept", response_model=OrganizationOut)
-def accept_invite(
+def _accept_invite(
     payload: OrgInviteAcceptRequest,
-    user: User | None = Depends(get_optional_user),
-    db: Session = Depends(get_db),
-):
+    user: User,
+    db: Session,
+    request: Request | None = None,
+) -> OrgInviteAcceptResponse:
     token_hash = _hash_token(payload.token)
     invite = db.query(OrgInvite).filter(OrgInvite.token_hash == token_hash).first()
     if not invite:
         raise HTTPException(status_code=404, detail="Invite not found")
-    if invite.status == "accepted" or invite.accepted_at:
-        raise HTTPException(status_code=400, detail="Invite already accepted")
     now = datetime.now(timezone.utc)
+    if invite.status == "revoked" or invite.revoked_at:
+        raise HTTPException(status_code=409, detail="Invite revoked")
+    if invite.status == "accepted" or invite.accepted_at:
+        raise HTTPException(status_code=409, detail="Invite already accepted")
     if invite.expires_at <= now:
         invite.status = "expired"
         db.commit()
-        raise HTTPException(status_code=400, detail="Invite expired")
+        raise HTTPException(status_code=409, detail="Invite expired")
 
-    if user is None:
-        if not payload.password:
-            raise HTTPException(status_code=401, detail="Password required to create user")
-        existing = db.query(User).filter(User.email == invite.invited_email).first()
-        if existing:
-            raise HTTPException(status_code=401, detail="Login required to accept invite")
-        user = User(
-            email=invite.invited_email,
-            password_hash=get_password_hash(payload.password),
-            is_active=True,
-        )
-        db.add(user)
-        db.commit()
-        db.refresh(user)
+    if _normalize_email(user.email) != _normalize_email(invite.invited_email):
+        raise HTTPException(status_code=403, detail="Invite email does not match current user")
 
     membership = (
         db.query(Membership)
@@ -259,10 +314,35 @@ def accept_invite(
         user.active_organization_id = invite.organization_id
     db.commit()
 
+    log_org_event(
+        db,
+        organization_id=invite.organization_id,
+        actor_user_id=user.id,
+        action="invite_accepted",
+        subject_type="invite",
+        subject_id=invite.id,
+        meta={"email": invite.invited_email, "role": invite.role},
+        request=request,
+    )
     org = db.query(Organization).get(invite.organization_id)
     if not org:
         raise HTTPException(status_code=404, detail="Organization not found")
-    return org
+    return OrgInviteAcceptResponse(
+        organization_id=org.id,
+        organization_name=org.name,
+        role=membership.role if membership else invite.role,
+        active_organization_id=user.active_organization_id,
+    )
+
+
+@router.post("/invites/accept", response_model=OrgInviteAcceptResponse)
+def accept_invite(
+    payload: OrgInviteAcceptRequest,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return _accept_invite(payload, user, db, request)
 
 
 @router.get("/{org_id}/members", response_model=list[OrgMemberOut])
@@ -284,7 +364,8 @@ def list_members(
             user_id=member.user_id,
             email=user_row.email,
             role=member.role,
-            created_at=member.created_at,
+            joined_at=member.created_at,
+            is_you=member.user_id == user.id,
         )
         for member, user_row in members
     ]
@@ -295,11 +376,12 @@ def update_member_role(
     org_id: int,
     member_user_id: int,
     payload: OrgMemberRoleUpdateRequest,
+    request: Request,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     membership = _require_membership(db, user.id, org_id)
-    if membership.role != ROLE_OWNER:
+    if not can_change_roles(membership.role):
         raise HTTPException(status_code=403, detail="Only owner can change roles")
 
     target = (
@@ -316,17 +398,29 @@ def update_member_role(
         .count()
     )
     if target.role == ROLE_OWNER and payload.role.value != ROLE_OWNER and owners <= 1:
-        raise HTTPException(status_code=400, detail="Organization must have at least one owner")
+        raise HTTPException(status_code=409, detail="Organization must have at least one owner")
 
+    old_role = target.role
     target.role = payload.role.value
     db.commit()
 
     member_user = db.query(User).get(member_user_id)
+    log_org_event(
+        db,
+        organization_id=org_id,
+        actor_user_id=user.id,
+        action="member_role_changed",
+        subject_type="member",
+        subject_id=target.user_id,
+        meta={"old_role": old_role, "new_role": target.role, "email": member_user.email if member_user else ""},
+        request=request,
+    )
     return OrgMemberOut(
         user_id=target.user_id,
         email=member_user.email if member_user else "",
         role=target.role,
-        created_at=member_user.created_at if member_user else datetime.now(timezone.utc),
+        joined_at=target.created_at,
+        is_you=member_user_id == user.id,
     )
 
 
@@ -334,6 +428,7 @@ def update_member_role(
 def delete_member(
     org_id: int,
     member_user_id: int,
+    request: Request,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -356,9 +451,123 @@ def delete_member(
             .count()
         )
         if owners <= 1:
-            raise HTTPException(status_code=400, detail="Organization must have at least one owner")
+            raise HTTPException(status_code=409, detail="Organization must have at least one owner")
         if membership.role != ROLE_OWNER:
             raise HTTPException(status_code=403, detail="Only owner can remove another owner")
 
     db.delete(target)
     db.commit()
+    target_user = db.query(User).get(member_user_id)
+    log_org_event(
+        db,
+        organization_id=org_id,
+        actor_user_id=user.id,
+        action="member_removed",
+        subject_type="member",
+        subject_id=target.user_id,
+        meta={"email": target_user.email if target_user else ""},
+        request=request,
+    )
+
+
+@router.post("/{org_id}/invites/{invite_id}/revoke", status_code=status.HTTP_200_OK)
+def revoke_invite(
+    org_id: int,
+    invite_id: int,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    membership = _require_membership(db, user.id, org_id)
+    if not can_invite(membership.role):
+        raise HTTPException(status_code=403, detail="Insufficient role for invites")
+
+    invite = (
+        db.query(OrgInvite)
+        .filter(OrgInvite.id == invite_id, OrgInvite.organization_id == org_id)
+        .first()
+    )
+    if not invite:
+        raise HTTPException(status_code=404, detail="Invite not found")
+    if invite.status == "accepted" or invite.accepted_at:
+        raise HTTPException(status_code=409, detail="Invite already accepted")
+    if invite.status == "revoked":
+        return {"ok": True}
+
+    invite.status = "revoked"
+    invite.revoked_at = datetime.now(timezone.utc)
+    invite.revoked_by_user_id = user.id
+    db.commit()
+    log_org_event(
+        db,
+        organization_id=org_id,
+        actor_user_id=user.id,
+        action="invite_revoked",
+        subject_type="invite",
+        subject_id=invite.id,
+        meta={"email": invite.invited_email, "role": invite.role},
+        request=request,
+    )
+    return {"ok": True}
+
+
+@router.post("/{org_id}/leave", status_code=status.HTTP_200_OK)
+def leave_org(
+    org_id: int,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    membership = _require_membership(db, user.id, org_id)
+    if membership.role == ROLE_OWNER:
+        owners = (
+            db.query(Membership)
+            .filter(Membership.organization_id == org_id, Membership.role == ROLE_OWNER)
+            .count()
+        )
+        if owners <= 1:
+            raise HTTPException(status_code=409, detail="Organization must have at least one owner")
+
+    db.delete(membership)
+    db.commit()
+    log_org_event(
+        db,
+        organization_id=org_id,
+        actor_user_id=user.id,
+        action="member_left",
+        subject_type="member",
+        subject_id=user.id,
+        meta={"email": user.email},
+        request=request,
+    )
+
+    if user.active_organization_id == org_id:
+        next_membership = (
+            db.query(Membership)
+            .filter(Membership.user_id == user.id)
+            .order_by(Membership.id.asc())
+            .first()
+        )
+        user.active_organization_id = next_membership.organization_id if next_membership else None
+        db.commit()
+    return {"active_organization_id": user.active_organization_id}
+
+
+@router.get("/{org_id}/audit", response_model=OrgAuditListResponse)
+def list_audit_events(
+    org_id: int,
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _require_membership(db, user.id, org_id)
+    query = db.query(OrgAuditEvent).filter(OrgAuditEvent.organization_id == org_id)
+    total = query.count()
+    items = (
+        query.order_by(OrgAuditEvent.created_at.desc())
+        .limit(limit)
+        .offset(offset)
+        .all()
+    )
+    return {"items": items, "total": total}

@@ -8,7 +8,7 @@ make reset-db
 docker compose up -d api worker web beat
 
 echo "Waiting for API..."
-for _ in {1..60}; do
+for _ in {1..120}; do
   if curl -fsS --max-time 3 "http://localhost:8000/api/health" >/dev/null; then
     break
   fi
@@ -74,17 +74,12 @@ INVITE_TOKEN=$(curl -fsS --max-time 10 -X POST "http://localhost:8000/api/orgs/$
 
 curl -fsS --max-time 10 -X POST "http://localhost:8000/api/auth/register" \
   -H "Content-Type: application/json" \
-  -d "{\"email\":\"${INVITED_EMAIL}\",\"password\":\"${INVITED_PASSWORD}\"}" >/dev/null
+  -d "{\"email\":\"${INVITED_EMAIL}\",\"password\":\"${INVITED_PASSWORD}\",\"invite_token\":\"${INVITE_TOKEN}\"}" >/dev/null
 
 INVITED_TOKEN=$(curl -fsS --max-time 10 -X POST "http://localhost:8000/api/auth/login" \
   -H "Content-Type: application/json" \
   -d "{\"email\":\"${INVITED_EMAIL}\",\"password\":\"${INVITED_PASSWORD}\"}" \
   | python3 -c "import sys, json; print(json.load(sys.stdin)['access_token'])")
-
-curl -fsS --max-time 10 -X POST "http://localhost:8000/api/orgs/invites/accept" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer ${INVITED_TOKEN}" \
-  -d "{\"token\":\"${INVITE_TOKEN}\"}" >/dev/null
 
 INVITED_AUTH_HEADER="Authorization: Bearer ${INVITED_TOKEN}"
 INVITED_ORG_HEADER="X-Org-Id: ${ORG_ID}"
@@ -165,6 +160,15 @@ fi
 ROAS_VAL=$(printf '%s' "${SUMMARY_JSON}" | python3 -c "import sys, json; print(json.loads(sys.stdin.read())['totals'].get('roas'))")
 if [ -z "$ROAS_VAL" ]; then
   echo "Dashboard efficiency check failed: roas is empty" >&2
+  exit 1
+fi
+
+AUDIT_ACTIONS=$(curl -fsS --max-time 10 "http://localhost:8000/api/orgs/${ORG_ID}/audit" \
+  -H "${AUTH_HEADER}" \
+  | python3 -c "import sys, json; print([item['action'] for item in json.load(sys.stdin)['items']])")
+
+if ! echo "$AUDIT_ACTIONS" | python3 -c "import sys; data=sys.stdin.read(); assert 'invite_created' in data and 'invite_accepted' in data"; then
+  echo "Audit log missing invite actions." >&2
   exit 1
 fi
 

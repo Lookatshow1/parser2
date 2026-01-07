@@ -13,13 +13,26 @@ export default function InvitePage() {
   const [error, setError] = useState<string | null>(null);
   const authToken = useMemo(() => getToken(), []);
 
+  if (token) {
+    return (
+      <div className="card">
+        <p className="text-slate-300">Invite link format changed.</p>
+        <Link href={`/invite/${encodeURIComponent(token)}`} className="text-blue-400">
+          Continue to invite
+        </Link>
+      </div>
+    );
+  }
+
   const handleAccept = async () => {
     setError(null);
     setStatus(null);
     try {
-      const org = await acceptInvite({ token });
-      setOrgId(String(org.id));
-      setStatus(`Joined ${org.name}. Active org set.`);
+      const result = await acceptInvite({ token });
+      if (result.active_organization_id) {
+        setOrgId(String(result.active_organization_id));
+      }
+      setStatus(`Joined ${result.organization_name}. Active org set.`);
     } catch (err) {
       setError((err as Error).message);
     }

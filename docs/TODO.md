@@ -89,6 +89,14 @@
 Статус: done  
 Проверка: `pytest -q tests/test_auto_sync_scheduler.py`
 
+4.8 Dev-коннектор генерирует стабильные метрики без ключей  
+Статус: done  
+Проверка: `pytest -q tests/test_connections_sync.py`
+
+4.9 Запуск sync блокируется при уже running/queued  
+Статус: done  
+Проверка: `pytest -q tests/test_connections_sync.py`
+
 ## 5) Auth + Organizations (стадия 0–1)
 
 5.1 Auth (JWT + refresh + /me)  
@@ -133,6 +141,14 @@
 - Регистрация создаёт Personal org и membership, active_org_id выставляется сразу.
 - /api/dev/seed создаёт пользователя + две организации + connections в разных org.
 - /api/orgs/{org_id}/switch добавлен как alias к activate.
+- Dev-коннектор — это stub с детерминированными данными по connection_id + датам.
+- Один активный sync на connection обеспечивается проверкой queued/running при создании run.
+- active org резолвится через X-Org-Id, иначе берётся active_organization_id, иначе первая membership и сохраняется в user.
+- Инвайты: токены хранятся только как sha256, accept требует совпадения email; revoke помечает invite как revoked.
+- Роли: owner/admin могут приглашать, только owner меняет роли; последний owner не может уйти или удалить себя.
+- Audit log: org_audit_events пишет invite_created/accepted/revoked и member_* события с meta без токенов.
+- Invite signup: /api/invites/{token}/preview + регистрация с invite_token, проверка email обязательна.
+- Invite flow: preview -> signup with invite_token or login -> /invite/[token] -> accept.
 
 ## Next (после MVP)
 
@@ -141,5 +157,11 @@
 - Автосинк: доп. ограничения по лимитам и окна, настройка через UI.
 - Расширение observability: correlation id для job/sync + structured logs.
 - ЕРИР: хранение токенов, повторная отправка событий, отдельный статус-поток.
-- Инвайты: рассылка email + ревокация инвайтов + аудит действий.
+- Инвайты: рассылка email + аудит действий.
+- Роли: аудит изменений и журнал событий.
+- Приглашения без регистрации (invite signup).
+- Email отправка инвайтов + базовый провайдер (feature flag).
+- Экран ошибок и метрики конверсии invite signup.
+- Расширение аудита: добавить события для connections/sync_runs и UI фильтры.
 - Credentials: шифрование at-rest и ротация ключа (Fernet).
+- Первая реальная площадка: подключить один коннектор с валидным fetch без токенов (через мок-режим).

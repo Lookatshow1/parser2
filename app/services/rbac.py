@@ -15,6 +15,10 @@ def can_manage_members(role: str) -> bool:
     return role in {ROLE_OWNER, ROLE_ADMIN}
 
 
+def can_change_roles(role: str) -> bool:
+    return role == ROLE_OWNER
+
+
 def can_write_connections(role: str) -> bool:
     return role in {ROLE_OWNER, ROLE_ADMIN, ROLE_MEMBER}
 

@@ -46,13 +46,15 @@ class ConnectionCreateRequest(BaseModel):
     platform: Platform
     name: str | None = None
     credentials_json: dict
+    credentials_mode: str | None = None
     auto_sync_enabled: bool = False
     auto_sync_every_minutes: int = Field(default=1440, ge=1)
     auto_sync_window_days: int = Field(default=3, ge=1)
 
     @model_validator(mode="after")
     def _validate_credentials(self):
-        validate_credentials_for_platform(self.platform, self.credentials_json)
+        if self.credentials_mode != "dev":
+            validate_credentials_for_platform(self.platform, self.credentials_json)
         return self
 
 
@@ -64,6 +66,8 @@ class ConnectionOut(BaseModel):
     name: str | None = None
     status: ConnectionStatus
     credentials_present: bool
+    last_sync_status: SyncRunStatus | None = None
+    last_sync_finished_at: datetime | None = None
     auto_sync_enabled: bool
     auto_sync_every_minutes: int
     auto_sync_window_days: int
@@ -95,6 +99,7 @@ class ConnectionSyncRequest(BaseModel):
 class AuthRegisterRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=6)
+    invite_token: str | None = None
 
 
 class AuthLoginRequest(BaseModel):
@@ -168,7 +173,6 @@ class OrgInviteCreateRequest(BaseModel):
 
 class OrgInviteAcceptRequest(BaseModel):
     token: str
-    password: str | None = None
 
 
 class OrgInviteOut(BaseModel):
@@ -180,6 +184,9 @@ class OrgInviteOut(BaseModel):
     expires_at: datetime
     accepted_at: datetime | None = None
     accepted_by_user_id: int | None = None
+    revoked_at: datetime | None = None
+    revoked_by_user_id: int | None = None
+    created_by_user_id: int
     created_at: datetime
 
     class Config:
@@ -188,6 +195,14 @@ class OrgInviteOut(BaseModel):
 
 class OrgInviteCreateResponse(OrgInviteOut):
     invite_token: str
+    join_url: str | None = None
+
+
+class OrgInviteAcceptResponse(BaseModel):
+    organization_id: int
+    organization_name: str
+    role: MembershipRole
+    active_organization_id: int | None = None
 
 
 class OrgInviteListResponse(BaseModel):
@@ -198,7 +213,38 @@ class OrgMemberOut(BaseModel):
     user_id: int
     email: EmailStr
     role: MembershipRole
+    joined_at: datetime
+    is_you: bool = False
+
+
+class OrgAuditEventOut(BaseModel):
+    id: int
+    organization_id: int
+    actor_user_id: int | None = None
+    action: str
+    subject_type: str | None = None
+    subject_id: int | None = None
+    meta: dict
+    ip: str | None = None
+    user_agent: str | None = None
     created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class OrgAuditListResponse(BaseModel):
+    items: list[OrgAuditEventOut]
+    total: int
+
+
+class InvitePreviewResponse(BaseModel):
+    organization_id: int | None = None
+    organization_name: str | None = None
+    invited_email: EmailStr | None = None
+    role: MembershipRole | None = None
+    expires_at: datetime | None = None
+    status: str
 
 
 class OrgMemberRoleUpdateRequest(BaseModel):

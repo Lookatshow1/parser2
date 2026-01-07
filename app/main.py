@@ -10,6 +10,7 @@ from app.api.compliance import router as compliance_router
 from app.api.auth import router as auth_router
 from app.api.dashboard import router as dashboard_router
 from app.api.orgs import router as orgs_router
+from app.api.invites import router as invites_router
 from app.api.erir import router as erir_router
 from app.api.dev import router as dev_router
 from app.api.events import router as events_router
@@ -20,6 +21,7 @@ from app.api.metrics import router as metrics_router
 from app.api.plans import router as plans_router
 from app.api.jobs import router as jobs_router
 from app.api.sync_runs import router as sync_runs_router
+from app.api.me import router as me_router
 from app.api.schemas import ApiCapabilitiesResponse, ApiVersionResponse, HealthResponse, YandexSyncMetricsRequest
 from app.core.config import get_settings
 from app.core.logging import configure_logging
@@ -42,7 +44,9 @@ def create_app() -> FastAPI:
     api_router = APIRouter(prefix="/api")
     api_router.include_router(health_router)
     api_router.include_router(auth_router)
+    api_router.include_router(me_router)
     api_router.include_router(orgs_router)
+    api_router.include_router(invites_router)
     api_router.include_router(connections_router)
     api_router.include_router(connectors_router)
     api_router.include_router(compliance_router)
