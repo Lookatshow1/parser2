@@ -14,6 +14,7 @@ from app.api.schemas import (
     YandexSyncMetricsResponse,
 )
 from app.workers.yandex_tasks import sync_yandex_metrics
+from app.security.credentials_crypto import maybe_decrypt
 
 router = APIRouter(prefix="/connectors")
 
@@ -39,9 +40,10 @@ def fetch_vk_raw(payload: VkFetchRawRequest, session: Session = Depends(get_db))
     if connection is None or connection.platform != Platform.vk:
         raise HTTPException(status_code=404, detail="Connection not found")
 
-    connector = VkAdsConnector(connection.credentials_json)
+    decrypted = maybe_decrypt(connection.credentials_json)
+    connector = VkAdsConnector(decrypted)
     try:
-        data = connector.fetch_raw(payload.method, connection.credentials_json, payload.params)
+        data = connector.fetch_raw(payload.method, decrypted, payload.params)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return VkFetchRawResponse(data=data)

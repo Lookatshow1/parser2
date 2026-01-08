@@ -5,6 +5,13 @@ from app.db.session import SessionLocal
 from app.db.models import Connection, SyncRun, SyncRunStatus, SyncRunType
 from app.jobs.service import create_job
 from app.workers.sync_tasks import execute_sync_run
+from app.security.credentials_crypto import (
+    CredentialsCryptoError,
+    encryption_enabled,
+    is_encrypted,
+    maybe_encrypt,
+    rotate_wrapper,
+)
 
 
 def _parse_date(value: str) -> date:
@@ -58,6 +65,36 @@ def run_connection_sync(args: argparse.Namespace) -> int:
         session.close()
 
 
+def rotate_credentials(args: argparse.Namespace) -> int:
+    if not encryption_enabled():
+        raise SystemExit("Credentials encryption keys are not configured.")
+    session = SessionLocal()
+    updated = 0
+    skipped = 0
+    failed = 0
+    try:
+        connections = session.query(Connection).order_by(Connection.id).all()
+        for connection in connections:
+            try:
+                current = connection.credentials_json or {}
+                if is_encrypted(current):
+                    rotated = rotate_wrapper(current)
+                else:
+                    rotated = maybe_encrypt(current)
+                if rotated != current:
+                    connection.credentials_json = rotated
+                    updated += 1
+                else:
+                    skipped += 1
+            except CredentialsCryptoError:
+                failed += 1
+        session.commit()
+    finally:
+        session.close()
+    print(f"rotate_credentials updated={updated} skipped={skipped} failed={failed}")
+    return 0 if failed == 0 else 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="parser2 CLI")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -69,6 +106,9 @@ def build_parser() -> argparse.ArgumentParser:
     sync_parser.add_argument("--force", action="store_true")
     sync_parser.add_argument("--inline", action="store_true", help="Run sync inline without Celery")
     sync_parser.set_defaults(func=run_connection_sync)
+
+    rotate_parser = subparsers.add_parser("rotate-credentials", help="Rotate encrypted credentials")
+    rotate_parser.set_defaults(func=rotate_credentials)
 
     return parser
 

@@ -23,6 +23,7 @@ from app.core.config import get_settings
 from app.db.models import Connection, MetricSnapshot, Platform
 from app.db.session import get_db
 from app.workers.yandex_tasks import sync_yandex_metrics
+from app.security.credentials_crypto import maybe_decrypt
 
 router = APIRouter(prefix="/integrations")
 
@@ -38,8 +39,9 @@ def sync_yandex_reports(
     if connection is None or connection.platform != Platform.yandex:
         raise HTTPException(status_code=404, detail="Connection not found")
 
-    token = connection.credentials_json.get("token")
-    client_login = connection.credentials_json.get("client_login")
+    decrypted = maybe_decrypt(connection.credentials_json)
+    token = decrypted.get("token")
+    client_login = decrypted.get("client_login")
     if not token:
         raise HTTPException(status_code=400, detail="Missing token")
 
@@ -79,7 +81,8 @@ def sync_vk_stats(payload: VkStatsSyncRequest, session: Session = Depends(get_db
     if connection is None or connection.platform != Platform.vk:
         raise HTTPException(status_code=404, detail="Connection not found")
 
-    credentials = dict(connection.credentials_json)
+    decrypted = maybe_decrypt(connection.credentials_json)
+    credentials = dict(decrypted)
     credentials.update(
         {
             "account_id": payload.account_id,

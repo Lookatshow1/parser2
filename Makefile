@@ -1,4 +1,4 @@
-.PHONY: up down reset-db migrate heads current history test seed selftest db-shell logs ps logs-worker logs-api logs-db logs-web doctor
+.PHONY: up down reset-db migrate heads current history test seed selftest db-shell logs ps logs-worker logs-api logs-db logs-web doctor rotate-credentials
 
 up:
 	@$(MAKE) doctor
@@ -73,3 +73,7 @@ db-shell:
 
 doctor:
 	@bash scripts/doctor.sh
+
+rotate-credentials:
+	@$(MAKE) doctor
+	docker compose run --rm api python -m app.cli rotate-credentials

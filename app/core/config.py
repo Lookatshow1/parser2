@@ -1,4 +1,5 @@
 from functools import lru_cache
+import logging
 
 from pydantic import Field, AliasChoices
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -80,6 +81,15 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("SMTP_TIMEOUT", "MAIL_TIMEOUT"),
     )
 
+    credentials_enc_keys: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("CREDENTIALS_ENC_KEYS"),
+    )
+    credentials_enc_active_kid: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("CREDENTIALS_ENC_ACTIVE_KID"),
+    )
+
 
 @lru_cache
 def get_settings() -> Settings:
@@ -88,4 +98,10 @@ def get_settings() -> Settings:
         settings.celery_broker_url = settings.redis_url
     if settings.celery_result_backend is None:
         settings.celery_result_backend = settings.redis_url
+    if settings.env == "prod" and not settings.credentials_enc_keys:
+        raise ValueError("CREDENTIALS_ENC_KEYS is required in prod")
+    if settings.env != "prod" and not settings.credentials_enc_keys:
+        logging.getLogger(__name__).warning(
+            "CREDENTIALS_ENC_KEYS is not set; credentials will be stored in plaintext."
+        )
     return settings

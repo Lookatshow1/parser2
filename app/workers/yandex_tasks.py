@@ -9,6 +9,7 @@ from app.connectors.yandex_direct import YandexDirectConnector
 from app.db.models import Connection, MetricSnapshot
 from app.db.session import SessionLocal
 from app.workers.celery_app import celery_app
+from app.security.credentials_crypto import maybe_decrypt
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +33,8 @@ def sync_yandex_metrics(self, connection_id: int, plan_id: int, date_from: str, 
                 "connection_id": connection_id,
             }
 
-        connector = YandexDirectConnector(connection.credentials_json)
+        decrypted = maybe_decrypt(connection.credentials_json)
+        connector = YandexDirectConnector(decrypted)
         metrics = connector.fetch_metrics(date.fromisoformat(date_from), date.fromisoformat(date_to))
         
         logger.info(f"Fetched {len(metrics)} metrics from Yandex API")

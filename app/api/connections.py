@@ -21,6 +21,7 @@ from app.db.models import Organization, User
 from app.services.connector_service import get_connector
 from app.services.sync_run_service import create_connection_sync_run as create_sync_run
 from app.services.rbac import can_run_sync, can_write_connections
+from app.security.credentials_crypto import CredentialsCryptoError, maybe_decrypt, maybe_encrypt
 
 router = APIRouter(prefix="/connections", tags=["connections"])
 
@@ -34,12 +35,13 @@ def create_connection(
 ):
     if not can_write_connections(membership.role):
         raise HTTPException(status_code=403, detail="Insufficient role to create connection")
+    encrypted_credentials = maybe_encrypt(item.credentials_json or {})
     db_obj = Connection(
         organization_id=org.id,
         advertiser_id=item.advertiser_id,
         platform=item.platform,
         name=item.name,
-        credentials_json=item.credentials_json or {},
+        credentials_json=encrypted_credentials,
         auto_sync_enabled=item.auto_sync_enabled,
         auto_sync_every_minutes=item.auto_sync_every_minutes,
         auto_sync_window_days=item.auto_sync_window_days,
@@ -145,9 +147,13 @@ def check_connection(
     conn = db.query(Connection).filter(Connection.id == connection_id, Connection.organization_id == org.id).first()
     if not conn:
         raise HTTPException(status_code=404, detail="Connection not found")
-    connector = get_connector(conn.platform, conn.credentials_json)
     try:
-        result = connector.validate_connection(conn.credentials_json)
+        decrypted = maybe_decrypt(conn.credentials_json)
+    except CredentialsCryptoError as exc:
+        raise HTTPException(status_code=400, detail="Invalid credentials payload") from exc
+    connector = get_connector(conn.platform, decrypted)
+    try:
+        result = connector.validate_connection(decrypted)
     except Exception as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     ok = bool(result.get("ok"))
