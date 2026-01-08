@@ -155,3 +155,38 @@ def test_sync_conflict_when_running(client: TestClient, db: Session, auth_contex
         headers=auth_context["headers"],
     )
     assert conflict_resp.status_code == 409
+
+
+def test_yandex_mock_sync_creates_snapshots(client: TestClient, db: Session, auth_context):
+    resp = client.post(
+        "/api/connections",
+        json={"platform": "yandex", "credentials_json": {"mock": True}},
+        headers=auth_context["headers"],
+    )
+    assert resp.status_code == 200
+    connection_id = resp.json()["id"]
+
+    sync_resp = client.post(
+        "/api/sync-runs",
+        json={
+            "connection_id": connection_id,
+            "params_json": {"date_from": "2023-01-01", "date_to": "2023-01-03"},
+        },
+        headers=auth_context["headers"],
+    )
+    assert sync_resp.status_code == 201
+    run_id = sync_resp.json()["id"]
+
+    execute_sync_run(run_id)
+
+    snapshots_resp = client.get(
+        f"/api/connections/{connection_id}/snapshots",
+        params={"date_from": "2023-01-01", "date_to": "2023-01-03"},
+        headers=auth_context["headers"],
+    )
+    assert snapshots_resp.status_code == 200
+    items = snapshots_resp.json()["items"]
+    assert len(items) > 0
+
+    run = db.query(SyncRun).get(run_id)
+    assert run.result_json.get("mock") is True

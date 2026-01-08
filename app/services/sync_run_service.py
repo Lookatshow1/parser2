@@ -12,7 +12,7 @@ from app.workers.sync_tasks import execute_sync_run
 def build_date_range(
     date_from: date | None,
     date_to: date | None,
-    window_days: int = 3,
+    window_days: int = 14,
 ) -> Tuple[date, date]:
     if date_from and date_to:
         return date_from, date_to
@@ -29,7 +29,7 @@ def create_connection_sync_run(
     force: bool = False,
     enqueue: bool = True,
 ) -> SyncRun:
-    d_from, d_to = build_date_range(date_from, date_to)
+    d_from, d_to = build_date_range(date_from, date_to, window_days=connection.auto_sync_window_days or 14)
     context = {
         "connection_id": connection.id,
         "date_from": d_from.isoformat(),

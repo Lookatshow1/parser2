@@ -46,7 +46,7 @@ def create_sync_run(
     params = dict(payload.params_json or {})
     if "date_from" not in params or "date_to" not in params:
         date_to = date.today()
-        date_from = date_to - timedelta(days=2)
+        date_from = date_to - timedelta(days=13)
         params.setdefault("date_from", date_from.isoformat())
         params.setdefault("date_to", date_to.isoformat())
     return create_connection_sync_run(

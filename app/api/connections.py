@@ -1,8 +1,10 @@
+from datetime import date, timedelta
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from app.db.session import get_db
-from app.db.models import Connection, ConnectionStatus, SyncRun, SyncRunStatus
+from app.db.models import Connection, ConnectionStatus, MetricSnapshot, SyncRun, SyncRunStatus
 from app.api.schemas import (
     ConnectionCreateRequest,
     ConnectionOut,
@@ -10,6 +12,7 @@ from app.api.schemas import (
     ConnectionTestResponse,
     ConnectionSyncRequest,
     ConnectionUpdateRequest,
+    MetricSnapshotListResponse,
     SyncRunListResponse,
     SyncRunResponse,
 )
@@ -186,11 +189,17 @@ def create_connection_sync_run(
     if active_run:
         raise HTTPException(status_code=409, detail=f"Sync already running (run_id={active_run.id})")
 
+    date_from = payload.date_from
+    date_to = payload.date_to
+    if not date_from or not date_to:
+        date_to = date.today()
+        date_from = date_to - timedelta(days=13)
+
     run = create_sync_run(
         db=db,
         connection=conn,
-        date_from=payload.date_from,
-        date_to=payload.date_to,
+        date_from=date_from,
+        date_to=date_to,
         force=payload.force,
     )
     return run
@@ -211,3 +220,37 @@ def list_connection_sync_runs(
     total = query.count()
     items = query.order_by(desc(SyncRun.created_at)).limit(limit).offset(offset).all()
     return {"items": items, "total": total}
+
+
+@router.get("/{connection_id}/snapshots", response_model=MetricSnapshotListResponse)
+def list_connection_snapshots(
+    connection_id: int,
+    date_from: date | None = Query(None),
+    date_to: date | None = Query(None),
+    limit: int = Query(200, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+    org: Organization = Depends(get_current_org),
+    user: User = Depends(get_current_user),
+):
+    conn = db.query(Connection).filter(Connection.id == connection_id, Connection.organization_id == org.id).first()
+    if not conn:
+        raise HTTPException(status_code=404, detail="Connection not found")
+    if not date_to:
+        date_to = date.today()
+    if not date_from:
+        date_from = date_to - timedelta(days=13)
+    items = (
+        db.query(MetricSnapshot)
+        .filter(
+            MetricSnapshot.organization_id == org.id,
+            MetricSnapshot.connection_id == conn.id,
+            MetricSnapshot.date >= date_from,
+            MetricSnapshot.date <= date_to,
+        )
+        .order_by(MetricSnapshot.date.asc())
+        .limit(limit)
+        .offset(offset)
+        .all()
+    )
+    return {"items": items}

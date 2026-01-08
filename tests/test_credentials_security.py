@@ -41,9 +41,9 @@ def test_connection_validation_errors_by_platform(client: TestClient, auth_conte
     )
     assert bad_ozon.status_code == 422
 
-    bad_yandex = client.post(
+    ok_yandex = client.post(
         "/api/connections",
         json={"platform": "yandex", "credentials_json": {}},
         headers=auth_context["headers"],
     )
-    assert bad_yandex.status_code == 422
+    assert ok_yandex.status_code == 200

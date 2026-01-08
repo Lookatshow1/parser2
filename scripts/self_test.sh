@@ -117,7 +117,7 @@ CONN_JSON=$(curl -fsS --max-time 10 -X POST "http://localhost:8000/api/connectio
   -H "Content-Type: application/json" \
   -H "${INVITED_AUTH_HEADER}" \
   -H "${INVITED_ORG_HEADER}" \
-  -d '{"platform":"stub","credentials_json":{"token":"secret"}}')
+  -d '{"platform":"yandex","credentials_json":{"mock":true}}')
 
 CONN_ID=$(printf '%s' "${CONN_JSON}" | python3 -c "import sys, json; print(json.loads(sys.stdin.read())['id'])")
 
@@ -149,6 +149,16 @@ RUN_ID=$(curl -fsS --max-time 10 -X POST "http://localhost:8000/api/sync-runs" \
   -d "{\"connection_id\":${CONN_ID},\"params_json\":{\"date_from\":\"2023-01-01\",\"date_to\":\"2023-01-03\"}}" \
   | python3 -c "import sys, json; print(json.load(sys.stdin)['id'])")
 
+RUNNING_CONFLICT=$(curl -sS --max-time 10 -o /dev/null -w "%{http_code}" -X POST "http://localhost:8000/api/sync-runs" \
+  -H "Content-Type: application/json" \
+  -H "${INVITED_AUTH_HEADER}" \
+  -H "${INVITED_ORG_HEADER}" \
+  -d "{\"connection_id\":${CONN_ID},\"params_json\":{\"date_from\":\"2023-01-01\",\"date_to\":\"2023-01-03\"}}" || true)
+if [ "$RUNNING_CONFLICT" != "409" ]; then
+  echo "Expected 409 when starting sync during running state, got ${RUNNING_CONFLICT}" >&2
+  exit 1
+fi
+
 echo "Waiting for sync run to finish..."
 STATUS="queued"
 for _ in {1..45}; do
@@ -177,6 +187,13 @@ fi
 
 curl -fsS --max-time 10 "http://localhost:8000/api/metrics?connection_id=${CONN_ID}&date_from=2023-01-01&date_to=2023-01-03" \
   -H "${INVITED_AUTH_HEADER}" -H "${INVITED_ORG_HEADER}" >/dev/null
+SNAPSHOTS_COUNT=$(curl -fsS --max-time 10 "http://localhost:8000/api/connections/${CONN_ID}/snapshots?date_from=2023-01-01&date_to=2023-01-03" \
+  -H "${INVITED_AUTH_HEADER}" -H "${INVITED_ORG_HEADER}" \
+  | python3 -c "import sys, json; print(len(json.load(sys.stdin)['items']))")
+if [ "${SNAPSHOTS_COUNT}" -le 0 ]; then
+  echo "Snapshots not created for mock connection." >&2
+  exit 1
+fi
 SUMMARY_JSON=$(curl -fsS --max-time 10 "http://localhost:8000/api/dashboard/summary?connection_id=${CONN_ID}&date_from=2023-01-01&date_to=2023-01-03" \
   -H "${INVITED_AUTH_HEADER}" -H "${INVITED_ORG_HEADER}")
 
@@ -247,3 +264,19 @@ curl -fsS --max-time 10 "http://localhost:8000/api/sync-runs?connection_id=${CON
   -H "${INVITED_AUTH_HEADER}" -H "${INVITED_ORG_HEADER}" >/dev/null
 curl -fsS --max-time 10 "http://localhost:8000/api/job-runs?connection_id=${CONN_ID}" \
   -H "${INVITED_AUTH_HEADER}" -H "${INVITED_ORG_HEADER}" >/dev/null
+
+SECOND_ORG_ID=$(curl -fsS --max-time 10 -X POST "http://localhost:8000/api/orgs" \
+  -H "Content-Type: application/json" \
+  -H "${INVITED_AUTH_HEADER}" \
+  -d '{"name":"Second Org"}' \
+  | python3 -c "import sys, json; print(json.load(sys.stdin)['id'])")
+
+SECOND_ORG_LIST=$(curl -fsS --max-time 10 "http://localhost:8000/api/connections" \
+  -H "${INVITED_AUTH_HEADER}" \
+  -H "X-Org-Id: ${SECOND_ORG_ID}" \
+  | python3 -c "import sys, json; print(len(json.load(sys.stdin)['items']))")
+
+if [ "${SECOND_ORG_LIST}" -ne 0 ]; then
+  echo "Org scoping failed: expected empty connections list in second org." >&2
+  exit 1
+fi

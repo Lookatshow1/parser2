@@ -74,7 +74,7 @@ curl -sS -X POST http://localhost:8000/api/connections \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer ${MEMBER_TOKEN}" \
   -H "X-Org-Id: ${ORG_ID}" \
-  -d '{"platform":"stub","credentials_json":{}}'
+  -d '{"platform":"yandex","credentials_json":{"mock":true}}'
 
 curl -sS -X POST http://localhost:8000/api/sync-runs \
   -H "Content-Type: application/json" \
@@ -86,15 +86,16 @@ curl -sS http://localhost:8000/api/sync-runs/1 -H "Authorization: Bearer ${MEMBE
 curl -sS "http://localhost:8000/api/job-runs?connection_id=1" -H "Authorization: Bearer ${MEMBER_TOKEN}" -H "X-Org-Id: ${ORG_ID}"
 
 curl -sS "http://localhost:8000/api/metrics?connection_id=1&date_from=2023-01-01&date_to=2023-01-03" -H "Authorization: Bearer ${MEMBER_TOKEN}" -H "X-Org-Id: ${ORG_ID}"
+curl -sS "http://localhost:8000/api/connections/1/snapshots?date_from=2023-01-01&date_to=2023-01-03" -H "Authorization: Bearer ${MEMBER_TOKEN}" -H "X-Org-Id: ${ORG_ID}"
 curl -sS "http://localhost:8000/api/dashboard/summary?connection_id=1&date_from=2023-01-01&date_to=2023-01-03" -H "Authorization: Bearer ${MEMBER_TOKEN}" -H "X-Org-Id: ${ORG_ID}"
 ```
 
 ## Connector credentials (structure)
 
 These are only structural checks now; real API calls are not required for stub/self-test.
-Dev demo uses stub connector with deterministic metrics per connection and date range.
+Dev demo uses Yandex mock mode with deterministic metrics per connection and date range.
 
-- Yandex: `{"token":"..."}` (optional `login`)
+- Yandex: `{"mock":true}` for demo or `{"token":"..."}` (optional `login`) for real keys
 - VK Ads: `{"access_token":"...","version":"5.131","account_id":"..."}`
 - Ozon Performance: `{"client_id":"...","client_secret":"..."}`
 

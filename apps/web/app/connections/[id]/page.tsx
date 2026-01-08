@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { getDashboardSummary, getMetrics, listConnectionSyncRuns, listJobRuns, syncConnection } from "../../../lib/api";
+import { getDashboardSummary, listConnectionSnapshots, listConnectionSyncRuns, listJobRuns, syncConnection } from "../../../lib/api";
 
 type Run = { id: number; status: string; run_type: string; created_at: string; result_json?: Record<string, unknown>; error_text?: string | null };
 type JobRun = { id: number; job_type: string; status: string; created_at: string; result_json?: Record<string, unknown> | null; error_text?: string | null };
@@ -30,7 +30,7 @@ export default function ConnectionDetailPage({ params }: { params: { id: string 
   const defaultDateRange = useMemo(() => {
     const to = new Date();
     const from = new Date();
-    from.setDate(to.getDate() - 7);
+    from.setDate(to.getDate() - 13);
     return {
       from: from.toISOString().slice(0, 10),
       to: to.toISOString().slice(0, 10),
@@ -46,12 +46,12 @@ export default function ConnectionDetailPage({ params }: { params: { id: string 
       setRuns(runData);
       const jobData = await listJobRuns({ connection_id: connectionId, limit: 20 });
       setJobRuns(jobData.items);
-      const metricsData = await getMetrics({
+      const snapshotsData = await listConnectionSnapshots({
         connection_id: connectionId,
         date_from: defaultDateRange.from,
         date_to: defaultDateRange.to,
       });
-      setMetrics(metricsData.items);
+      setMetrics(snapshotsData.items);
       const summaryData = await getDashboardSummary({
         connection_id: connectionId,
         date_from: defaultDateRange.from,
@@ -114,12 +114,12 @@ export default function ConnectionDetailPage({ params }: { params: { id: string 
   const refreshMetrics = async () => {
     setError(null);
     try {
-      const metricsData = await getMetrics({
+      const snapshotsData = await listConnectionSnapshots({
         connection_id: connectionId,
         date_from: dateFrom || defaultDateRange.from,
         date_to: dateTo || defaultDateRange.to,
       });
-      setMetrics(metricsData.items);
+      setMetrics(snapshotsData.items);
       const summaryData = await getDashboardSummary({
         connection_id: connectionId,
         date_from: dateFrom || defaultDateRange.from,

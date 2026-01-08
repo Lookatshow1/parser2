@@ -16,10 +16,10 @@ import {
 } from "../../lib/api";
 import { getOrgId, getToken, setOrgId } from "../../lib/session";
 
-const platforms = ["stub", "yandex", "ozon", "vk"];
+const platforms = ["yandex", "stub", "ozon", "vk"];
 const credentialsTemplates: Record<string, string> = {
   stub: "{}",
-  yandex: JSON.stringify({ token: "", login: "" }),
+  yandex: JSON.stringify({ mock: true }),
   ozon: JSON.stringify({ client_id: "", client_secret: "" }),
   vk: JSON.stringify({ access_token: "", version: "5.131", account_id: "" }),
 };
@@ -28,8 +28,8 @@ export default function ConnectionsPage() {
   const [items, setItems] = useState<ConnectionResponse[]>([]);
   const [orgs, setOrgs] = useState<Array<{ id: number; name: string }>>([]);
   const [activeOrgId, setActiveOrgId] = useState<string | null>(null);
-  const [platform, setPlatform] = useState("stub");
-  const [credentialsJson, setCredentialsJson] = useState("{}");
+  const [platform, setPlatform] = useState("yandex");
+  const [credentialsJson, setCredentialsJson] = useState(credentialsTemplates.yandex);
   const [name, setName] = useState("");
   const [autoSyncEnabled, setAutoSyncEnabled] = useState(false);
   const [autoSyncEveryMinutes, setAutoSyncEveryMinutes] = useState(1440);
@@ -47,7 +47,7 @@ export default function ConnectionsPage() {
   const defaultDateRange = useMemo(() => {
     const to = new Date();
     const from = new Date();
-    from.setDate(to.getDate() - 7);
+    from.setDate(to.getDate() - 13);
     return {
       from: from.toISOString().slice(0, 10),
       to: to.toISOString().slice(0, 10),
@@ -332,7 +332,7 @@ export default function ConnectionsPage() {
                   disabled={item.last_sync_status === "queued" || item.last_sync_status === "running"}
                   className="bg-slate-700 hover:bg-slate-600 text-xs px-3 py-1 rounded disabled:opacity-50"
                 >
-                  Sync
+                  {item.platform === "yandex" ? "Run demo sync" : "Sync"}
                 </button>
                 <button
                   onClick={() => toggleAutoSync(item.id, !item.auto_sync_enabled)}

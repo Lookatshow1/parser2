@@ -234,6 +234,19 @@ export async function listConnectionSyncRuns(connectionId: number) {
   );
 }
 
+export async function listConnectionSnapshots(payload: { connection_id: number; date_from?: string; date_to?: string }) {
+  const params = new URLSearchParams();
+  if (payload.date_from) {
+    params.set("date_from", payload.date_from);
+  }
+  if (payload.date_to) {
+    params.set("date_to", payload.date_to);
+  }
+  return request<{ items: Array<Record<string, unknown>> }>(
+    `/connections/${payload.connection_id}/snapshots?${params.toString()}`
+  );
+}
+
 export async function listJobRuns(payload: { connection_id?: number; limit?: number }) {
   const params = new URLSearchParams();
   if (payload.connection_id) {

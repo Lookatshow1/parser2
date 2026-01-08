@@ -6,6 +6,7 @@ from app.db import session as db_session
 from app.db.models import SyncRun, SyncRunStatus, SyncRunType
 from app.jobs.service import mark_failed, mark_running, mark_succeeded
 from app.services.lock_service import acquire_advisory_lock, get_sync_lock_key, get_connection_sync_lock_key
+from app.services.audit import log_org_event
 from app.services.sync_service import sync_campaigns, sync_metrics, sync_connection_metrics
 from app.workers.celery_app import celery_app
 
@@ -21,7 +22,7 @@ def _run_sync_logic(db: Session, run: SyncRun):
         if not date_from or not date_to:
             from datetime import date, timedelta
             d_to = date.today()
-            d_from = d_to - timedelta(days=2)
+            d_from = d_to - timedelta(days=13)
         else:
             from datetime import date
             d_from = date.fromisoformat(str(date_from))
@@ -76,7 +77,7 @@ def execute_sync_run(self, run_id: int):
 
         # 1. Try to acquire lock
         if run.connection_id:
-            lock_key = get_connection_sync_lock_key(run.connection_id, run.platform)
+            lock_key = get_connection_sync_lock_key(run.connection_id, run.platform, run.organization_id)
         else:
             lock_key = get_sync_lock_key(run.experiment_id, run.platform)
         if not acquire_advisory_lock(db, lock_key):
@@ -84,6 +85,16 @@ def execute_sync_run(self, run_id: int):
             run.error_text = "Already running (lock acquisition failed)"
             run.finished_at = datetime.now(timezone.utc)
             db.commit()
+            if run.connection_id:
+                log_org_event(
+                    db,
+                    organization_id=run.organization_id,
+                    actor_user_id=None,
+                    action="connection_sync_failed",
+                    subject_type="connection",
+                    subject_id=run.connection_id,
+                    meta={"reason": "lock_failed", "sync_run_id": run.id},
+                )
             if job_run_id:
                 mark_failed(db, job_run_id, "Already running (lock acquisition failed)")
             return "Lock failed"
@@ -108,6 +119,21 @@ def execute_sync_run(self, run_id: int):
                 result = {"result": result, "duration_ms": duration_ms}
             run.result_json = result or {}
             db.commit()
+            if run.connection_id:
+                log_org_event(
+                    db,
+                    organization_id=run.organization_id,
+                    actor_user_id=None,
+                    action="connection_sync_succeeded",
+                    subject_type="connection",
+                    subject_id=run.connection_id,
+                    meta={
+                        "sync_run_id": run.id,
+                        "inserted": result.get("inserted") if isinstance(result, dict) else None,
+                        "updated": result.get("updated") if isinstance(result, dict) else None,
+                        "unchanged": result.get("unchanged") if isinstance(result, dict) else None,
+                    },
+                )
             if job_run_id:
                 mark_succeeded(db, job_run_id, {"result": result or {}})
 
@@ -120,6 +146,16 @@ def execute_sync_run(self, run_id: int):
             run.error_text = error_text[:4000]
             run.finished_at = datetime.now(timezone.utc)
             db.commit()
+            if run.connection_id:
+                log_org_event(
+                    db,
+                    organization_id=run.organization_id,
+                    actor_user_id=None,
+                    action="connection_sync_failed",
+                    subject_type="connection",
+                    subject_id=run.connection_id,
+                    meta={"sync_run_id": run.id, "error": str(e)[:500]},
+                )
             if job_run_id:
                 mark_failed(db, job_run_id, str(e))
 

@@ -89,7 +89,7 @@
 Статус: done  
 Проверка: `pytest -q tests/test_auto_sync_scheduler.py`
 
-4.8 Dev-коннектор генерирует стабильные метрики без ключей  
+4.8 Mock-коннектор генерирует стабильные метрики без ключей (yandex mock через credentials_json)  
 Статус: done  
 Проверка: `pytest -q tests/test_connections_sync.py`
 
@@ -154,6 +154,8 @@
 - Invite signup: /api/invites/{token}/preview + регистрация с invite_token, проверка email обязательна.
 - Invite flow: preview -> signup with invite_token or login -> /invite/[token] -> accept.
 - Инвайты отправляются по email (MailHog), есть resend, поля sent_at/send_count/last_error и audit invite_sent/invite_resent.
+- Mock-режим для Yandex включается через `{"mock": true}` или отсутствие token в credentials_json; данные детерминированы по connection_id и датам.
+- Добавлен API `/api/connections/{id}/snapshots` для выдачи дневных снапшотов по connection_id.
 
 ## Next (после MVP)
 

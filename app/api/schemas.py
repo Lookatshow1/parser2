@@ -11,6 +11,10 @@ from app.connectors.credentials import get_credentials_model
 
 
 def validate_credentials_for_platform(platform: Platform, credentials_json: dict) -> None:
+    if credentials_json and credentials_json.get("mock") is True:
+        return
+    if platform == Platform.yandex and not (credentials_json or {}).get("token"):
+        return
     try:
         model = get_credentials_model(platform)
     except ValueError as exc:
@@ -91,9 +95,30 @@ class ConnectionUpdateRequest(BaseModel):
 
 
 class ConnectionSyncRequest(BaseModel):
-    date_from: dt_date
-    date_to: dt_date
+    date_from: dt_date | None = None
+    date_to: dt_date | None = None
     force: bool = False
+
+
+class MetricSnapshotOut(BaseModel):
+    date: dt_date
+    level: str
+    campaign_external_id: str
+    ad_group_external_id: str | None = None
+    ad_external_id: str | None = None
+    impressions: int
+    clicks: int
+    spend: int
+    leads: int
+    purchases: int
+    revenue: int
+
+    class Config:
+        from_attributes = True
+
+
+class MetricSnapshotListResponse(BaseModel):
+    items: list[MetricSnapshotOut]
 
 
 class AuthRegisterRequest(BaseModel):

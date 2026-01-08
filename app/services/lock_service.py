@@ -37,8 +37,9 @@ def get_sync_lock_key(experiment_id: int, platform: str) -> int:
     return key
 
 
-def get_connection_sync_lock_key(connection_id: int, platform: str) -> int:
-    raw_str = f"sync:connection:{connection_id}:{_normalize_platform(platform)}"
+def get_connection_sync_lock_key(connection_id: int, platform: str, organization_id: int | None = None) -> int:
+    org_part = organization_id if organization_id is not None else "none"
+    raw_str = f"sync:connection:{org_part}:{connection_id}:{_normalize_platform(platform)}"
     hash_bytes = hashlib.sha256(raw_str.encode("utf-8")).digest()
     return int.from_bytes(hash_bytes[:8], byteorder="big", signed=True)
 

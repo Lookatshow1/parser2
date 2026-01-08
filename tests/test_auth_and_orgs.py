@@ -61,3 +61,10 @@ def test_org_membership_and_isolation(client: TestClient):
         headers=headers,
     )
     assert sync_b.status_code == 404
+
+    snapshots_b = client.get(
+        f"/api/connections/{connection_id}/snapshots",
+        params={"date_from": "2023-01-01", "date_to": "2023-01-03"},
+        headers=headers,
+    )
+    assert snapshots_b.status_code == 404

@@ -3,7 +3,8 @@ from __future__ import annotations
 import csv
 import time
 import os
-from datetime import date, datetime, timedelta
+import hashlib
+from datetime import date, timedelta
 from typing import List, Dict, Any
 
 import httpx
@@ -20,14 +21,34 @@ class YandexDirectConnector(AdsConnector):
         self.credentials = credentials or {}
         self.token = self.credentials.get("token")
         self.login = self.credentials.get("login")
-        self.is_mock = os.getenv("YANDEX_DIRECT_MOCK", "0") == "1"
+        self.is_mock = self._resolve_mock_mode()
 
     def credential_schema(self):
         return YandexCredentials
 
+    def _resolve_mock_mode(self) -> bool:
+        if os.getenv("YANDEX_DIRECT_MOCK", "0") == "1":
+            return True
+        if self.credentials.get("mock") is True:
+            return True
+        return not bool(self.token)
+
+    def _mock_seed(self, connection_id: int | None) -> int:
+        seed_input = f"yandex:{connection_id or 0}"
+        digest = hashlib.sha256(seed_input.encode("utf-8")).hexdigest()
+        return int(digest[:8], 16)
+
+    def _mock_campaign_ids(self, connection_id: int | None) -> list[str]:
+        seed = self._mock_seed(connection_id)
+        base = seed % 900
+        return [str(1000 + base), str(2000 + base)]
+
     def validate_connection(self, credentials_json: dict) -> dict:
+        payload = credentials_json or {}
+        if payload.get("mock") is True or not payload.get("token"):
+            return {"ok": True, "message": "Mock mode enabled"}
         try:
-            self.credential_schema().model_validate(credentials_json)
+            self.credential_schema().model_validate(payload)
         except ValidationError as exc:
             return {
                 "ok": False,
@@ -44,29 +65,39 @@ class YandexDirectConnector(AdsConnector):
 
     def fetch_metrics(self, date_from: date, date_to: date, connection_id: int | None = None) -> list[MetricRecord]:
         if self.is_mock:
-            campaigns = self.list_campaigns()
-            campaign_ids = [str(camp["id"]) for camp in campaigns]
-            rows = self.get_daily_stats(campaign_ids, date_from, date_to)
-            return [
-                {
-                    "date": date.fromisoformat(row["Date"]),
-                    "platform": Platform.yandex,
-                    "level": "campaign",
-                    "campaign_external_id": str(row["CampaignId"]),
-                    "ad_group_external_id": None,
-                    "ad_external_id": None,
-                    "impressions": int(row.get("Impressions") or 0),
-                    "clicks": int(row.get("Clicks") or 0),
-                    "spend": int(float(row.get("Cost") or 0)),
-                    "leads": int(float(row.get("Leads") or 0)),
-                    "purchases": int(float(row.get("Purchases") or 0)),
-                    "revenue": int(float(row.get("Revenue") or 0)),
-                    "conversions": None,
-                    "cost": int(float(row.get("Cost") or 0)),
-                    "currency": "RUB",
-                }
-                for row in rows
-            ]
+            campaign_ids = self._mock_campaign_ids(connection_id)
+            results: list[MetricRecord] = []
+            delta = date_to - date_from
+            seed = self._mock_seed(connection_id)
+            for i in range(delta.days + 1):
+                current_date = date_from + timedelta(days=i)
+                for cid in campaign_ids:
+                    base = seed + int(cid)
+                    impressions = 900 + base % 200 + i * 11
+                    clicks = 40 + base % 25 + i * 2
+                    spend = 120 + base % 80 + i * 5
+                    purchases = (clicks // 10) or 1
+                    revenue = spend * 3
+                    results.append(
+                        {
+                            "date": current_date,
+                            "platform": Platform.yandex,
+                            "level": "campaign",
+                            "campaign_external_id": str(cid),
+                            "ad_group_external_id": None,
+                            "ad_external_id": None,
+                            "impressions": int(impressions),
+                            "clicks": int(clicks),
+                            "spend": int(spend),
+                            "leads": int(clicks // 8),
+                            "purchases": int(purchases),
+                            "revenue": int(revenue),
+                            "conversions": None,
+                            "cost": int(spend),
+                            "currency": "RUB",
+                        }
+                    )
+            return results
 
         # Legacy method, kept for compatibility if needed, but we prefer get_daily_stats
         settings = get_settings()
@@ -110,9 +141,10 @@ class YandexDirectConnector(AdsConnector):
 
     def list_campaigns(self) -> List[Dict[str, Any]]:
         if self.is_mock:
+            campaigns = self._mock_campaign_ids(None)
             return [
-                {"id": "111", "name": "Mock Campaign 1", "status": "STARTED"},
-                {"id": "222", "name": "Mock Campaign 2", "status": "STOPPED"},
+                {"id": campaigns[0], "name": "Mock Campaign 1", "status": "STARTED"},
+                {"id": campaigns[1], "name": "Mock Campaign 2", "status": "STOPPED"},
             ]
 
         # TODO: Implement real API call using requests
@@ -122,15 +154,17 @@ class YandexDirectConnector(AdsConnector):
         if self.is_mock:
             results = []
             delta = date_to - date_from
+            seed = self._mock_seed(None)
             for i in range(delta.days + 1):
                 current_date = date_from + timedelta(days=i)
                 for cid in campaign_ids:
+                    base = seed + int(cid)
                     results.append({
                         "Date": current_date.isoformat(),
                         "CampaignId": cid,
-                        "Impressions": 100 + int(cid),
-                        "Clicks": 10 + int(cid),
-                        "Cost": 500.0
+                        "Impressions": 900 + base % 200 + i * 11,
+                        "Clicks": 40 + base % 25 + i * 2,
+                        "Cost": float(120 + base % 80 + i * 5)
                     })
             return results
 

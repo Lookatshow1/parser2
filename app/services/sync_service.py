@@ -155,6 +155,9 @@ def sync_connection_metrics(
     connector = get_connector(connection.platform, connection.credentials_json)
     records = connector.fetch_metrics(date_from, date_to, connection_id=connection.id)
     stats = {"inserted": 0, "updated": 0, "unchanged": 0, "total": len(records)}
+    if getattr(connector, "is_mock", False):
+        stats["mock"] = True
+        stats["mock_version"] = "v1"
 
     for record in records:
         metrics_payload = record.get("metrics") if isinstance(record.get("metrics"), dict) else record
