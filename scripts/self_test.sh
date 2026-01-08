@@ -197,6 +197,15 @@ fi
 SUMMARY_JSON=$(curl -fsS --max-time 10 "http://localhost:8000/api/dashboard/summary?connection_id=${CONN_ID}&date_from=2023-01-01&date_to=2023-01-03" \
   -H "${INVITED_AUTH_HEADER}" -H "${INVITED_ORG_HEADER}")
 
+TIMESERIES_JSON=$(curl -fsS --max-time 10 "http://localhost:8000/api/metrics/timeseries?date_from=2023-01-01&date_to=2023-01-03&connection_ids=${CONN_ID}&metric_keys=spend,clicks" \
+  -H "${INVITED_AUTH_HEADER}" -H "${INVITED_ORG_HEADER}")
+
+TS_COUNT=$(printf '%s' "${TIMESERIES_JSON}" | python3 -c "import sys, json; data=json.loads(sys.stdin.read()); print(len(data.get('series', {}).get('spend', [])))")
+if [ "${TS_COUNT}" -le 0 ]; then
+  echo "Timeseries check failed: no spend points." >&2
+  exit 1
+fi
+
 CTR_VAL=$(printf '%s' "${SUMMARY_JSON}" | python3 -c "import sys, json; print(json.loads(sys.stdin.read())['totals'].get('ctr'))")
 if [ -z "$CTR_VAL" ] || [ "$CTR_VAL" = "None" ]; then
   echo "Dashboard efficiency check failed: ctr is empty" >&2

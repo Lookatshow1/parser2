@@ -602,6 +602,18 @@ class MetricAggregateResponse(BaseModel):
     items: list[MetricAggregateItem]
 
 
+class MetricPoint(BaseModel):
+    date: dt_date
+    value: int
+
+
+class MetricTimeseriesResponse(BaseModel):
+    date_from: dt_date
+    date_to: dt_date
+    series: dict[str, list[MetricPoint]]
+    totals: dict[str, int]
+
+
 class ExperimentSummaryResponse(BaseModel):
     impressions: int
     clicks: int

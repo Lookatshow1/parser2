@@ -1,11 +1,11 @@
 from datetime import date, datetime, timedelta
 
-from fastapi import APIRouter, Depends, Query
-from sqlalchemy import func
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.api.schemas import MetricAggregateResponse, MetricsSummaryResponse
-from app.db.models import MetricSnapshot
+from app.api.schemas import MetricAggregateResponse, MetricTimeseriesResponse, MetricsSummaryResponse
+from app.db.models import Connection, MetricSnapshot
 from app.api.deps import get_current_org, get_current_user
 from app.db.models import Organization, User
 from app.db.session import get_db
@@ -105,3 +105,94 @@ def metrics_summary(
         cpl=cpl,
         cpa=cpa,
     )
+
+
+@router.get("/timeseries", response_model=MetricTimeseriesResponse)
+def metrics_timeseries(
+    date_from: date | None = Query(None, description="Начало периода"),
+    date_to: date | None = Query(None, description="Конец периода"),
+    connection_ids: str | None = Query(None, description="Список connection_id через запятую"),
+    metric_keys: str | None = Query(None, description="Список метрик через запятую"),
+    granularity: str = Query("day", regex="^day$"),
+    session: Session = Depends(get_db),
+    org: Organization = Depends(get_current_org),
+    user: User = Depends(get_current_user),
+):
+    if date_to is None:
+        date_to = datetime.utcnow().date()
+    if date_from is None:
+        date_from = date_to - timedelta(days=13)
+    if date_from > date_to:
+        raise HTTPException(status_code=400, detail="date_from must be <= date_to")
+    if (date_to - date_from).days > 180:
+        raise HTTPException(status_code=400, detail="date range exceeds 180 days")
+
+    allowed_metrics = {
+        "spend": MetricSnapshot.spend,
+        "clicks": MetricSnapshot.clicks,
+        "impressions": MetricSnapshot.impressions,
+        "leads": MetricSnapshot.leads,
+        "purchases": MetricSnapshot.purchases,
+        "revenue": MetricSnapshot.revenue,
+    }
+    if metric_keys:
+        requested = [item.strip() for item in metric_keys.split(",") if item.strip()]
+    else:
+        requested = ["spend", "clicks", "impressions"]
+    invalid = [item for item in requested if item not in allowed_metrics]
+    if invalid:
+        raise HTTPException(status_code=400, detail=f"Unsupported metric_keys: {', '.join(invalid)}")
+
+    conn_ids: list[int] = []
+    if connection_ids:
+        try:
+            conn_ids = [int(item) for item in connection_ids.split(",") if item.strip()]
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="Invalid connection_ids") from exc
+        existing = session.execute(
+            select(Connection.id).where(
+                Connection.organization_id == org.id,
+                Connection.id.in_(conn_ids),
+            )
+        ).scalars().all()
+        if len(set(existing)) != len(set(conn_ids)):
+            raise HTTPException(status_code=404, detail="Connection not found")
+        conn_ids = list(set(existing))
+    else:
+        conn_ids = session.execute(
+            select(Connection.id).where(Connection.organization_id == org.id)
+        ).scalars().all()
+
+    series: dict[str, list[dict]] = {key: [] for key in requested}
+    totals: dict[str, int] = {key: 0 for key in requested}
+    if not conn_ids:
+        return {
+            "date_from": date_from,
+            "date_to": date_to,
+            "series": series,
+            "totals": totals,
+        }
+
+    for key in requested:
+        col = allowed_metrics[key]
+        query = (
+            session.query(MetricSnapshot.date.label("date"), func.sum(col).label("value"))
+            .filter(MetricSnapshot.organization_id == org.id)
+            .filter(MetricSnapshot.connection_id.in_(conn_ids))
+            .filter(MetricSnapshot.date >= date_from)
+            .filter(MetricSnapshot.date <= date_to)
+            .filter(MetricSnapshot.level == "campaign")
+            .group_by(MetricSnapshot.date)
+            .order_by(MetricSnapshot.date.asc())
+        )
+        rows = query.all()
+        points = [{"date": row.date, "value": int(row.value or 0)} for row in rows]
+        series[key] = points
+        totals[key] = sum(point["value"] for point in points)
+
+    return {
+        "date_from": date_from,
+        "date_to": date_to,
+        "series": series,
+        "totals": totals,
+    }

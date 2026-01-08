@@ -17,6 +17,12 @@ make up
 Frontend reads `NEXT_PUBLIC_API_BASE_URL` for backend base URL.
 Open http://localhost:3000 after `make up`.
 
+## Dashboard demo flow
+
+1) Create a mock Yandex connection (see smoke flow below).
+2) Run a sync for the last 14 days.
+3) Open http://localhost:3000/dashboard to see timeseries and totals.
+
 ## Email invites (MailHog)
 
 Local dev uses MailHog to capture outgoing invite emails.

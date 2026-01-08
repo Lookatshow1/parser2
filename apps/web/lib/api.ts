@@ -247,6 +247,33 @@ export async function listConnectionSnapshots(payload: { connection_id: number; 
   );
 }
 
+export async function getMetricsTimeseries(payload: {
+  date_from?: string;
+  date_to?: string;
+  connection_ids?: number[];
+  metric_keys?: string[];
+}) {
+  const params = new URLSearchParams();
+  if (payload.date_from) {
+    params.set("date_from", payload.date_from);
+  }
+  if (payload.date_to) {
+    params.set("date_to", payload.date_to);
+  }
+  if (payload.connection_ids && payload.connection_ids.length > 0) {
+    params.set("connection_ids", payload.connection_ids.join(","));
+  }
+  if (payload.metric_keys && payload.metric_keys.length > 0) {
+    params.set("metric_keys", payload.metric_keys.join(","));
+  }
+  return request<{
+    date_from: string;
+    date_to: string;
+    series: Record<string, Array<{ date: string; value: number }>>;
+    totals: Record<string, number>;
+  }>(`/metrics/timeseries?${params.toString()}`);
+}
+
 export async function listJobRuns(payload: { connection_id?: number; limit?: number }) {
   const params = new URLSearchParams();
   if (payload.connection_id) {

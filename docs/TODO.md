@@ -157,6 +157,7 @@
 - Mock-режим для Yandex включается через `{"mock": true}` или отсутствие token в credentials_json; данные детерминированы по connection_id и датам.
 - Добавлен API `/api/connections/{id}/snapshots` для выдачи дневных снапшотов по connection_id.
 - Credentials encryption at-rest: wrapper `__enc__` + Fernet keys, data migration и ротация через CLI.
+- Dashboard: новый endpoint `/api/metrics/timeseries` и web-страница /dashboard с графиком и итогами по периоду.
 
 ## Next (после MVP)
 
