@@ -99,6 +99,24 @@ Dev demo uses Yandex mock mode with deterministic metrics per connection and dat
 - VK Ads: `{"access_token":"...","version":"5.131","account_id":"..."}`
 - Ozon Performance: `{"client_id":"...","client_secret":"..."}`
 
+## Credentials encryption (at rest)
+
+Credentials are stored encrypted in `connections.credentials_json` as a wrapper:
+
+```json
+{"__enc__":true,"v":1,"kid":"<key-id>","ct":"<ciphertext>"}
+```
+
+Configure keys via env:
+
+```
+CREDENTIALS_ENC_KEYS="kid1:base64key1,kid2:base64key2"
+CREDENTIALS_ENC_ACTIVE_KID="kid1"
+```
+
+If keys are missing in dev, plaintext storage is allowed with a warning. In prod, missing keys cause startup failure.
+Rotate credentials with `make rotate-credentials` after changing the active key.
+
 ## Health checks
 
 ```bash

@@ -156,6 +156,7 @@
 - Инвайты отправляются по email (MailHog), есть resend, поля sent_at/send_count/last_error и audit invite_sent/invite_resent.
 - Mock-режим для Yandex включается через `{"mock": true}` или отсутствие token в credentials_json; данные детерминированы по connection_id и датам.
 - Добавлен API `/api/connections/{id}/snapshots` для выдачи дневных снапшотов по connection_id.
+- Credentials encryption at-rest: wrapper `__enc__` + Fernet keys, data migration и ротация через CLI.
 
 ## Next (после MVP)
 
@@ -169,5 +170,6 @@
 - Приглашения без регистрации (invite signup).
 - Экран ошибок и метрики конверсии invite signup.
 - Расширение аудита: добавить события для connections/sync_runs и UI фильтры.
-- Credentials: шифрование at-rest и ротация ключа (Fernet).
+- Structured logs + correlation_id для запросов/sync/jobs.
+- Dashboard charts (spend/clicks) и фильтры по платформам.
 - Первая реальная площадка: подключить один коннектор с валидным fetch без токенов (через мок-режим).

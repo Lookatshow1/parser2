@@ -1,6 +1,12 @@
 import os
 import pytest
 
+os.environ.setdefault(
+    "CREDENTIALS_ENC_KEYS",
+    "test:MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA=",
+)
+os.environ.setdefault("CREDENTIALS_ENC_ACTIVE_KID", "test")
+
 from sqlalchemy import create_engine, event, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.engine import Engine
