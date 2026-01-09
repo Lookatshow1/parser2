@@ -616,11 +616,40 @@ class MetricPoint(BaseModel):
     value: int
 
 
+class MetricTimeseriesItem(BaseModel):
+    date: dt_date
+    impressions: int
+    clicks: int
+    spend: int
+    leads: int
+    purchases: int
+    revenue: int
+    ctr: float | None = None
+    cpc: float | None = None
+    cpm: float | None = None
+    cpa: float | None = None
+    roas: float | None = None
+
+
+class MetricTimeseriesTotals(BaseModel):
+    impressions: int
+    clicks: int
+    spend: int
+    leads: int
+    purchases: int
+    revenue: int
+    ctr: float | None = None
+    cpc: float | None = None
+    cpm: float | None = None
+    cpa: float | None = None
+    roas: float | None = None
+
+
 class MetricTimeseriesResponse(BaseModel):
     date_from: dt_date
     date_to: dt_date
-    series: dict[str, list[MetricPoint]]
-    totals: dict[str, int]
+    items: list[MetricTimeseriesItem]
+    totals: MetricTimeseriesTotals
 
 
 class ExperimentSummaryResponse(BaseModel):

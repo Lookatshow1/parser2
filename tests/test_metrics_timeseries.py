@@ -32,8 +32,8 @@ def test_metrics_timeseries_for_mock_connection(client: TestClient, db: Session,
     )
     assert ts_resp.status_code == 200
     data = ts_resp.json()
-    assert "series" in data
-    assert data["series"]["spend"]
+    assert "items" in data
+    assert data["items"]
     assert data["totals"]["spend"] > 0
 
     org_b = client.post("/api/orgs", json={"name": "Org B"}, headers=auth_context["headers"])

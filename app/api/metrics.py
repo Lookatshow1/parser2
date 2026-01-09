@@ -14,6 +14,33 @@ from app.services.metrics_service import get_connection_metrics
 router = APIRouter(prefix="/metrics")
 
 
+def _safe_div(numerator: float, denominator: float) -> float | None:
+    if denominator == 0:
+        return None
+    return numerator / denominator
+
+
+def _calc_efficiency(
+    impressions: int,
+    clicks: int,
+    spend: int,
+    purchases: int,
+    revenue: int,
+) -> dict[str, float | None]:
+    ctr = _safe_div(clicks, impressions)
+    cpc = _safe_div(spend, clicks)
+    cpm = _safe_div(spend * 1000, impressions)
+    cpa = _safe_div(spend, purchases)
+    roas = _safe_div(revenue, spend)
+    return {
+        "ctr": round(ctr, 4) if ctr is not None else None,
+        "cpc": round(cpc, 2) if cpc is not None else None,
+        "cpm": round(cpm, 2) if cpm is not None else None,
+        "cpa": round(cpa, 2) if cpa is not None else None,
+        "roas": round(roas, 4) if roas is not None else None,
+    }
+
+
 @router.get("", response_model=MetricAggregateResponse)
 def metrics_by_connection(
     connection_id: int = Query(..., description="ID подключения"),
@@ -111,7 +138,7 @@ def metrics_summary(
 def metrics_timeseries(
     date_from: date | None = Query(None, description="Начало периода"),
     date_to: date | None = Query(None, description="Конец периода"),
-    connection_ids: str | None = Query(None, description="Список connection_id через запятую"),
+    connection_ids: list[str] | None = Query(None, description="Список connection_id"),
     metric_keys: str | None = Query(None, description="Список метрик через запятую"),
     granularity: str = Query("day", regex="^day$"),
     session: Session = Depends(get_db),
@@ -124,29 +151,23 @@ def metrics_timeseries(
         date_from = date_to - timedelta(days=13)
     if date_from > date_to:
         raise HTTPException(status_code=400, detail="date_from must be <= date_to")
-    if (date_to - date_from).days > 180:
-        raise HTTPException(status_code=400, detail="date range exceeds 180 days")
+    if (date_to - date_from).days > 366:
+        raise HTTPException(status_code=400, detail="date range exceeds 366 days")
 
-    allowed_metrics = {
-        "spend": MetricSnapshot.spend,
-        "clicks": MetricSnapshot.clicks,
-        "impressions": MetricSnapshot.impressions,
-        "leads": MetricSnapshot.leads,
-        "purchases": MetricSnapshot.purchases,
-        "revenue": MetricSnapshot.revenue,
-    }
     if metric_keys:
+        allowed_metrics = {"spend", "clicks", "impressions", "leads", "purchases", "revenue"}
         requested = [item.strip() for item in metric_keys.split(",") if item.strip()]
-    else:
-        requested = ["spend", "clicks", "impressions"]
-    invalid = [item for item in requested if item not in allowed_metrics]
-    if invalid:
-        raise HTTPException(status_code=400, detail=f"Unsupported metric_keys: {', '.join(invalid)}")
+        invalid = [item for item in requested if item not in allowed_metrics]
+        if invalid:
+            raise HTTPException(status_code=400, detail=f"Unsupported metric_keys: {', '.join(invalid)}")
 
     conn_ids: list[int] = []
     if connection_ids:
+        raw_ids: list[str] = []
+        for item in connection_ids:
+            raw_ids.extend([part.strip() for part in item.split(",") if part.strip()])
         try:
-            conn_ids = [int(item) for item in connection_ids.split(",") if item.strip()]
+            conn_ids = [int(item) for item in raw_ids]
         except ValueError as exc:
             raise HTTPException(status_code=400, detail="Invalid connection_ids") from exc
         existing = session.execute(
@@ -163,36 +184,85 @@ def metrics_timeseries(
             select(Connection.id).where(Connection.organization_id == org.id)
         ).scalars().all()
 
-    series: dict[str, list[dict]] = {key: [] for key in requested}
-    totals: dict[str, int] = {key: 0 for key in requested}
     if not conn_ids:
+        empty_totals = _calc_efficiency(0, 0, 0, 0, 0)
         return {
             "date_from": date_from,
             "date_to": date_to,
-            "series": series,
-            "totals": totals,
+            "items": [],
+            "totals": {
+                "impressions": 0,
+                "clicks": 0,
+                "spend": 0,
+                "leads": 0,
+                "purchases": 0,
+                "revenue": 0,
+                **empty_totals,
+            },
         }
 
-    for key in requested:
-        col = allowed_metrics[key]
-        query = (
-            session.query(MetricSnapshot.date.label("date"), func.sum(col).label("value"))
-            .filter(MetricSnapshot.organization_id == org.id)
-            .filter(MetricSnapshot.connection_id.in_(conn_ids))
-            .filter(MetricSnapshot.date >= date_from)
-            .filter(MetricSnapshot.date <= date_to)
-            .filter(MetricSnapshot.level == "campaign")
-            .group_by(MetricSnapshot.date)
-            .order_by(MetricSnapshot.date.asc())
+    rows = (
+        session.query(
+            MetricSnapshot.date,
+            func.coalesce(func.sum(MetricSnapshot.impressions), 0),
+            func.coalesce(func.sum(MetricSnapshot.clicks), 0),
+            func.coalesce(func.sum(MetricSnapshot.spend), 0),
+            func.coalesce(func.sum(MetricSnapshot.leads), 0),
+            func.coalesce(func.sum(MetricSnapshot.purchases), 0),
+            func.coalesce(func.sum(MetricSnapshot.revenue), 0),
         )
-        rows = query.all()
-        points = [{"date": row.date, "value": int(row.value or 0)} for row in rows]
-        series[key] = points
-        totals[key] = sum(point["value"] for point in points)
+        .filter(MetricSnapshot.organization_id == org.id)
+        .filter(MetricSnapshot.connection_id.in_(conn_ids))
+        .filter(MetricSnapshot.date >= date_from)
+        .filter(MetricSnapshot.date <= date_to)
+        .filter(MetricSnapshot.level == "campaign")
+        .group_by(MetricSnapshot.date)
+        .order_by(MetricSnapshot.date.asc())
+        .all()
+    )
+
+    items = []
+    totals_row = {"impressions": 0, "clicks": 0, "spend": 0, "leads": 0, "purchases": 0, "revenue": 0}
+    for row in rows:
+        impressions = int(row[1])
+        clicks = int(row[2])
+        spend = int(row[3])
+        leads = int(row[4])
+        purchases = int(row[5])
+        revenue = int(row[6])
+        totals_row["impressions"] += impressions
+        totals_row["clicks"] += clicks
+        totals_row["spend"] += spend
+        totals_row["leads"] += leads
+        totals_row["purchases"] += purchases
+        totals_row["revenue"] += revenue
+        items.append(
+            {
+                "date": row[0],
+                "impressions": impressions,
+                "clicks": clicks,
+                "spend": spend,
+                "leads": leads,
+                "purchases": purchases,
+                "revenue": revenue,
+                **_calc_efficiency(impressions, clicks, spend, purchases, revenue),
+            }
+        )
+
+    totals = {
+        **totals_row,
+        **_calc_efficiency(
+            totals_row["impressions"],
+            totals_row["clicks"],
+            totals_row["spend"],
+            totals_row["purchases"],
+            totals_row["revenue"],
+        ),
+    }
 
     return {
         "date_from": date_from,
         "date_to": date_to,
-        "series": series,
+        "items": items,
         "totals": totals,
     }
