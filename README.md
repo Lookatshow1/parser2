@@ -28,6 +28,17 @@ Open http://localhost:3000 after `make up`.
 2) Run a sync for the last 14 days.
 3) Open http://localhost:3000/dashboard to see timeseries and totals.
 
+## Демо-режим (готовые данные)
+
+```bash
+docker compose up -d --build
+make demo-seed
+```
+
+Вход в Web: http://localhost:3000  
+Демо-учётка берётся из `DEMO_EMAIL`/`DEMO_PASSWORD` (по умолчанию `demo@example.com` / `demo12345`).  
+После `make demo-seed` в организации будут подключения и метрики за последние 14 дней.
+
 ## Email invites (MailHog)
 
 Local dev uses MailHog to capture outgoing invite emails.

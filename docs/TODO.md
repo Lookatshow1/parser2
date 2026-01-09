@@ -101,6 +101,10 @@
 Статус: done  
 Проверка: открыть web и пройти базовые экраны (логин, подключения, аудит)
 
+4.11 Демо-данные и демо-аккаунт (dev seed)  
+Статус: done  
+Проверка: `make demo-seed` и вход в web
+
 ## 5) Auth + Organizations (стадия 0–1)
 
 5.1 Auth (JWT + refresh + /me)  
@@ -163,6 +167,7 @@
 - Credentials encryption at-rest: wrapper `__enc__` + Fernet keys, data migration и ротация через CLI.
 - Dashboard: новый endpoint `/api/metrics/timeseries` и web-страница /dashboard с графиком и итогами по периоду.
 - UI: русификация интерфейса, единые компоненты, состояния загрузки/ошибок.
+- Демо-режим: dev seed с демо-учёткой и данными на 14 дней.
 
 ## Next (после MVP)
 
