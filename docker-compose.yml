@@ -47,6 +47,11 @@ services:
       SMTP_FROM: no-reply@local.test
       CREDENTIALS_ENC_KEYS: dev:MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA=
       CREDENTIALS_ENC_ACTIVE_KID: dev
+      ENABLE_DEV_ENDPOINTS: "true"
+      DEMO_EMAIL: demo@example.com
+      DEMO_PASSWORD: demo12345
+      DEMO_ORG_NAME: "Демо-организация"
+      DEMO_CONNECTIONS: "Яндекс.Директ: Демо 1,Яндекс.Директ: Демо 2"
     env_file:
       - .env
     depends_on:
