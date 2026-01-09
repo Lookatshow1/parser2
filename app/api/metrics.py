@@ -150,16 +150,16 @@ def metrics_timeseries(
     if date_from is None:
         date_from = date_to - timedelta(days=13)
     if date_from > date_to:
-        raise HTTPException(status_code=400, detail="date_from must be <= date_to")
+        raise HTTPException(status_code=400, detail="Дата начала не может быть позже даты окончания")
     if (date_to - date_from).days > 366:
-        raise HTTPException(status_code=400, detail="date range exceeds 366 days")
+        raise HTTPException(status_code=400, detail="Диапазон дат не должен превышать 366 дней")
 
     if metric_keys:
         allowed_metrics = {"spend", "clicks", "impressions", "leads", "purchases", "revenue"}
         requested = [item.strip() for item in metric_keys.split(",") if item.strip()]
         invalid = [item for item in requested if item not in allowed_metrics]
         if invalid:
-            raise HTTPException(status_code=400, detail=f"Unsupported metric_keys: {', '.join(invalid)}")
+            raise HTTPException(status_code=400, detail=f"Недопустимые метрики: {', '.join(invalid)}")
 
     conn_ids: list[int] = []
     if connection_ids:
@@ -169,7 +169,7 @@ def metrics_timeseries(
         try:
             conn_ids = [int(item) for item in raw_ids]
         except ValueError as exc:
-            raise HTTPException(status_code=400, detail="Invalid connection_ids") from exc
+            raise HTTPException(status_code=400, detail="Некорректный список подключений") from exc
         existing = session.execute(
             select(Connection.id).where(
                 Connection.organization_id == org.id,
@@ -177,7 +177,7 @@ def metrics_timeseries(
             )
         ).scalars().all()
         if len(set(existing)) != len(set(conn_ids)):
-            raise HTTPException(status_code=404, detail="Connection not found")
+            raise HTTPException(status_code=404, detail="Подключение не найдено")
         conn_ids = list(set(existing))
     else:
         conn_ids = session.execute(
