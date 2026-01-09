@@ -6,21 +6,19 @@ import { usePathname, useRouter } from "next/navigation";
 import { ChevronDown, LogOut, UserCircle2 } from "lucide-react";
 import { getActiveOrg, getMe, listOrgs, switchOrg } from "../lib/api";
 import { clearOrgId, clearRefreshToken, clearToken, getOrgId, getToken, setOrgId } from "../lib/session";
-import { ru } from "../lib/ru";
+import { STR } from "../lib/strings";
 import { cn } from "../lib/utils";
 import { Button } from "./ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
 
 const navItems = [
-  { href: "/dashboard", label: ru.nav.dashboard },
-  { href: "/connections", label: ru.nav.connections },
-  { href: "/sync-runs", label: ru.nav.syncRuns },
-  { href: "/metrics", label: ru.nav.metrics },
-  { href: "/orgs", label: ru.nav.orgs },
-  { href: "/orgs/members", label: ru.nav.members },
-  { href: "/orgs/audit", label: ru.nav.audit },
-  { href: "/plans/new", label: ru.nav.plans },
-  { href: "/experiments", label: ru.nav.experiments }
+  { href: "/dashboard", label: STR.nav.dashboard },
+  { href: "/connections", label: STR.nav.connections },
+  { href: "/metrics", label: STR.nav.metrics },
+  { href: "/orgs/members", label: STR.nav.members },
+  { href: "/orgs/audit", label: STR.nav.audit },
+  { href: "/balance", label: STR.nav.balance },
+  { href: "/settings", label: STR.nav.settings },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -82,7 +80,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-slate-950">
       <div className="mx-auto flex min-h-screen max-w-7xl">
         <aside className="hidden w-60 flex-col border-r border-slate-900 bg-slate-950/80 px-4 py-6 lg:flex">
-          <div className="mb-8 text-lg font-semibold text-slate-100">{ru.appName}</div>
+          <div className="mb-8 text-lg font-semibold text-slate-100">{STR.appName}</div>
           <nav className="flex flex-col gap-1 text-sm">
             {navItems.map((item) => (
               <Link
@@ -102,18 +100,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <header className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-900 bg-slate-950/80 px-6 py-4">
             <div className="flex items-center gap-3">
               <Link href="/" className="text-lg font-semibold text-slate-100 lg:hidden">
-                {ru.appName}
+                {STR.appName}
               </Link>
               {canShowShell && (
                 <div className="flex items-center gap-2">
-                  <span className="text-xs uppercase text-slate-500">{ru.labels.activeOrg}</span>
+                  <span className="text-xs uppercase text-slate-500">{STR.labels.activeOrg}</span>
                   <select
                     className="rounded-md border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
                     disabled={loadingOrgs || orgs.length === 0}
                     value={activeOrgId ?? ""}
                     onChange={(event) => handleOrgSwitch(event.target.value)}
                   >
-                    {orgs.length === 0 && <option value="">{ru.messages.selectOrg}</option>}
+                    {orgs.length === 0 && <option value="">{STR.messages.selectOrg}</option>}
                     {orgs.map((org) => (
                       <option key={org.id} value={org.id}>
                         {org.name}
@@ -125,7 +123,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
             <div className="flex items-center gap-3">
               {!token && (
-                <Button size="sm" onClick={() => router.push("/login")}>{ru.nav.login}</Button>
+                <Button size="sm" onClick={() => router.push("/login")}>{STR.nav.login}</Button>
               )}
               {token && (
                 <DropdownMenu>
@@ -137,11 +135,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => router.push("/orgs")}>{ru.nav.orgs}</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => router.push("/orgs")}>{STR.nav.orgs}</DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={handleLogout}>
                       <LogOut className="h-4 w-4" />
-                      {ru.actions.logout}
+                      {STR.actions.logout}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -151,7 +149,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <main className="flex-1 px-6 py-6">
             {!token && (
               <div className="mb-6 rounded-lg border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm text-slate-300">
-                {ru.messages.loginRequired}
+                {STR.messages.loginRequired}
               </div>
             )}
             {children}
@@ -161,4 +159,3 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
-

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { listAuditEvents, OrgAuditEvent } from "../../../lib/api";
 import { getOrgId, getToken } from "../../../lib/session";
-import { ru } from "../../../lib/ru";
+import { STR } from "../../../lib/strings";
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
@@ -56,9 +56,9 @@ export default function OrgAuditPage() {
   if (!token) {
     return (
       <Card>
-        <CardContent className="space-y-2 py-6">
-          <p className="text-slate-300">{ru.messages.loginRequired}</p>
-          <Link href="/login" className="text-blue-400">{ru.nav.login}</Link>
+          <CardContent className="space-y-2 py-6">
+          <p className="text-slate-300">{STR.messages.loginRequired}</p>
+          <Link href="/login" className="text-blue-400">{STR.nav.login}</Link>
         </CardContent>
       </Card>
     );
@@ -68,8 +68,8 @@ export default function OrgAuditPage() {
     return (
       <Card>
         <CardContent className="space-y-2 py-6">
-          <p className="text-slate-300">{ru.messages.selectOrg}</p>
-          <Link href="/orgs" className="text-blue-400">{ru.nav.orgs}</Link>
+          <p className="text-slate-300">{STR.messages.selectOrg}</p>
+          <Link href="/orgs" className="text-blue-400">{STR.nav.orgs}</Link>
         </CardContent>
       </Card>
     );
@@ -79,13 +79,13 @@ export default function OrgAuditPage() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>{ru.nav.audit}</CardTitle>
+          <CardTitle>{STR.nav.audit}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-400">
             <div>Организация #{orgId} · {total} событий</div>
             <div className="flex items-center gap-2">
-              <span>{ru.labels.action}</span>
+              <span>{STR.labels.action}</span>
               <select
                 className="rounded-md border border-slate-800 bg-slate-900 px-3 py-2 text-sm"
                 value={actionFilter}
@@ -105,7 +105,7 @@ export default function OrgAuditPage() {
       <Card>
         <CardContent className="space-y-4">
           {loading && <Skeleton className="h-24 w-full" />}
-          {!loading && filteredItems.length === 0 && <div className="text-sm text-slate-400">{ru.messages.noAudit}</div>}
+          {!loading && filteredItems.length === 0 && <div className="text-sm text-slate-400">{STR.messages.noAudit}</div>}
           {!loading && filteredItems.length > 0 && (
             <Table>
               <TableHeader>
@@ -126,7 +126,7 @@ export default function OrgAuditPage() {
                       {event.subject_type || "-"} #{event.subject_id ?? "-"}
                     </TableCell>
                     <TableCell className="text-slate-400">
-                      {event.actor_user_id ?? "system"}
+                      {event.actor_user_id ?? "система"}
                     </TableCell>
                     <TableCell className="text-slate-400">
                       {new Date(event.created_at).toLocaleString()}

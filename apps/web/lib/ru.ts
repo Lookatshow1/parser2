@@ -8,6 +8,8 @@ export const ru = {
     orgs: "Организации",
     members: "Участники",
     audit: "Аудит",
+    balance: "Баланс",
+    settings: "Настройки",
     plans: "Планы",
     experiments: "Эксперименты",
     login: "Вход",

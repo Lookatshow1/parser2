@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { registerUserWithInvite } from "../../lib/api";
-import { ru } from "../../lib/ru";
+import { STR } from "../../lib/strings";
  
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
@@ -19,7 +19,7 @@ export default function SignupPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const inviteLabel = useMemo(() => (inviteToken ? ru.messages.inviteDetected : null), [inviteToken]);
+  const inviteLabel = useMemo(() => (inviteToken ? STR.messages.inviteDetected : null), [inviteToken]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -45,14 +45,14 @@ export default function SignupPage() {
   return (
     <Card className="mx-auto max-w-md">
       <CardHeader>
-        <CardTitle>{ru.nav.signup}</CardTitle>
+        <CardTitle>{STR.nav.signup}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {inviteLabel && <div className="text-sm text-slate-400">{inviteLabel}</div>}
         {error && <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</div>}
         {notice && <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">{notice}</div>}
         <div className="space-y-2">
-          <Label htmlFor="signup-email">{ru.labels.email}</Label>
+          <Label htmlFor="signup-email">{STR.labels.email}</Label>
           <Input
             id="signup-email"
             type="email"
@@ -62,7 +62,7 @@ export default function SignupPage() {
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="signup-password">{ru.labels.password}</Label>
+          <Label htmlFor="signup-password">{STR.labels.password}</Label>
           <Input
             id="signup-password"
             type="password"
@@ -71,9 +71,9 @@ export default function SignupPage() {
           />
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button onClick={handleSignup}>{ru.actions.signup}</Button>
+          <Button onClick={handleSignup}>{STR.actions.signup}</Button>
           <Button variant="secondary" onClick={() => router.push(inviteToken ? `/login?invite=${encodeURIComponent(inviteToken)}` : "/login")}>
-            {ru.actions.back}
+            {STR.actions.back}
           </Button>
         </div>
       </CardContent>

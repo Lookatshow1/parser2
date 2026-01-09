@@ -13,7 +13,7 @@ import {
   updateMemberRole,
 } from "../../../lib/api";
 import { getOrgId, getToken } from "../../../lib/session";
-import { ru } from "../../../lib/ru";
+import { STR } from "../../../lib/strings";
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
@@ -164,15 +164,15 @@ export default function OrgMembersPage() {
   };
 
   const roleLabel = useMemo(() => {
-    return (value: string) => ru.roles[value as keyof typeof ru.roles] || value;
+    return (value: string) => STR.roles[value as keyof typeof STR.roles] || value;
   }, []);
 
   if (!token) {
     return (
       <Card>
-        <CardContent className="space-y-2 py-6">
-          <p className="text-slate-300">{ru.messages.loginRequired}</p>
-          <Link href="/login" className="text-blue-400">{ru.nav.login}</Link>
+          <CardContent className="space-y-2 py-6">
+          <p className="text-slate-300">{STR.messages.loginRequired}</p>
+          <Link href="/login" className="text-blue-400">{STR.nav.login}</Link>
         </CardContent>
       </Card>
     );
@@ -182,8 +182,8 @@ export default function OrgMembersPage() {
     return (
       <Card>
         <CardContent className="space-y-2 py-6">
-          <p className="text-slate-300">{ru.messages.selectOrg}</p>
-          <Link href="/orgs" className="text-blue-400">{ru.nav.orgs}</Link>
+          <p className="text-slate-300">{STR.messages.selectOrg}</p>
+          <Link href="/orgs" className="text-blue-400">{STR.nav.orgs}</Link>
         </CardContent>
       </Card>
     );
@@ -193,7 +193,7 @@ export default function OrgMembersPage() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>{ru.nav.members}</CardTitle>
+          <CardTitle>{STR.nav.members}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {error && <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</div>}
@@ -202,37 +202,37 @@ export default function OrgMembersPage() {
             <div>Организация #{orgId}</div>
             <Dialog>
               <DialogTrigger asChild>
-                <Button size="sm">{ru.actions.invite}</Button>
+                <Button size="sm">{STR.actions.invite}</Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>{ru.actions.invite}</DialogTitle>
+                  <DialogTitle>{STR.actions.invite}</DialogTitle>
                   <DialogDescription>Отправьте приглашение участнику и выберите роль.</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="invite-email">{ru.labels.inviteEmail}</Label>
+                    <Label htmlFor="invite-email">{STR.labels.inviteEmail}</Label>
                     <Input
                       id="invite-email"
                       value={email}
                       onChange={(event) => setEmail(event.target.value)}
-                      placeholder="email@example.com"
+                      placeholder="почта@example.com"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="invite-role">{ru.labels.inviteRole}</Label>
+                    <Label htmlFor="invite-role">{STR.labels.inviteRole}</Label>
                     <select
                       id="invite-role"
                       value={role}
                       onChange={(event) => setRole(event.target.value)}
                       className="h-10 w-full rounded-md border border-slate-800 bg-slate-900 px-3 text-sm"
                     >
-                      <option value="member">{ru.roles.member}</option>
-                      <option value="admin">{ru.roles.admin}</option>
+                      <option value="member">{STR.roles.member}</option>
+                      <option value="admin">{STR.roles.admin}</option>
                     </select>
                   </div>
                   <Button onClick={handleInvite} disabled={!email}>
-                    {ru.actions.invite}
+                    {STR.actions.invite}
                   </Button>
                   {inviteToken && (
                     <div className="rounded-md border border-slate-800 bg-slate-900 px-3 py-2 text-xs text-slate-300">
@@ -253,18 +253,18 @@ export default function OrgMembersPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>{ru.labels.members}</CardTitle>
+          <CardTitle>{STR.labels.members}</CardTitle>
         </CardHeader>
         <CardContent>
           {loading && <Skeleton className="h-20 w-full" />}
-          {!loading && members.length === 0 && <div className="text-sm text-slate-400">{ru.messages.noMembers}</div>}
+          {!loading && members.length === 0 && <div className="text-sm text-slate-400">{STR.messages.noMembers}</div>}
           {!loading && members.length > 0 && (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Email</TableHead>
-                  <TableHead>{ru.labels.role}</TableHead>
-                  <TableHead>{ru.labels.createdAt}</TableHead>
+                  <TableHead>Почта</TableHead>
+                  <TableHead>{STR.labels.role}</TableHead>
+                  <TableHead>{STR.labels.createdAt}</TableHead>
                   <TableHead className="text-right">Действия</TableHead>
                 </TableRow>
               </TableHeader>
@@ -283,14 +283,14 @@ export default function OrgMembersPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="secondary" size="sm">Действия</Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleRoleChange(member.user_id, "owner")}>Сделать владельцем</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleRoleChange(member.user_id, "admin")}>Сделать админом</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleRoleChange(member.user_id, "member")}>Сделать участником</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleRoleChange(member.user_id, "viewer")}>Сделать наблюдателем</DropdownMenuItem>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="secondary" size="sm">Действия</Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleRoleChange(member.user_id, "owner")}>Сделать владельцем</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleRoleChange(member.user_id, "admin")}>Сделать админом</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleRoleChange(member.user_id, "member")}>Сделать участником</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleRoleChange(member.user_id, "viewer")}>Сделать наблюдателем</DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={() => handleRemove(member.user_id)} className="text-red-300">
                             Удалить
@@ -308,29 +308,29 @@ export default function OrgMembersPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>{ru.labels.invites}</CardTitle>
+          <CardTitle>{STR.labels.invites}</CardTitle>
         </CardHeader>
         <CardContent>
           {loading && <Skeleton className="h-20 w-full" />}
-          {!loading && invites.length === 0 && <div className="text-sm text-slate-400">{ru.messages.noInvites}</div>}
+          {!loading && invites.length === 0 && <div className="text-sm text-slate-400">{STR.messages.noInvites}</div>}
           {!loading && invites.length > 0 && (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Email</TableHead>
-                  <TableHead>{ru.labels.role}</TableHead>
-                  <TableHead>{ru.labels.inviteExpires}</TableHead>
-                  <TableHead>{ru.labels.sendStatus}</TableHead>
+                  <TableHead>Почта</TableHead>
+                  <TableHead>{STR.labels.role}</TableHead>
+                  <TableHead>{STR.labels.inviteExpires}</TableHead>
+                  <TableHead>{STR.labels.sendStatus}</TableHead>
                   <TableHead className="text-right">Действия</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {invites.map((invite) => {
                   const sendStatus = invite.sent_at
-                    ? ru.inviteStatus.sent
+                    ? STR.inviteStatus.sent
                     : invite.last_error
-                      ? ru.inviteStatus.failed
-                      : ru.inviteStatus.notSent;
+                      ? STR.inviteStatus.failed
+                      : STR.inviteStatus.notSent;
                   return (
                     <TableRow key={invite.id}>
                       <TableCell>
@@ -355,7 +355,7 @@ export default function OrgMembersPage() {
                             <Button variant="secondary" size="sm">Действия</Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleResend(invite.id)}>{ru.actions.resend}</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleResend(invite.id)}>{STR.actions.resend}</DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={() => handleRevoke(invite.id)} className="text-red-300">
                               Отозвать

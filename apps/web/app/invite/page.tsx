@@ -5,7 +5,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { acceptInvite } from "../../lib/api";
 import { getToken, setOrgId } from "../../lib/session";
-import { ru } from "../../lib/ru";
+import { STR } from "../../lib/strings";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 
@@ -65,7 +65,7 @@ export default function InvitePage() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{ru.actions.acceptInvite}</CardTitle>
+          <CardTitle>{STR.actions.acceptInvite}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {token ? (
@@ -75,7 +75,7 @@ export default function InvitePage() {
         )}
         {error && <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</div>}
         {status && <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">{status}</div>}
-        <Button onClick={handleAccept} disabled={!token}>{ru.actions.acceptInvite}</Button>
+        <Button onClick={handleAccept} disabled={!token}>{STR.actions.acceptInvite}</Button>
       </CardContent>
     </Card>
   );

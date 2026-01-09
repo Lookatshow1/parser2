@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { toast } from "sonner";
 import { getMetricsTimeseries, listConnections } from "../../lib/api";
-import { ru } from "../../lib/ru";
+import { STR } from "../../lib/strings";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
@@ -120,7 +120,7 @@ export default function MetricsPage() {
       <Card>
         <CardHeader className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div>
-            <CardTitle>{ru.labels.metrics}</CardTitle>
+          <CardTitle>{STR.labels.metrics}</CardTitle>
             <p className="text-sm text-slate-400">Обзор эффективности за выбранный период.</p>
           </div>
           <Badge variant="muted">Демо-режим</Badge>
@@ -146,7 +146,7 @@ export default function MetricsPage() {
             </select>
             <Input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
             <Input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
-            <Button onClick={loadMetrics}>{ru.actions.refresh}</Button>
+            <Button onClick={loadMetrics}>{STR.actions.refresh}</Button>
           </div>
         </CardContent>
       </Card>
@@ -197,7 +197,7 @@ export default function MetricsPage() {
         <CardContent>
           {loading && <Skeleton className="h-64 w-full" />}
           {!loading && chartData.length === 0 && (
-            <div className="text-sm text-slate-400">{ru.messages.noMetrics}</div>
+            <div className="text-sm text-slate-400">{STR.messages.noMetrics}</div>
           )}
           {!loading && chartData.length > 0 && (
             <div className="h-72 w-full">
@@ -248,7 +248,7 @@ export default function MetricsPage() {
                 {items.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center text-slate-400">
-                      {ru.messages.noMetrics}
+                      {STR.messages.noMetrics}
                     </TableCell>
                   </TableRow>
                 )}

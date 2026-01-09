@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { demoSeed, loginUser } from "../../lib/api";
-import { ru } from "../../lib/ru";
+import { STR } from "../../lib/strings";
 import { setRefreshToken, setToken } from "../../lib/session";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
@@ -39,7 +39,7 @@ export default function LoginPage() {
         router.push(`/invite/${encodeURIComponent(inviteToken)}`);
         return;
       }
-      router.push("/orgs");
+      router.push("/dashboard");
     } catch (err) {
       const message = (err as Error).message;
       setError(message);
@@ -73,13 +73,13 @@ export default function LoginPage() {
   return (
     <Card className="mx-auto max-w-md">
       <CardHeader>
-        <CardTitle>{ru.nav.login}</CardTitle>
+        <CardTitle>{STR.nav.login}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {error && <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</div>}
         {notice && <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">{notice}</div>}
         <div className="space-y-2">
-          <Label htmlFor="login-email">{ru.labels.email}</Label>
+          <Label htmlFor="login-email">{STR.labels.email}</Label>
           <Input
             id="login-email"
             type="email"
@@ -89,7 +89,7 @@ export default function LoginPage() {
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="login-password">{ru.labels.password}</Label>
+          <Label htmlFor="login-password">{STR.labels.password}</Label>
           <Input
             id="login-password"
             type="password"
@@ -98,12 +98,12 @@ export default function LoginPage() {
           />
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button onClick={handleLogin}>{ru.actions.login}</Button>
+          <Button onClick={handleLogin}>{STR.actions.login}</Button>
           <Button
             variant="secondary"
             onClick={() => router.push(inviteToken ? `/signup?invite=${encodeURIComponent(inviteToken)}` : "/signup")}
           >
-            {ru.actions.signup}
+            {STR.actions.signup}
           </Button>
           <Button variant="outline" onClick={handleDemo} disabled={demoLoading}>
             Демо-доступ

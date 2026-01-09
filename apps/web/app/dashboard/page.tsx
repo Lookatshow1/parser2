@@ -6,7 +6,7 @@ import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "rec
 import { toast } from "sonner";
 import { getMetricsTimeseries, listConnections, ConnectionResponse } from "../../lib/api";
 import { getOrgId, getToken } from "../../lib/session";
-import { ru } from "../../lib/ru";
+import { STR } from "../../lib/strings";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
@@ -25,7 +25,7 @@ const metricLabels: Record<(typeof metricOptions)[number], string> = {
 
 const formatStatus = (value?: string | null) => {
   if (!value) return "—";
-  return ru.statuses[value as keyof typeof ru.statuses] || value;
+  return STR.statuses[value as keyof typeof STR.statuses] || value;
 };
 
 export default function DashboardPage() {
@@ -100,13 +100,13 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>{ru.nav.dashboard}</CardTitle>
+          <CardTitle>{STR.nav.dashboard}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-400">
             <div>Организация: {getOrgId() || "не выбрана"}</div>
-            {!getToken() && <Badge variant="warning">{ru.messages.loginRequired}</Badge>}
-            {getToken() && !getOrgId() && <Badge variant="warning">{ru.messages.selectOrg}</Badge>}
+            {!getToken() && <Badge variant="warning">{STR.messages.loginRequired}</Badge>}
+            {getToken() && !getOrgId() && <Badge variant="warning">{STR.messages.selectOrg}</Badge>}
           </div>
           {error && <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</div>}
           <div className="grid gap-3 md:grid-cols-4 text-sm">
@@ -119,7 +119,7 @@ export default function DashboardPage() {
                 </option>
               ))}
             </select>
-            <Button onClick={load}>{ru.actions.refresh}</Button>
+            <Button onClick={load}>{STR.actions.refresh}</Button>
           </div>
         </CardContent>
       </Card>
@@ -144,7 +144,7 @@ export default function DashboardPage() {
             </div>
           )}
           {!loading && series.length === 0 && (
-            <div className="text-sm text-slate-400">{ru.messages.noMetrics}</div>
+            <div className="text-sm text-slate-400">{STR.messages.noMetrics}</div>
           )}
           {!loading && series.length > 0 && (
             <div className="h-64 w-full">
@@ -167,14 +167,14 @@ export default function DashboardPage() {
         </CardHeader>
         <CardContent>
           {loading && <Skeleton className="h-20 w-full" />}
-          {!loading && connections.length === 0 && <div className="text-sm text-slate-400">{ru.messages.noConnections}</div>}
+          {!loading && connections.length === 0 && <div className="text-sm text-slate-400">{STR.messages.noConnections}</div>}
           {!loading && connections.length > 0 && (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>ID</TableHead>
-                  <TableHead>{ru.labels.platform}</TableHead>
-                  <TableHead>{ru.labels.status}</TableHead>
+                  <TableHead>{STR.labels.platform}</TableHead>
+                  <TableHead>{STR.labels.status}</TableHead>
                   <TableHead>Последний запуск</TableHead>
                   <TableHead className="text-right">Действия</TableHead>
                 </TableRow>
@@ -192,7 +192,7 @@ export default function DashboardPage() {
                     <TableCell className="text-slate-400">{item.last_sync_finished_at ?? "—"}</TableCell>
                     <TableCell className="text-right">
                       <Button variant="secondary" size="sm" onClick={() => router.push(`/connections/${item.id}`)}>
-                        {ru.actions.open}
+                        {STR.actions.open}
                       </Button>
                     </TableCell>
                   </TableRow>

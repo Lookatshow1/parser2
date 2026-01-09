@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { acceptInvite, getMe, previewInvite } from "../../../lib/api";
 import { getToken, clearToken, clearRefreshToken, setOrgId } from "../../../lib/session";
-import { ru } from "../../../lib/ru";
+import { STR } from "../../../lib/strings";
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
@@ -127,7 +127,7 @@ export default function InviteTokenPage({ params }: { params: { token: string } 
       <CardContent className="space-y-4">
         <div className="flex flex-wrap items-center gap-2 text-sm text-slate-400">
           <Badge variant="info">Роль: {preview.role}</Badge>
-          <span>Email: {inviteEmail}</span>
+          <span>Почта: {inviteEmail}</span>
         </div>
         {notice && <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">{notice}</div>}
         {error && <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</div>}
@@ -135,10 +135,10 @@ export default function InviteTokenPage({ params }: { params: { token: string } 
         {!authToken && (
           <div className="flex gap-2">
             <Button variant="secondary" onClick={() => router.push(`/login?invite=${encodeURIComponent(token)}`)}>
-              {ru.actions.login}
+              {STR.actions.login}
             </Button>
             <Button variant="secondary" onClick={() => router.push(`/signup?invite=${encodeURIComponent(token)}`)}>
-              {ru.actions.signup}
+              {STR.actions.signup}
             </Button>
           </div>
         )}
@@ -153,7 +153,7 @@ export default function InviteTokenPage({ params }: { params: { token: string } 
         )}
 
         {authToken && (!meEmail || meEmail.toLowerCase() === inviteEmail.toLowerCase()) && (
-          <Button onClick={handleAccept}>{ru.actions.acceptInvite}</Button>
+          <Button onClick={handleAccept}>{STR.actions.acceptInvite}</Button>
         )}
       </CardContent>
     </Card>

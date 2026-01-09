@@ -16,7 +16,7 @@ import {
   switchOrg,
 } from "../../lib/api";
 import { getOrgId, getToken, setOrgId } from "../../lib/session";
-import { ru } from "../../lib/ru";
+import { STR } from "../../lib/strings";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
@@ -42,7 +42,7 @@ const syncStatusVariant: Record<string, "success" | "danger" | "warning" | "mute
 
 const formatStatus = (value?: string | null) => {
   if (!value) return "—";
-  return ru.statuses[value as keyof typeof ru.statuses] || value;
+  return STR.statuses[value as keyof typeof STR.statuses] || value;
 };
 
 export default function ConnectionsPage() {
@@ -257,16 +257,16 @@ export default function ConnectionsPage() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>{ru.labels.connections}</CardTitle>
+          <CardTitle>{STR.labels.connections}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {!getToken() && <Badge variant="warning">{ru.messages.loginRequired}</Badge>}
-          {getToken() && !getOrgId() && <Badge variant="warning">{ru.messages.selectOrg}</Badge>}
+          {!getToken() && <Badge variant="warning">{STR.messages.loginRequired}</Badge>}
+          {getToken() && !getOrgId() && <Badge variant="warning">{STR.messages.selectOrg}</Badge>}
           {error && <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</div>}
           {notice && <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">{notice}</div>}
           <div className="grid gap-3 md:grid-cols-[1fr_200px]">
             <div className="space-y-2">
-              <Label>{ru.labels.activeOrg}</Label>
+              <Label>{STR.labels.activeOrg}</Label>
               <select
                 value={activeOrgId ?? ""}
                 onChange={(event) => {
@@ -276,7 +276,7 @@ export default function ConnectionsPage() {
                 }}
                 className="h-10 w-full rounded-md border border-slate-800 bg-slate-900 px-3 text-sm"
               >
-                <option value="">{ru.messages.selectOrg}</option>
+                <option value="">{STR.messages.selectOrg}</option>
                 {orgs.map((org) => (
                   <option key={org.id} value={String(org.id)}>
                     #{org.id} {org.name}
@@ -289,7 +289,7 @@ export default function ConnectionsPage() {
 
           <div className="grid gap-3 md:grid-cols-3">
             <div className="space-y-2">
-              <Label>{ru.labels.platform}</Label>
+              <Label>{STR.labels.platform}</Label>
               <select
                 value={platform}
                 onChange={(event) => {
@@ -313,7 +313,7 @@ export default function ConnectionsPage() {
               <Input value={name} onChange={(event) => setName(event.target.value)} placeholder="Мой кабинет" />
             </div>
             <div className="space-y-2">
-              <Label>{ru.labels.credentials}</Label>
+              <Label>{STR.labels.credentials}</Label>
               <textarea
                 value={credentialsJson}
                 onChange={(event) => setCredentialsJson(event.target.value)}
@@ -348,7 +348,7 @@ export default function ConnectionsPage() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <Button onClick={handleCreate}>{ru.actions.create}</Button>
+            <Button onClick={handleCreate}>{STR.actions.create}</Button>
             <Button
               variant="secondary"
               onClick={() => {
@@ -361,7 +361,7 @@ export default function ConnectionsPage() {
                 handleTest(selectedConnectionId);
               }}
             >
-              {ru.actions.check}
+              {STR.actions.check}
             </Button>
           </div>
         </CardContent>
@@ -373,14 +373,19 @@ export default function ConnectionsPage() {
         </CardHeader>
         <CardContent>
           {loading && <Skeleton className="h-20 w-full" />}
-          {!loading && items.length === 0 && <div className="text-sm text-slate-400">{ru.messages.noConnections}</div>}
+          {!loading && items.length === 0 && (
+            <div className="flex flex-col gap-3 text-sm text-slate-400">
+              <div>{STR.messages.noConnections}</div>
+              <Button size="sm" onClick={handleCreate}>{STR.actions.create}</Button>
+            </div>
+          )}
           {!loading && items.length > 0 && (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>ID</TableHead>
-                  <TableHead>{ru.labels.platform}</TableHead>
-                  <TableHead>{ru.labels.status}</TableHead>
+                  <TableHead>{STR.labels.platform}</TableHead>
+                  <TableHead>{STR.labels.status}</TableHead>
                   <TableHead>Последний синк</TableHead>
                   <TableHead>Автосинк</TableHead>
                   <TableHead className="text-right">Действия</TableHead>
@@ -390,7 +395,12 @@ export default function ConnectionsPage() {
                 {items.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell>#{item.id}</TableCell>
-                    <TableCell>{item.platform}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <span className="capitalize">{item.platform}</span>
+                        {item.name?.toLowerCase().includes("демо") && <Badge variant="info">Демо</Badge>}
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <Badge variant={syncStatusVariant[item.last_sync_status || ""] || "muted"}>
                         {formatStatus(item.last_sync_status)}
@@ -413,7 +423,7 @@ export default function ConnectionsPage() {
                             refreshMetrics(item.id);
                           }}
                         >
-                          {ru.actions.open}
+                          {STR.actions.open}
                         </Button>
                         <Button
                           variant="secondary"
@@ -421,7 +431,7 @@ export default function ConnectionsPage() {
                           onClick={() => handleSync(item.id)}
                           disabled={syncingId === item.id || item.last_sync_status === "queued" || item.last_sync_status === "running"}
                         >
-                          {item.platform === "yandex" ? ru.actions.runDemo : ru.actions.sync}
+                          {item.platform === "yandex" ? STR.actions.runDemo : STR.actions.sync}
                         </Button>
                         <Button
                           variant="secondary"
@@ -431,7 +441,7 @@ export default function ConnectionsPage() {
                           {item.auto_sync_enabled ? "Выключить авто" : "Включить авто"}
                         </Button>
                         <Button variant="secondary" size="sm" onClick={() => handleTest(item.id)}>
-                          {ru.actions.check}
+                          {STR.actions.check}
                         </Button>
                         <Button variant="outline" size="sm" onClick={() => router.push(`/connections/${item.id}`)}>
                           Детали
@@ -448,7 +458,7 @@ export default function ConnectionsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>{ru.labels.syncRuns}</CardTitle>
+          <CardTitle>{STR.labels.syncRuns}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-3 md:grid-cols-3">
@@ -462,7 +472,7 @@ export default function ConnectionsPage() {
             <Input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => handleSync()}>{ru.actions.sync}</Button>
+            <Button onClick={() => handleSync()}>{STR.actions.sync}</Button>
             {selectedConnectionId && (
               <>
                 <Button variant="secondary" onClick={() => refreshSyncRuns(selectedConnectionId)}>
@@ -482,7 +492,7 @@ export default function ConnectionsPage() {
                 <TableRow>
                   <TableHead>ID</TableHead>
                   <TableHead>Тип</TableHead>
-                  <TableHead>{ru.labels.status}</TableHead>
+                  <TableHead>{STR.labels.status}</TableHead>
                   <TableHead>Создан</TableHead>
                   <TableHead>Результат</TableHead>
                 </TableRow>
@@ -520,7 +530,7 @@ export default function ConnectionsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>{ru.labels.metrics}</CardTitle>
+          <CardTitle>{STR.labels.metrics}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {loadingMetrics ? (
@@ -547,7 +557,7 @@ export default function ConnectionsPage() {
                 {metrics.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={4} className="text-center text-slate-400">
-                      {ru.messages.noMetrics}
+                      {STR.messages.noMetrics}
                     </TableCell>
                   </TableRow>
                 )}
