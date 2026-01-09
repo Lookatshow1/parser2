@@ -184,6 +184,15 @@ export type OrgAuditEvent = {
   created_at: string;
 };
 
+export type DemoSeedResponse = {
+  demo_user_email: string;
+  demo_password: string | null;
+  org_id: number;
+  connection_ids: number[];
+  period_from: string;
+  period_to: string;
+};
+
 export async function listConnections() {
   return request<{ items: ConnectionResponse[] }>("/connections");
 }
@@ -525,6 +534,12 @@ export async function getExperimentReport(experimentId: number) {
 
 export async function seedDev() {
   return request<{ advertiser_id: number; plan_id: number; experiment_id: number }>("/dev/seed", {
+    method: "POST"
+  });
+}
+
+export async function demoSeed() {
+  return request<DemoSeedResponse>("/dev/demo/seed", {
     method: "POST"
   });
 }

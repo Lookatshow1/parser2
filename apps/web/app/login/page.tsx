@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { loginUser } from "../../lib/api";
+import { demoSeed, loginUser } from "../../lib/api";
 import { ru } from "../../lib/ru";
 import { setRefreshToken, setToken } from "../../lib/session";
 import { Button } from "../../components/ui/button";
@@ -18,6 +18,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [demoLoading, setDemoLoading] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -43,6 +44,29 @@ export default function LoginPage() {
       const message = (err as Error).message;
       setError(message);
       toast.error(message);
+    }
+  };
+
+  const handleDemo = async () => {
+    setError(null);
+    setNotice(null);
+    setDemoLoading(true);
+    try {
+      const demo = await demoSeed();
+      if (demo.demo_user_email) {
+        setEmail(demo.demo_user_email);
+      }
+      if (demo.demo_password) {
+        setPassword(demo.demo_password);
+      }
+      setNotice("Демо-данные подготовлены. Можно войти.");
+      toast.success("Демо-данные готовы");
+    } catch (err) {
+      const message = (err as Error).message;
+      setError(message);
+      toast.error(message);
+    } finally {
+      setDemoLoading(false);
     }
   };
 
@@ -80,6 +104,9 @@ export default function LoginPage() {
             onClick={() => router.push(inviteToken ? `/signup?invite=${encodeURIComponent(inviteToken)}` : "/signup")}
           >
             {ru.actions.signup}
+          </Button>
+          <Button variant="outline" onClick={handleDemo} disabled={demoLoading}>
+            Демо-доступ
           </Button>
         </div>
       </CardContent>
