@@ -1,14 +1,20 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.api.schemas import DevSeedResponse
+from app.api.schemas import DevSeedResponse, DemoSeedResponse
 from app.core.config import get_settings
 from app.db.models import Advertiser, CampaignPlan, Experiment, Connection, Platform, User, Organization, Membership, MembershipRole
 from app.db.session import get_db
 from app.services.auth_service import get_password_hash
 from app.security.credentials_crypto import maybe_encrypt
+from app.dev.demo_seed import seed_demo
 
 router = APIRouter(prefix="/dev")
+
+
+def _ensure_dev_access(settings) -> None:
+    if settings.env != "dev" or not settings.enable_dev_endpoints:
+        raise HTTPException(status_code=404, detail="Not found")
 
 
 @router.post("/seed", response_model=DevSeedResponse)
@@ -124,4 +130,19 @@ def seed_dev(session: Session = Depends(get_db)):
         advertiser_id=advertiser.id,
         plan_id=plan.id,
         experiment_id=experiment.id,
+    )
+
+
+@router.post("/demo/seed", response_model=DemoSeedResponse)
+def seed_demo_data(session: Session = Depends(get_db)):
+    settings = get_settings()
+    _ensure_dev_access(settings)
+    result = seed_demo(session)
+    return DemoSeedResponse(
+        demo_user_email=result["demo_user_email"],
+        demo_password=result["demo_password"],
+        org_id=result["org_id"],
+        connection_ids=result["connection_ids"],
+        period_from=result["period_from"],
+        period_to=result["period_to"],
     )

@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     yandex_reports_skip_header: bool = True
 
     dev_mode: bool = False
+    enable_dev_endpoints: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("ENABLE_DEV_ENDPOINTS"),
+    )
     cors_origins: str = "*"
     env: str = "dev"
     secret_key: str = Field(default="dev_secret", validation_alias=AliasChoices("SECRET_KEY", "JWT_SECRET"))
@@ -88,6 +92,27 @@ class Settings(BaseSettings):
     credentials_enc_active_kid: str | None = Field(
         default=None,
         validation_alias=AliasChoices("CREDENTIALS_ENC_ACTIVE_KID"),
+    )
+
+    demo_email: str = Field(
+        default="demo@example.com",
+        validation_alias=AliasChoices("DEMO_EMAIL"),
+    )
+    demo_password: str = Field(
+        default="demo12345",
+        validation_alias=AliasChoices("DEMO_PASSWORD"),
+    )
+    demo_org_name: str = Field(
+        default="Демо-организация",
+        validation_alias=AliasChoices("DEMO_ORG_NAME"),
+    )
+    demo_connections: str = Field(
+        default="Яндекс.Директ: Демо 1,Яндекс.Директ: Демо 2",
+        validation_alias=AliasChoices("DEMO_CONNECTIONS"),
+    )
+    demo_force_password: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("DEMO_FORCE_PASSWORD"),
     )
 
 

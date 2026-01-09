@@ -1,4 +1,4 @@
-.PHONY: up down reset-db migrate heads current history test seed selftest db-shell logs ps logs-worker logs-api logs-db logs-web doctor rotate-credentials
+.PHONY: up down reset-db migrate heads current history test seed demo-seed selftest db-shell logs ps logs-worker logs-api logs-db logs-web doctor rotate-credentials
 
 up:
 	@$(MAKE) doctor
@@ -63,6 +63,10 @@ test:
 seed:
 	@$(MAKE) doctor
 	docker compose run --rm api curl -sS -X POST http://api:8000/api/dev/seed
+
+demo-seed:
+	@$(MAKE) doctor
+	./scripts/demo_seed.sh
 
 selftest:
 	./scripts/self_test.sh

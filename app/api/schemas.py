@@ -459,6 +459,15 @@ class DevSeedResponse(BaseModel):
     experiment_id: int
 
 
+class DemoSeedResponse(BaseModel):
+    demo_user_email: str
+    demo_password: str | None = None
+    org_id: int
+    connection_ids: list[int]
+    period_from: dt_date
+    period_to: dt_date
+
+
 class DashboardTotals(BaseModel):
     impressions: int
     clicks: int
