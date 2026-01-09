@@ -105,6 +105,10 @@
 Статус: done  
 Проверка: `make demo-seed` и вход в web
 
+4.12 Метрики: timeseries endpoint + графики (recharts)  
+Статус: done  
+Проверка: открыть /metrics и проверить карточки/график/таблицу
+
 ## 5) Auth + Organizations (стадия 0–1)
 
 5.1 Auth (JWT + refresh + /me)  
@@ -165,7 +169,7 @@
 - Mock-режим для Yandex включается через `{"mock": true}` или отсутствие token в credentials_json; данные детерминированы по connection_id и датам.
 - Добавлен API `/api/connections/{id}/snapshots` для выдачи дневных снапшотов по connection_id.
 - Credentials encryption at-rest: wrapper `__enc__` + Fernet keys, data migration и ротация через CLI.
-- Dashboard: новый endpoint `/api/metrics/timeseries` и web-страница /dashboard с графиком и итогами по периоду.
+- Dashboard: endpoint `/api/metrics/timeseries` и страница /metrics с графиком/итогами по периоду.
 - UI: русификация интерфейса, единые компоненты, состояния загрузки/ошибок.
 - Демо-режим: dev seed с демо-учёткой и данными на 14 дней.
 
@@ -182,5 +186,5 @@
 - Экран ошибок и метрики конверсии invite signup.
 - Расширение аудита: добавить события для connections/sync_runs и UI фильтры.
 - Structured logs + correlation_id для запросов/sync/jobs.
-- Дашборд: расширить графики (recharts), добавить фильтры по платформам и сегментам.
+- Дашборд: добавить фильтры по платформам/сегментам и сравнение периодов.
 - Первая реальная площадка: подключить один коннектор с валидным fetch без токенов (через мок-режим).

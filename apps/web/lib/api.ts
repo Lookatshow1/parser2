@@ -14,11 +14,11 @@ type ApiError = {
 
 const statusMessageMap: Record<number, string> = {
   400: "Некорректный запрос.",
-  401: "Требуется вход.",
+  401: "Сессия истекла. Войдите заново.",
   403: "Недостаточно прав.",
-  404: "Не найдено.",
-  409: "Конфликт запроса.",
-  422: "Ошибка валидации данных.",
+  404: "Объект не найден.",
+  409: "Синхронизация уже идёт. Попробуйте позже.",
+  422: "Проверьте введённые данные.",
   500: "Ошибка сервера. Попробуйте позже."
 };
 
@@ -296,8 +296,33 @@ export async function getMetricsTimeseries(payload: {
   return request<{
     date_from: string;
     date_to: string;
-    series: Record<string, Array<{ date: string; value: number }>>;
-    totals: Record<string, number>;
+    items: Array<{
+      date: string;
+      impressions: number;
+      clicks: number;
+      spend: number;
+      leads: number;
+      purchases: number;
+      revenue: number;
+      ctr?: number | null;
+      cpc?: number | null;
+      cpm?: number | null;
+      cpa?: number | null;
+      roas?: number | null;
+    }>;
+    totals: {
+      impressions: number;
+      clicks: number;
+      spend: number;
+      leads: number;
+      purchases: number;
+      revenue: number;
+      ctr?: number | null;
+      cpc?: number | null;
+      cpm?: number | null;
+      cpa?: number | null;
+      roas?: number | null;
+    };
   }>(`/metrics/timeseries?${params.toString()}`);
 }
 

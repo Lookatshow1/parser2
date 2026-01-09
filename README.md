@@ -22,11 +22,12 @@ Open http://localhost:3000 after `make up`.
 Интерфейс по умолчанию на русском. Web использует Tailwind + Radix UI и набор общих компонентов в `apps/web/components/ui`.
 Базовые стили и цветовая схема описаны в `apps/web/styles/globals.css`.
 
-## Dashboard demo flow
+## Демо-дашборд
 
-1) Create a mock Yandex connection (see smoke flow below).
-2) Run a sync for the last 14 days.
-3) Open http://localhost:3000/dashboard to see timeseries and totals.
+1) Создайте mock подключение Яндекс (см. smoke flow ниже).
+2) Запустите синк за последние 14 дней.
+3) Откройте http://localhost:3000/metrics, чтобы увидеть карточки, график и таблицу.
+4) Откройте http://localhost:3000/dashboard, если нужен обзор по всем подключениям.
 
 ## Демо-режим (готовые данные)
 

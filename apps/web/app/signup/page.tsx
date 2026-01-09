@@ -56,7 +56,7 @@ export default function SignupPage() {
           <Input
             id="signup-email"
             type="email"
-            placeholder="you@example.com"
+            placeholder="почта@example.com"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
           />

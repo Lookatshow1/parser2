@@ -38,7 +38,7 @@ export const ru = {
     close: "Закрыть"
   },
   labels: {
-    email: "Email",
+    email: "Почта",
     password: "Пароль",
     orgName: "Название организации",
     role: "Роль",

@@ -31,8 +31,16 @@ const formatStatus = (value?: string | null) => {
 export default function DashboardPage() {
   const router = useRouter();
   const [metric, setMetric] = useState<(typeof metricOptions)[number]>("spend");
-  const [series, setSeries] = useState<SeriesPoint[]>([]);
-  const [totals, setTotals] = useState<Record<string, number>>({});
+  const [items, setItems] = useState<Array<{
+    date: string;
+    impressions: number;
+    clicks: number;
+    spend: number;
+    leads: number;
+    purchases: number;
+    revenue: number;
+  }>>([]);
+  const [totals, setTotals] = useState<Record<string, number | null>>({});
   const [connections, setConnections] = useState<ConnectionResponse[]>([]);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -60,8 +68,7 @@ export default function DashboardPage() {
         date_to: dateTo || defaultDateRange.to,
         metric_keys: metricOptions.slice(),
       });
-      const metricSeries = data.series[metric] ?? [];
-      setSeries(metricSeries);
+      setItems(data.items || []);
       setTotals(data.totals || {});
     } catch (err) {
       const message = (err as Error).message;
@@ -84,6 +91,10 @@ export default function DashboardPage() {
   }, [metric, dateFrom, dateTo]);
 
   const totalValue = totals[metric] ?? 0;
+  const series = items.map((item) => ({
+    date: item.date,
+    value: Number(item[metric] ?? 0),
+  })) as SeriesPoint[];
 
   return (
     <div className="space-y-6">

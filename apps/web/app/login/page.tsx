@@ -83,7 +83,7 @@ export default function LoginPage() {
           <Input
             id="login-email"
             type="email"
-            placeholder="you@example.com"
+            placeholder="почта@example.com"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
           />
