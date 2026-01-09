@@ -1,4 +1,5 @@
 import { clearOrgId, clearRefreshToken, clearToken, getOrgId, getToken } from "./session";
+import { ru } from "./ru";
 
 const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 const apiBase = `${baseUrl}/api`;
@@ -10,6 +11,23 @@ type ApiError = {
     details: unknown;
   };
 };
+
+const statusMessageMap: Record<number, string> = {
+  400: "Некорректный запрос.",
+  401: "Требуется вход.",
+  403: "Недостаточно прав.",
+  404: "Не найдено.",
+  409: "Конфликт запроса.",
+  422: "Ошибка валидации данных.",
+  500: "Ошибка сервера. Попробуйте позже."
+};
+
+function resolveErrorMessage(status: number, serverMessage?: string | null) {
+  if (serverMessage && serverMessage.trim().length > 0) {
+    return serverMessage;
+  }
+  return statusMessageMap[status] || ru.messages.error;
+}
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const token = getToken();
@@ -26,7 +44,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
       ...options
     });
   } catch {
-    throw new Error("Backend is unavailable. Check API base URL and server status.");
+    throw new Error("Сервер недоступен. Проверьте адрес API и состояние сервисов.");
   }
 
   if (!response.ok) {
@@ -44,11 +62,11 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     }
     if (response.status === 409 && typeof window !== "undefined") {
       const message = error?.error?.message || "";
-      if (message.toLowerCase().includes("select organization")) {
+      if (message.toLowerCase().includes("select organization") || message.toLowerCase().includes("выберите организацию")) {
         window.location.href = "/orgs";
       }
     }
-    const message = error?.error?.message || `Request failed with status ${response.status}`;
+    const message = resolveErrorMessage(response.status, error?.error?.message || null);
     throw new Error(message);
   }
 

@@ -97,6 +97,10 @@
 Статус: done  
 Проверка: `pytest -q tests/test_connections_sync.py`
 
+4.10 UI polish + RU (единые компоненты, AppShell, состояния)  
+Статус: done  
+Проверка: открыть web и пройти базовые экраны (логин, подключения, аудит)
+
 ## 5) Auth + Organizations (стадия 0–1)
 
 5.1 Auth (JWT + refresh + /me)  
@@ -158,6 +162,7 @@
 - Добавлен API `/api/connections/{id}/snapshots` для выдачи дневных снапшотов по connection_id.
 - Credentials encryption at-rest: wrapper `__enc__` + Fernet keys, data migration и ротация через CLI.
 - Dashboard: новый endpoint `/api/metrics/timeseries` и web-страница /dashboard с графиком и итогами по периоду.
+- UI: русификация интерфейса, единые компоненты, состояния загрузки/ошибок.
 
 ## Next (после MVP)
 
@@ -172,5 +177,5 @@
 - Экран ошибок и метрики конверсии invite signup.
 - Расширение аудита: добавить события для connections/sync_runs и UI фильтры.
 - Structured logs + correlation_id для запросов/sync/jobs.
-- Dashboard charts (spend/clicks) и фильтры по платформам.
+- Дашборд: расширить графики (recharts), добавить фильтры по платформам и сегментам.
 - Первая реальная площадка: подключить один коннектор с валидным fetch без токенов (через мок-режим).

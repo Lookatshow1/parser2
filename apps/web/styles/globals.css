@@ -2,18 +2,37 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap");
+
 body {
-  @apply bg-slate-950 text-slate-100;
+  @apply bg-slate-950 text-slate-100 antialiased;
 }
 
-input, select, textarea {
-  @apply bg-slate-900 border border-slate-700 rounded px-3 py-2 text-slate-100;
+:root {
+  color-scheme: dark;
 }
 
-button {
-  @apply bg-blue-600 hover:bg-blue-500 text-white font-medium px-4 py-2 rounded;
+* {
+  @apply border-slate-800;
 }
 
-.card {
-  @apply bg-slate-900 border border-slate-800 rounded p-4;
+a {
+  @apply text-slate-100;
+}
+
+::selection {
+  @apply bg-blue-500 text-white;
+}
+
+.scrollbar-muted::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.scrollbar-muted::-webkit-scrollbar-thumb {
+  @apply bg-slate-800 rounded-full;
+}
+
+.scrollbar-muted::-webkit-scrollbar-track {
+  @apply bg-slate-950;
 }

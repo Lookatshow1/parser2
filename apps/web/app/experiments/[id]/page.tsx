@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { toast } from "sonner";
 import { getExperimentReport, ExperimentReport } from "../../../lib/api";
+import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../../components/ui/table";
 
 export default function ExperimentReportPage() {
   const params = useParams();
@@ -16,7 +19,9 @@ export default function ExperimentReportPage() {
         const data = await getExperimentReport(id);
         setReport(data);
       } catch (err) {
-        setError((err as Error).message);
+        const message = (err as Error).message;
+        setError(message);
+        toast.error(message);
       }
     };
     if (id) {
@@ -26,44 +31,50 @@ export default function ExperimentReportPage() {
 
   return (
     <div className="space-y-6">
-      <div className="card">
-        <h1 className="text-xl font-semibold mb-2">Experiment #{id} report</h1>
-        {error && <div className="text-red-400">{error}</div>}
-        {report && (
-          <div className="text-sm text-slate-300">Status: {report.status}</div>
-        )}
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Отчёт эксперимента #{id}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {error && <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</div>}
+          {report && <div className="text-sm text-slate-300">Статус: {report.status}</div>}
+        </CardContent>
+      </Card>
 
-      <div className="card">
-        <h2 className="text-lg font-semibold mb-3">Metrics</h2>
-        <div className="overflow-auto">
-          <table className="min-w-full text-sm">
-            <thead className="text-left text-slate-400">
-              <tr>
-                <th className="py-2">Date</th>
-                <th>Platform</th>
-                <th>Impressions</th>
-                <th>Clicks</th>
-                <th>Spend</th>
-              </tr>
-            </thead>
-            <tbody>
+      <Card>
+        <CardHeader>
+          <CardTitle>Метрики</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Дата</TableHead>
+                <TableHead>Платформа</TableHead>
+                <TableHead>Показы</TableHead>
+                <TableHead>Клики</TableHead>
+                <TableHead>Расход</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {report?.metrics.map((metric, index) => (
-                <tr key={index} className="border-b border-slate-800">
-                  <td className="py-2">{metric.date}</td>
-                  <td>{metric.platform}</td>
-                  <td>{metric.impressions}</td>
-                  <td>{metric.clicks}</td>
-                  <td>{metric.spend}</td>
-                </tr>
+                <TableRow key={index}>
+                  <TableCell>{metric.date}</TableCell>
+                  <TableCell>{metric.platform}</TableCell>
+                  <TableCell>{metric.impressions}</TableCell>
+                  <TableCell>{metric.clicks}</TableCell>
+                  <TableCell>{metric.spend}</TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
-          {report && report.metrics.length === 0 && (
-            <div className="text-slate-400 py-2">No metrics yet.</div>
-          )}
-        </div>
-      </div>
+              {report && report.metrics.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center text-slate-400">Данных пока нет.</TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </div>
   );
 }

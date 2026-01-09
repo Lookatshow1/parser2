@@ -1,16 +1,35 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { toast } from "sonner";
 import { getMetricsTimeseries, listConnections, ConnectionResponse } from "../../lib/api";
 import { getOrgId, getToken } from "../../lib/session";
+import { ru } from "../../lib/ru";
+import { Badge } from "../../components/ui/badge";
+import { Button } from "../../components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { Input } from "../../components/ui/input";
+import { Skeleton } from "../../components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
 
 type SeriesPoint = { date: string; value: number };
 
 const metricOptions = ["spend", "clicks", "impressions"] as const;
+const metricLabels: Record<(typeof metricOptions)[number], string> = {
+  spend: "Расход",
+  clicks: "Клики",
+  impressions: "Показы",
+};
+
+const formatStatus = (value?: string | null) => {
+  if (!value) return "—";
+  return ru.statuses[value as keyof typeof ru.statuses] || value;
+};
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [metric, setMetric] = useState<(typeof metricOptions)[number]>("spend");
   const [series, setSeries] = useState<SeriesPoint[]>([]);
   const [totals, setTotals] = useState<Record<string, number>>({});
@@ -45,7 +64,9 @@ export default function DashboardPage() {
       setSeries(metricSeries);
       setTotals(data.totals || {});
     } catch (err) {
-      setError((err as Error).message);
+      const message = (err as Error).message;
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -66,77 +87,110 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="card space-y-3">
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl font-semibold">Dashboard</h1>
-          <div className="text-xs text-slate-400">Org: {getOrgId() || "not selected"}</div>
-        </div>
-        {!getToken() && <div className="text-yellow-400">Login required. Go to Login page.</div>}
-        {getToken() && !getOrgId() && <div className="text-yellow-400">Select organization first.</div>}
-        {error && <div className="text-red-400">{error}</div>}
-        {loading && <div className="text-slate-400 text-sm">Loading…</div>}
-        <div className="grid gap-3 md:grid-cols-4 text-sm">
-          <input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
-          <input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
-          <select value={metric} onChange={(event) => setMetric(event.target.value as typeof metric)}>
-            {metricOptions.map((item) => (
-              <option key={item} value={item}>
-                {item}
-              </option>
-            ))}
-          </select>
-          <button onClick={load}>Refresh</button>
-        </div>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>{ru.nav.dashboard}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-400">
+            <div>Организация: {getOrgId() || "не выбрана"}</div>
+            {!getToken() && <Badge variant="warning">{ru.messages.loginRequired}</Badge>}
+            {getToken() && !getOrgId() && <Badge variant="warning">{ru.messages.selectOrg}</Badge>}
+          </div>
+          {error && <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</div>}
+          <div className="grid gap-3 md:grid-cols-4 text-sm">
+            <Input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
+            <Input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
+            <select value={metric} onChange={(event) => setMetric(event.target.value as typeof metric)} className="h-10 rounded-md border border-slate-800 bg-slate-900 px-3 text-sm">
+              {metricOptions.map((item) => (
+                <option key={item} value={item}>
+                  {metricLabels[item]}
+                </option>
+              ))}
+            </select>
+            <Button onClick={load}>{ru.actions.refresh}</Button>
+          </div>
+        </CardContent>
+      </Card>
 
-      <div className="card space-y-3">
-        <div className="grid gap-3 md:grid-cols-3 text-sm">
-          <div className="rounded bg-slate-900/60 p-3">
-            Total {metric}: {totalValue}
-          </div>
-          <div className="rounded bg-slate-900/60 p-3">
-            Points: {series.length}
-          </div>
-          <div className="rounded bg-slate-900/60 p-3">
-            Date range: {dateFrom} → {dateTo}
-          </div>
-        </div>
-        {series.length === 0 ? (
-          <div className="text-slate-400 text-sm">No data for the selected period.</div>
-        ) : (
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={series}>
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip />
-                <Line type="monotone" dataKey="value" stroke="#60a5fa" strokeWidth={2} dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-      </div>
-
-      <div className="card space-y-3">
-        <h2 className="text-lg font-semibold">Connections</h2>
-        <div className="grid gap-2 text-sm">
-          {connections.map((item) => (
-            <div key={item.id} className="grid grid-cols-5 gap-2 border-b border-slate-800 pb-2">
-              <span>#{item.id}</span>
-              <span>{item.platform}</span>
-              <span>{item.last_sync_status ?? "n/a"}</span>
-              <span className="text-xs text-slate-400">{item.last_sync_finished_at ?? "-"}</span>
-              <Link
-                className="text-blue-300 hover:text-blue-200"
-                href={`/connections/${item.id}`}
-              >
-                Open
-              </Link>
+      <Card>
+        <CardHeader>
+          <CardTitle>Обзор периода</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {loading && <Skeleton className="h-24 w-full" />}
+          {!loading && (
+            <div className="grid gap-3 md:grid-cols-3 text-sm">
+              <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">
+                Сумма {metricLabels[metric]}: <span className="text-slate-100">{totalValue}</span>
+              </div>
+              <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">
+                Точек: <span className="text-slate-100">{series.length}</span>
+              </div>
+              <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">
+                Период: {dateFrom} → {dateTo}
+              </div>
             </div>
-          ))}
-          {connections.length === 0 && <div className="text-slate-400">No connections yet.</div>}
-        </div>
-      </div>
+          )}
+          {!loading && series.length === 0 && (
+            <div className="text-sm text-slate-400">{ru.messages.noMetrics}</div>
+          )}
+          {!loading && series.length > 0 && (
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={series}>
+                  <XAxis dataKey="date" />
+                  <YAxis />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="value" stroke="#60a5fa" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{ru.labels.connections}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading && <Skeleton className="h-20 w-full" />}
+          {!loading && connections.length === 0 && <div className="text-sm text-slate-400">{ru.messages.noConnections}</div>}
+          {!loading && connections.length > 0 && (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ID</TableHead>
+                  <TableHead>{ru.labels.platform}</TableHead>
+                  <TableHead>{ru.labels.status}</TableHead>
+                  <TableHead>Последний запуск</TableHead>
+                  <TableHead className="text-right">Действия</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {connections.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell>#{item.id}</TableCell>
+                    <TableCell>{item.platform}</TableCell>
+                    <TableCell>
+                      <Badge variant={item.last_sync_status === "success" ? "success" : item.last_sync_status === "failed" ? "danger" : "muted"}>
+                        {formatStatus(item.last_sync_status)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-slate-400">{item.last_sync_finished_at ?? "—"}</TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="secondary" size="sm" onClick={() => router.push(`/connections/${item.id}`)}>
+                        {ru.actions.open}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

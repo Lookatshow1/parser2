@@ -1,19 +1,29 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { createOrg, getActiveOrg, listOrgs, switchOrg } from "../../lib/api";
 import { getOrgId, setOrgId } from "../../lib/session";
+import { ru } from "../../lib/ru";
+import { Button } from "../../components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { Input } from "../../components/ui/input";
+import { Label } from "../../components/ui/label";
+import { Skeleton } from "../../components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
 
 type Org = { id: number; name: string };
 
 export default function OrgsPage() {
   const [items, setItems] = useState<Org[]>([]);
   const [activeOrg, setActiveOrg] = useState<Org | null>(null);
-  const [name, setName] = useState("My Org");
+  const [name, setName] = useState("Моя организация");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const load = async () => {
+    setLoading(true);
     try {
       const data = await listOrgs();
       setItems(data.items);
@@ -24,7 +34,11 @@ export default function OrgsPage() {
         setActiveOrg(null);
       }
     } catch (err) {
-      setError((err as Error).message);
+      const message = (err as Error).message;
+      setError(message);
+      toast.error(message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -39,10 +53,13 @@ export default function OrgsPage() {
       const org = await createOrg({ name });
       setOrgId(String(org.id));
       setActiveOrg(org);
-      setNotice(`Created and selected org ${org.name}`);
+      setNotice(`Организация ${org.name} создана и выбрана.`);
+      toast.success("Организация создана");
       await load();
     } catch (err) {
-      setError((err as Error).message);
+      const message = (err as Error).message;
+      setError(message);
+      toast.error(message);
     }
   };
 
@@ -53,49 +70,76 @@ export default function OrgsPage() {
       await switchOrg({ organization_id: org.id });
       setOrgId(String(org.id));
       setActiveOrg(org);
-      setNotice(`Switched to ${org.name}`);
+      setNotice(`Активная организация: ${org.name}`);
+      toast.success("Организация переключена");
     } catch (err) {
-      setError((err as Error).message);
+      const message = (err as Error).message;
+      setError(message);
+      toast.error(message);
     }
   };
 
   return (
     <div className="space-y-6">
-      <div className="card space-y-3">
-        <h1 className="text-xl font-semibold">Organizations</h1>
-        {error && <div className="text-red-400">{error}</div>}
-        {notice && <div className="text-green-400">{notice}</div>}
-        <div className="text-sm text-slate-400">
-          Active org: {activeOrg ? `${activeOrg.name} (#${activeOrg.id})` : "not set"}
-        </div>
-        <div className="flex gap-2">
-          <input value={name} onChange={(event) => setName(event.target.value)} />
-          <button onClick={handleCreate}>Create</button>
-        </div>
-      </div>
-
-      <div className="card space-y-3">
-        <h2 className="text-lg font-semibold">Your orgs</h2>
-        <div className="grid gap-2 text-sm">
-          {items.map((org) => (
-            <div key={org.id} className="flex items-center justify-between border-b border-slate-800 pb-2">
-              <span>#{org.id}</span>
-              <span>{org.name}</span>
-              <button
-                onClick={() => handleSwitch(org)}
-                className="bg-slate-700 hover:bg-slate-600 text-xs px-3 py-1 rounded"
-              >
-                Select
-              </button>
+      <Card>
+        <CardHeader>
+          <CardTitle>{ru.nav.orgs}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {error && <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</div>}
+          {notice && <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">{notice}</div>}
+          <div className="text-sm text-slate-400">
+            {ru.labels.activeOrg}: {activeOrg ? `${activeOrg.name} (#${activeOrg.id})` : "не выбрана"}
+          </div>
+          <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
+            <div className="space-y-2">
+              <Label htmlFor="org-name">{ru.labels.orgName}</Label>
+              <Input id="org-name" value={name} onChange={(event) => setName(event.target.value)} />
             </div>
-          ))}
-          {items.length === 0 && <div className="text-slate-400">No organizations yet.</div>}
-        </div>
-      </div>
+            <Button onClick={handleCreate}>{ru.actions.createOrg}</Button>
+          </div>
+        </CardContent>
+      </Card>
 
-      <div className="card text-sm text-slate-400">
-        Stored org in browser: {getOrgId() || "none"}
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Ваши организации</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading && <Skeleton className="h-20 w-full" />}
+          {!loading && items.length === 0 && <div className="text-sm text-slate-400">Организаций пока нет.</div>}
+          {!loading && items.length > 0 && (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ID</TableHead>
+                  <TableHead>Название</TableHead>
+                  <TableHead className="text-right">Действия</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {items.map((org) => (
+                  <TableRow key={org.id}>
+                    <TableCell>#{org.id}</TableCell>
+                    <TableCell className="text-slate-100">{org.name}</TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="secondary" size="sm" onClick={() => handleSwitch(org)}>
+                        {ru.actions.switchOrg}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="text-sm text-slate-400">
+          Сохранённая организация в браузере: {getOrgId() || "нет"}
+        </CardContent>
+      </Card>
     </div>
   );
 }

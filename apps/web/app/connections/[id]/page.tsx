@@ -1,10 +1,30 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { getDashboardSummary, listConnectionSnapshots, listConnectionSyncRuns, listJobRuns, syncConnection } from "../../../lib/api";
+import { ru } from "../../../lib/ru";
+import { Badge } from "../../../components/ui/badge";
+import { Button } from "../../../components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
+import { Input } from "../../../components/ui/input";
+import { Skeleton } from "../../../components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../../components/ui/table";
 
 type Run = { id: number; status: string; run_type: string; created_at: string; result_json?: Record<string, unknown>; error_text?: string | null };
 type JobRun = { id: number; job_type: string; status: string; created_at: string; result_json?: Record<string, unknown> | null; error_text?: string | null };
+
+const statusVariant: Record<string, "success" | "danger" | "warning" | "muted"> = {
+  success: "success",
+  failed: "danger",
+  queued: "warning",
+  running: "warning",
+};
+
+const formatStatus = (value?: string | null) => {
+  if (!value) return "—";
+  return ru.statuses[value as keyof typeof ru.statuses] || value;
+};
 
 export default function ConnectionDetailPage({ params }: { params: { id: string } }) {
   const connectionId = Number(params.id);
@@ -70,7 +90,9 @@ export default function ConnectionDetailPage({ params }: { params: { id: string 
       setDateFrom(defaultDateRange.from);
       setDateTo(defaultDateRange.to);
     } catch (err) {
-      setError((err as Error).message);
+      const message = (err as Error).message;
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -83,14 +105,15 @@ export default function ConnectionDetailPage({ params }: { params: { id: string 
     }
     const interval = setInterval(async () => {
       try {
-      const runData = await listConnectionSyncRuns(connectionId);
-      setRuns(runData);
-      const jobData = await listJobRuns({ connection_id: connectionId, limit: 20 });
-      setJobRuns(jobData.items);
-    } catch (err) {
-      setError((err as Error).message);
-    }
-  }, 2500);
+        const runData = await listConnectionSyncRuns(connectionId);
+        setRuns(runData);
+        const jobData = await listJobRuns({ connection_id: connectionId, limit: 20 });
+        setJobRuns(jobData.items);
+      } catch (err) {
+        const message = (err as Error).message;
+        setError(message);
+      }
+    }, 2500);
     return () => clearInterval(interval);
   }, [connectionId, runs]);
 
@@ -103,11 +126,14 @@ export default function ConnectionDetailPage({ params }: { params: { id: string 
         date_from: dateFrom || defaultDateRange.from,
         date_to: dateTo || defaultDateRange.to,
       });
-      setNotice(`Sync queued (run #${run.id})`);
+      setNotice(`Синхронизация поставлена в очередь (run #${run.id})`);
+      toast.success("Синк запущен");
       const runData = await listConnectionSyncRuns(connectionId);
       setRuns(runData);
     } catch (err) {
-      setError((err as Error).message);
+      const message = (err as Error).message;
+      setError(message);
+      toast.error(message);
     }
   };
 
@@ -136,7 +162,9 @@ export default function ConnectionDetailPage({ params }: { params: { id: string 
         roas: summaryData.totals.roas ?? null,
       });
     } catch (err) {
-      setError((err as Error).message);
+      const message = (err as Error).message;
+      setError(message);
+      toast.error(message);
     }
   };
 
@@ -148,87 +176,140 @@ export default function ConnectionDetailPage({ params }: { params: { id: string 
 
   return (
     <div className="space-y-6">
-      <div className="card space-y-2">
-        <h1 className="text-xl font-semibold">Connection #{connectionId}</h1>
-        <p className="text-slate-400 text-sm">Last 7 days summary</p>
-        {error && <div className="text-red-400">{error}</div>}
-        {notice && <div className="text-green-400">{notice}</div>}
-        {loading && <div className="text-slate-400 text-sm">Loading…</div>}
-        {summary && (
-          <div className="grid gap-3 md:grid-cols-3 text-sm">
-            <div className="rounded bg-slate-900/60 p-3">Impressions: {summary.impressions}</div>
-            <div className="rounded bg-slate-900/60 p-3">Clicks: {summary.clicks}</div>
-            <div className="rounded bg-slate-900/60 p-3">Spend: {summary.spend}</div>
-            <div className="rounded bg-slate-900/60 p-3">CTR: {summary.ctr ?? "n/a"}</div>
-            <div className="rounded bg-slate-900/60 p-3">CPC: {summary.cpc ?? "n/a"}</div>
-            <div className="rounded bg-slate-900/60 p-3">CPM: {summary.cpm ?? "n/a"}</div>
-            <div className="rounded bg-slate-900/60 p-3">CPA: {summary.cpa ?? "n/a"}</div>
-            <div className="rounded bg-slate-900/60 p-3">ROAS: {summary.roas ?? "n/a"}</div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Подключение #{connectionId}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-slate-400">Сводка за последние 14 дней</p>
+          {error && <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</div>}
+          {notice && <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">{notice}</div>}
+          {loading && <Skeleton className="h-20 w-full" />}
+          {!loading && summary && (
+            <div className="grid gap-3 md:grid-cols-4 text-sm">
+              <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">Показы: {summary.impressions}</div>
+              <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">Клики: {summary.clicks}</div>
+              <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">Расход: {summary.spend}</div>
+              <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">CTR: {summary.ctr ?? "—"}</div>
+              <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">CPC: {summary.cpc ?? "—"}</div>
+              <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">CPM: {summary.cpm ?? "—"}</div>
+              <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">CPA: {summary.cpa ?? "—"}</div>
+              <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">ROAS: {summary.roas ?? "—"}</div>
+            </div>
+          )}
+          <div className="grid gap-3 md:grid-cols-4 text-sm">
+            <Input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
+            <Input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
+            <Button onClick={handleSync}>{ru.actions.sync}</Button>
+            <Button variant="secondary" onClick={refreshMetrics}>Обновить метрики</Button>
           </div>
-        )}
-        <div className="grid gap-3 md:grid-cols-4 text-sm">
-          <input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
-          <input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
-          <button onClick={handleSync}>Sync</button>
-          <button onClick={refreshMetrics} className="bg-slate-700 hover:bg-slate-600">
-            Refresh metrics
-          </button>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      <div className="card space-y-3">
-        <h2 className="text-lg font-semibold">Sync runs</h2>
-        <div className="grid gap-2 text-sm">
-          {runs.map((run) => (
-            <div key={run.id} className="grid grid-cols-5 gap-2 border-b border-slate-800 pb-2">
-              <span>#{run.id}</span>
-              <span>{run.status}</span>
-              <span>{new Date(run.created_at).toLocaleString()}</span>
-              <span>
-                {run.result_json && "inserted" in run.result_json
-                  ? `${run.result_json.inserted}/${run.result_json.updated}/${run.result_json.unchanged}`
-                  : "-"}
-              </span>
-              <span className="text-xs text-slate-400">
-                {run.error_text ? String(run.error_text).slice(0, 80) : ""}
-              </span>
-            </div>
-          ))}
-          {runs.length === 0 && <div className="text-slate-400">No sync runs yet.</div>}
-        </div>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>{ru.labels.syncRuns}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>ID</TableHead>
+                <TableHead>{ru.labels.status}</TableHead>
+                <TableHead>Создан</TableHead>
+                <TableHead>Результат</TableHead>
+                <TableHead>Ошибка</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {runs.map((run) => (
+                <TableRow key={run.id}>
+                  <TableCell>#{run.id}</TableCell>
+                  <TableCell><Badge variant={statusVariant[run.status] || "muted"}>{formatStatus(run.status)}</Badge></TableCell>
+                  <TableCell>{new Date(run.created_at).toLocaleString()}</TableCell>
+                  <TableCell className="text-slate-400">
+                    {run.result_json && "inserted" in run.result_json
+                      ? `${run.result_json.inserted}/${run.result_json.updated}/${run.result_json.unchanged}`
+                      : "—"}
+                  </TableCell>
+                  <TableCell className="text-slate-400">{run.error_text ? String(run.error_text).slice(0, 80) : "—"}</TableCell>
+                </TableRow>
+              ))}
+              {runs.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center text-slate-400">Синхронизаций пока нет.</TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
-      <div className="card space-y-3">
-        <h2 className="text-lg font-semibold">Job runs</h2>
-        <div className="grid gap-2 text-sm">
-          {jobRuns.map((job) => (
-            <div key={job.id} className="grid grid-cols-4 gap-2 border-b border-slate-800 pb-2">
-              <span>#{job.id}</span>
-              <span>{job.job_type}</span>
-              <span>{job.status}</span>
-              <span className="text-xs text-slate-400">
-                {job.error_text ? String(job.error_text).slice(0, 80) : ""}
-              </span>
-            </div>
-          ))}
-          {jobRuns.length === 0 && <div className="text-slate-400">No job runs yet.</div>}
-        </div>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Прогоны задач</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>ID</TableHead>
+                <TableHead>Тип</TableHead>
+                <TableHead>{ru.labels.status}</TableHead>
+                <TableHead>Ошибка</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {jobRuns.map((job) => (
+                <TableRow key={job.id}>
+                  <TableCell>#{job.id}</TableCell>
+                  <TableCell>{job.job_type}</TableCell>
+                  <TableCell><Badge variant={statusVariant[job.status] || "muted"}>{formatStatus(job.status)}</Badge></TableCell>
+                  <TableCell className="text-slate-400">{job.error_text ? String(job.error_text).slice(0, 80) : "—"}</TableCell>
+                </TableRow>
+              ))}
+              {jobRuns.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center text-slate-400">Задач пока нет.</TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
-      <div className="card space-y-3">
-        <h2 className="text-lg font-semibold">Daily metrics</h2>
-        <div className="grid gap-2 text-sm">
-          {metrics.map((row, idx) => (
-            <div key={idx} className="grid grid-cols-4 gap-2 border-b border-slate-800 pb-2">
-              <span>{String(row.date || "")}</span>
-              <span>impressions: {String(row.impressions || 0)}</span>
-              <span>clicks: {String(row.clicks || 0)}</span>
-              <span>spend: {String(row.spend || 0)}</span>
-            </div>
-          ))}
-          {metrics.length === 0 && <div className="text-slate-400">No metrics yet.</div>}
-        </div>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Снимки метрик</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Дата</TableHead>
+                <TableHead>Показы</TableHead>
+                <TableHead>Клики</TableHead>
+                <TableHead>Расход</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {metrics.map((row, idx) => (
+                <TableRow key={idx}>
+                  <TableCell>{String(row.date || "")}</TableCell>
+                  <TableCell>{String(row.impressions || 0)}</TableCell>
+                  <TableCell>{String(row.clicks || 0)}</TableCell>
+                  <TableCell>{String(row.spend || 0)}</TableCell>
+                </TableRow>
+              ))}
+              {metrics.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center text-slate-400">{ru.messages.noMetrics}</TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </div>
   );
 }

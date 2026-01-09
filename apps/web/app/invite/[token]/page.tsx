@@ -2,9 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { toast } from "sonner";
 import { acceptInvite, getMe, previewInvite } from "../../../lib/api";
 import { getToken, clearToken, clearRefreshToken, setOrgId } from "../../../lib/session";
+import { ru } from "../../../lib/ru";
+import { Badge } from "../../../components/ui/badge";
+import { Button } from "../../../components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
+import { Skeleton } from "../../../components/ui/skeleton";
 
 type Preview = {
   organization_id?: number | null;
@@ -31,7 +36,9 @@ export default function InviteTokenPage({ params }: { params: { token: string } 
         const data = await previewInvite(token);
         setPreview(data);
       } catch (err) {
-        setError((err as Error).message);
+        const message = (err as Error).message;
+        setError(message);
+        toast.error(message);
       }
     };
     load();
@@ -58,10 +65,13 @@ export default function InviteTokenPage({ params }: { params: { token: string } 
       if (result.active_organization_id) {
         setOrgId(String(result.active_organization_id));
       }
-      setNotice(`Joined ${result.organization_name}`);
+      setNotice(`Вы присоединились к ${result.organization_name}`);
+      toast.success("Приглашение принято");
       router.push("/connections");
     } catch (err) {
-      setError((err as Error).message);
+      const message = (err as Error).message;
+      setError(message);
+      toast.error(message);
     }
   };
 
@@ -73,62 +83,79 @@ export default function InviteTokenPage({ params }: { params: { token: string } 
 
   if (error) {
     return (
-      <div className="card space-y-2">
-        <h1 className="text-xl font-semibold">Invite</h1>
-        <div className="text-red-400">{error}</div>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Приглашение</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-red-300">{error}</div>
+        </CardContent>
+      </Card>
     );
   }
 
   if (!preview) {
-    return <div className="card">Loading invite…</div>;
+    return (
+      <Card>
+        <CardContent className="py-6">
+          <Skeleton className="h-16 w-full" />
+        </CardContent>
+      </Card>
+    );
   }
 
   if (preview.status !== "active") {
     return (
-      <div className="card space-y-2">
-        <h1 className="text-xl font-semibold">Invite</h1>
-        <div className="text-slate-300">Status: {preview.status}</div>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Приглашение</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-slate-300">Статус: {preview.status}</div>
+        </CardContent>
+      </Card>
     );
   }
 
   const inviteEmail = preview.invited_email || "";
 
   return (
-    <div className="card space-y-4 max-w-xl">
-      <h1 className="text-xl font-semibold">Invite to {preview.organization_name}</h1>
-      <div className="text-sm text-slate-400">
-        Role: {preview.role} · Email: {inviteEmail}
-      </div>
-      {notice && <div className="text-green-400">{notice}</div>}
-      {error && <div className="text-red-400">{error}</div>}
-
-      {!authToken && (
-        <div className="flex gap-2">
-          <Link href={`/login?invite=${encodeURIComponent(token)}`} className="bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded text-sm">
-            Log in
-          </Link>
-          <Link href={`/signup?invite=${encodeURIComponent(token)}`} className="bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded text-sm">
-            Sign up
-          </Link>
+    <Card className="max-w-xl">
+      <CardHeader>
+        <CardTitle>Приглашение в {preview.organization_name}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex flex-wrap items-center gap-2 text-sm text-slate-400">
+          <Badge variant="info">Роль: {preview.role}</Badge>
+          <span>Email: {inviteEmail}</span>
         </div>
-      )}
+        {notice && <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">{notice}</div>}
+        {error && <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</div>}
 
-      {authToken && meEmail && meEmail.toLowerCase() !== inviteEmail.toLowerCase() && (
-        <div className="space-y-2">
-          <div className="text-slate-300">
-            You are logged in as {meEmail}. This invite is for {inviteEmail}.
+        {!authToken && (
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={() => router.push(`/login?invite=${encodeURIComponent(token)}`)}>
+              {ru.actions.login}
+            </Button>
+            <Button variant="secondary" onClick={() => router.push(`/signup?invite=${encodeURIComponent(token)}`)}>
+              {ru.actions.signup}
+            </Button>
           </div>
-          <button onClick={handleLogout} className="bg-slate-700 hover:bg-slate-600 text-sm px-3 py-2 rounded">
-            Switch account
-          </button>
-        </div>
-      )}
+        )}
 
-      {authToken && (!meEmail || meEmail.toLowerCase() === inviteEmail.toLowerCase()) && (
-        <button onClick={handleAccept}>Accept invite</button>
-      )}
-    </div>
+        {authToken && meEmail && meEmail.toLowerCase() !== inviteEmail.toLowerCase() && (
+          <div className="space-y-2">
+            <div className="text-slate-300">
+              Вы вошли как {meEmail}. Это приглашение для {inviteEmail}.
+            </div>
+            <Button variant="secondary" onClick={handleLogout}>Сменить аккаунт</Button>
+          </div>
+        )}
+
+        {authToken && (!meEmail || meEmail.toLowerCase() === inviteEmail.toLowerCase()) && (
+          <Button onClick={handleAccept}>{ru.actions.acceptInvite}</Button>
+        )}
+      </CardContent>
+    </Card>
   );
 }

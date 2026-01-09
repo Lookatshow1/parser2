@@ -1,9 +1,29 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { listConnections, listConnectionSyncRuns, syncConnection } from "../../lib/api";
+import { ru } from "../../lib/ru";
+import { Badge } from "../../components/ui/badge";
+import { Button } from "../../components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { Input } from "../../components/ui/input";
+import { Skeleton } from "../../components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
 
 type Connection = { id: number; platform: string; status: string };
+
+const statusVariant: Record<string, "success" | "danger" | "warning" | "muted"> = {
+  success: "success",
+  failed: "danger",
+  queued: "warning",
+  running: "warning",
+};
+
+const formatStatus = (value?: string | null) => {
+  if (!value) return "—";
+  return ru.statuses[value as keyof typeof ru.statuses] || value;
+};
 
 export default function SyncRunsPage() {
   const [connections, setConnections] = useState<Connection[]>([]);
@@ -13,6 +33,7 @@ export default function SyncRunsPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const defaultDateRange = useMemo(() => {
     const to = new Date();
@@ -25,11 +46,16 @@ export default function SyncRunsPage() {
   }, []);
 
   const loadConnections = async () => {
+    setLoading(true);
     try {
       const data = await listConnections();
       setConnections(data.items);
     } catch (err) {
-      setError((err as Error).message);
+      const message = (err as Error).message;
+      setError(message);
+      toast.error(message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -38,7 +64,9 @@ export default function SyncRunsPage() {
       const data = await listConnectionSyncRuns(connectionId);
       setRuns(data);
     } catch (err) {
-      setError((err as Error).message);
+      const message = (err as Error).message;
+      setError(message);
+      toast.error(message);
     }
   };
 
@@ -55,20 +83,18 @@ export default function SyncRunsPage() {
   }, [selected]);
 
   useEffect(() => {
-    if (!selected) {
-      return;
-    }
+    if (!selected) return;
     const hasActive = runs.some((run) => run.status === "queued" || run.status === "running");
-    if (!hasActive) {
-      return;
-    }
+    if (!hasActive) return;
     const interval = setInterval(() => loadRuns(selected), 2500);
     return () => clearInterval(interval);
   }, [runs, selected]);
 
   const handleSync = async () => {
     if (!selected) {
-      setError("Select a connection");
+      const message = "Выберите подключение";
+      setError(message);
+      toast.error(message);
       return;
     }
     setError(null);
@@ -79,55 +105,82 @@ export default function SyncRunsPage() {
         date_from: dateFrom || defaultDateRange.from,
         date_to: dateTo || defaultDateRange.to,
       });
-      setNotice(`Sync queued: #${run.id}`);
+      setNotice(`Синхронизация поставлена в очередь: #${run.id}`);
+      toast.success("Синк запущен");
       await loadRuns(selected);
     } catch (err) {
-      setError((err as Error).message);
+      const message = (err as Error).message;
+      setError(message);
+      toast.error(message);
     }
   };
 
   return (
     <div className="space-y-6">
-      <div className="card space-y-3">
-        <h1 className="text-xl font-semibold">Sync runs</h1>
-        {error && <div className="text-red-400">{error}</div>}
-        {notice && <div className="text-green-400">{notice}</div>}
-        <div className="grid gap-3 md:grid-cols-4">
-          <select value={selected ?? ""} onChange={(event) => setSelected(Number(event.target.value) || null)}>
-            <option value="">Select connection</option>
-            {connections.map((c) => (
-              <option key={c.id} value={c.id}>
-                #{c.id} {c.platform} ({c.status})
-              </option>
-            ))}
-          </select>
-          <input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
-          <input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
-          <button onClick={handleSync}>Run sync</button>
-        </div>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>{ru.labels.syncRuns}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {error && <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</div>}
+          {notice && <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">{notice}</div>}
+          <div className="grid gap-3 md:grid-cols-4">
+            <select value={selected ?? ""} onChange={(event) => setSelected(Number(event.target.value) || null)} className="h-10 rounded-md border border-slate-800 bg-slate-900 px-3 text-sm">
+              <option value="">Выберите подключение</option>
+              {connections.map((c) => (
+                <option key={c.id} value={c.id}>
+                  #{c.id} {c.platform} ({c.status})
+                </option>
+              ))}
+            </select>
+            <Input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
+            <Input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
+            <Button onClick={handleSync}>{ru.actions.sync}</Button>
+          </div>
+        </CardContent>
+      </Card>
 
-      <div className="card space-y-3">
-        <h2 className="text-lg font-semibold">Runs</h2>
-        <div className="grid gap-2 text-sm">
-          {runs.map((run) => (
-            <div key={run.id} className="grid grid-cols-5 gap-2 border-b border-slate-800 pb-2">
-              <span>#{run.id}</span>
-              <span>{run.status}</span>
-              <span>{new Date(run.created_at).toLocaleString()}</span>
-              <span>
-                {run.result_json && "inserted" in run.result_json
-                  ? `${run.result_json.inserted}/${run.result_json.updated}/${run.result_json.unchanged}`
-                  : "-"}
-              </span>
-              <span className="text-xs text-slate-400">
-                {run.error_text ? String(run.error_text).slice(0, 80) : ""}
-              </span>
-            </div>
-          ))}
-          {runs.length === 0 && <div className="text-slate-400">No runs yet.</div>}
-        </div>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>История запусков</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading && <Skeleton className="h-20 w-full" />}
+          {!loading && (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ID</TableHead>
+                  <TableHead>{ru.labels.status}</TableHead>
+                  <TableHead>Создан</TableHead>
+                  <TableHead>Результат</TableHead>
+                  <TableHead>Ошибка</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {runs.map((run) => (
+                  <TableRow key={run.id}>
+                    <TableCell>#{run.id}</TableCell>
+                    <TableCell><Badge variant={statusVariant[run.status] || "muted"}>{formatStatus(run.status)}</Badge></TableCell>
+                    <TableCell>{new Date(run.created_at).toLocaleString()}</TableCell>
+                    <TableCell className="text-slate-400">
+                      {run.result_json && "inserted" in run.result_json
+                        ? `${run.result_json.inserted}/${run.result_json.updated}/${run.result_json.unchanged}`
+                        : "—"}
+                    </TableCell>
+                    <TableCell className="text-slate-400">{run.error_text ? String(run.error_text).slice(0, 80) : "—"}</TableCell>
+                  </TableRow>
+                ))}
+                {runs.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center text-slate-400">Запусков пока нет.</TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
