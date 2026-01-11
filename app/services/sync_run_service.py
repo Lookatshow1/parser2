@@ -28,6 +28,7 @@ def create_connection_sync_run(
     date_to: date | None,
     force: bool = False,
     enqueue: bool = True,
+    correlation_id: str | None = None,
 ) -> SyncRun:
     d_from, d_to = build_date_range(date_from, date_to, window_days=connection.auto_sync_window_days or 14)
     context = {
@@ -36,12 +37,16 @@ def create_connection_sync_run(
         "date_to": d_to.isoformat(),
         "force": force,
     }
+    if correlation_id:
+        context["correlation_id"] = correlation_id
+
     job = create_job(
         db,
         job_type="connection_sync",
         context=context,
         organization_id=connection.organization_id,
         connection_id=connection.id,
+        correlation_id=correlation_id,
     )
 
     params = dict(context)
@@ -54,11 +59,12 @@ def create_connection_sync_run(
         run_type=SyncRunType.metrics,
         status=SyncRunStatus.queued,
         params_json=params,
+        correlation_id=correlation_id,
     )
     db.add(run)
     db.commit()
     db.refresh(run)
 
     if enqueue and not os.getenv("PYTEST_CURRENT_TEST"):
-        execute_sync_run.delay(run.id)
+        execute_sync_run.delay(run.id, correlation_id=correlation_id)
     return run

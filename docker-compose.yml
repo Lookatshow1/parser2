@@ -130,6 +130,8 @@ services:
       - web_node_modules:/app/apps/web/node_modules
     environment:
       NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
+      NEXT_TELEMETRY_DISABLED: 1
+      NODE_OPTIONS: --max-old-space-size=4096
     ports:
       - "3000:3000"
     depends_on:

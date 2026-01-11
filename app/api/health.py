@@ -1,72 +1,76 @@
-from fastapi import APIRouter, Depends
-from sqlalchemy import text
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from alembic.config import Config
+from sqlalchemy import text
+from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
-
-from app.api.schemas import HealthResponse, HealthDb, HealthMigrations
-from app.db.session import get_db
+from app.db.session import get_db, engine
+from app.api.schemas import HealthResponse, HealthzResponse
+from app.core.config import get_settings
+import redis
 
 router = APIRouter()
 
-
 @router.get("/health", response_model=HealthResponse)
-def health_check(session: Session = Depends(get_db)):
-    # 1. Check DB
-    db_ok = False
+def health_check(db: Session = Depends(get_db)):
+    # Check DB
+    db_ok = True
     try:
-        session.execute(text("SELECT 1"))
-        db_ok = True
+        db.execute(text("SELECT 1"))
     except Exception:
-        pass
+        db_ok = False
 
-    # 2. Check Migrations
-    migrations_ok = False
+    # Check Migrations
+    migrations_ok = True
     current_rev = None
     head_rev = None
-
     try:
-        # Get current revision from DB
-        result = session.execute(text("SELECT version_num FROM alembic_version"))
-        row = result.first()
-        if row:
-            current_rev = row[0]
-        else:
-            current_rev = "missing"
+        conn = db.connection()
+        context = MigrationContext.configure(conn)
+        current_rev = context.get_current_revision()
 
-        # Get head revision from Alembic config
-        alembic_cfg = Config("alembic.ini")
-        script = ScriptDirectory.from_config(alembic_cfg)
+        script = ScriptDirectory.from_config(get_settings().alembic_cfg)
         head_rev = script.get_current_head()
 
-        if current_rev and head_rev and current_rev == head_rev:
-            migrations_ok = True
-
+        if current_rev != head_rev:
+            migrations_ok = False
     except Exception:
-        if not current_rev:
-            current_rev = "error"
-        if not head_rev:
-            head_rev = "error"
+        migrations_ok = False
 
-    status = "ok" if db_ok and migrations_ok else "degraded"
+    return {
+        "status": "ok" if db_ok and migrations_ok else "degraded",
+        "db": {"ok": db_ok},
+        "migrations": {
+            "ok": migrations_ok,
+            "current": current_rev,
+            "head": head_rev
+        }
+    }
 
-    return HealthResponse(
-        status=status,
-        db=HealthDb(ok=db_ok),
-        migrations=HealthMigrations(
-            ok=migrations_ok,
-            current=current_rev,
-            head=head_rev
-        )
-    )
+@router.get("/healthz", response_model=HealthzResponse)
+def liveness_probe():
+    return {"status": "ok", "db": "unknown"}
 
-
-@router.get("/healthz")
-def healthz_check(session: Session = Depends(get_db)):
+@router.get("/readyz")
+def readiness_probe(db: Session = Depends(get_db)):
+    # Check DB
     try:
-        session.execute(text("SELECT 1"))
-        db_status = "ok"
-    except Exception:
-        db_status = "error"
-    status = "ok" if db_status == "ok" else "error"
-    return {"status": status, "db": db_status}
+        db.execute(text("SELECT 1"))
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"База данных недоступна: {str(e)}"
+        )
+
+    # Check Redis
+    try:
+        settings = get_settings()
+        r = redis.from_url(settings.redis_url)
+        if not r.ping():
+            raise Exception("Redis ping failed")
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Redis недоступен: {str(e)}"
+        )
+
+    return {"status": "ok"}

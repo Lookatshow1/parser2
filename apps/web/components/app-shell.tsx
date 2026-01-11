@@ -15,6 +15,7 @@ const navItems = [
   { href: "/dashboard", label: STR.nav.dashboard },
   { href: "/connections", label: STR.nav.connections },
   { href: "/metrics", label: STR.nav.metrics },
+  { href: "/recommendations", label: "Рекомендации" },
   { href: "/orgs/members", label: STR.nav.members },
   { href: "/orgs/audit", label: STR.nav.audit },
   { href: "/balance", label: STR.nav.balance },

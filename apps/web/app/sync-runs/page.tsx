@@ -1,5 +1,5 @@
 "use client";
-
+export const dynamic = "force-dynamic";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { listConnections, listConnectionSyncRuns, syncConnection } from "../../lib/api";

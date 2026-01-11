@@ -4,6 +4,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy import func, text, or_
 from app.db.models import Connection, Experiment, ExperimentCampaign, MetricSnapshot, Platform, CampaignPlan
 from app.services.connector_service import get_connector
+from app.services.ad_catalog_service import refresh_catalog_for_connection
 
 
 def _metric_needs_update(stmt):
@@ -266,6 +267,11 @@ def sync_connection_metrics(
             stats["unchanged"] += unchanged
 
     db.commit()
+
+    # Refresh catalog
+    catalog_stats = refresh_catalog_for_connection(db, connection_id)
+    stats["catalog"] = catalog_stats
+
     stats["date_from"] = date_from.isoformat()
     stats["date_to"] = date_to.isoformat()
     stats["platform"] = connection.platform.value

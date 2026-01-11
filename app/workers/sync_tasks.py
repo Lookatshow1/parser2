@@ -9,6 +9,7 @@ from app.services.lock_service import acquire_advisory_lock, get_sync_lock_key, 
 from app.services.audit import log_org_event
 from app.services.sync_service import sync_campaigns, sync_metrics, sync_connection_metrics
 from app.workers.celery_app import celery_app
+from app.core.context import set_correlation_id
 
 def _run_sync_logic(db: Session, run: SyncRun):
     """
@@ -63,7 +64,11 @@ def _run_sync_logic(db: Session, run: SyncRun):
         return {"campaigns": result_campaigns}
 
 @celery_app.task(bind=True, max_retries=3)
-def execute_sync_run(self, run_id: int):
+def execute_sync_run(self, run_id: int, correlation_id: str | None = None):
+    # Set correlation ID for logging
+    if correlation_id:
+        set_correlation_id(correlation_id)
+
     db = db_session.get_session()
     lock_key = None
     try:

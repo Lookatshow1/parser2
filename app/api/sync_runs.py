@@ -10,6 +10,7 @@ from app.db.models import Connection, SyncRun, SyncRunStatus, Organization, User
 from app.db.session import get_db
 from app.services.rbac import can_run_sync
 from app.services.sync_run_service import create_connection_sync_run
+from app.core.context import get_correlation_id
 
 router = APIRouter(prefix="/sync-runs", tags=["sync-runs"])
 
@@ -49,12 +50,17 @@ def create_sync_run(
         date_from = date_to - timedelta(days=13)
         params.setdefault("date_from", date_from.isoformat())
         params.setdefault("date_to", date_to.isoformat())
+
+    # Pass correlation_id to service
+    correlation_id = get_correlation_id()
+
     return create_connection_sync_run(
         db=db,
         connection=connection,
         date_from=date.fromisoformat(str(params["date_from"])),
         date_to=date.fromisoformat(str(params["date_to"])),
         force=bool(params.get("force", False)),
+        correlation_id=correlation_id
     )
 
 

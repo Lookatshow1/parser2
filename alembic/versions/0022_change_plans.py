@@ -1,7 +1,7 @@
 """change plans
 
 Revision ID: 0022_change_plans
-Revises: 0020_org_recommendations
+Revises: 0021_org_recommendations
 Create Date: 2023-10-28 19:00:00.000000
 
 """
@@ -11,7 +11,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = '0022_change_plans'
-down_revision = '0020_org_recommendations'
+down_revision = '0021_org_recommendations'
 branch_labels = None
 depends_on = None
 

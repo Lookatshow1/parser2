@@ -1,4 +1,4 @@
-.PHONY: up down reset-db migrate heads current history test seed demo-seed selftest db-shell logs ps logs-worker logs-api logs-db logs-web doctor rotate-credentials
+.PHONY: up down reset-db migrate heads current history test seed demo-seed selftest db-shell logs ps logs-worker logs-api logs-db logs-web doctor rotate-credentials web-build web-prod-build
 
 up:
 	@$(MAKE) doctor
@@ -27,6 +27,14 @@ logs-db:
 logs-web:
 	@$(MAKE) doctor
 	docker compose logs -f web || (echo "Web not running. Run 'make up' first." && exit 0)
+
+web-build:
+	@$(MAKE) doctor
+	docker compose run --rm web npm run build
+
+web-prod-build:
+	@$(MAKE) doctor
+	docker build -t parser2-web-prod apps/web
 
 ps:
 	@$(MAKE) doctor

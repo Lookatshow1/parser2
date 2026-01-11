@@ -206,6 +206,38 @@ if [ "${TS_COUNT}" -le 0 ]; then
   exit 1
 fi
 
+# Breakdown check
+BREAKDOWN_JSON=$(curl -fsS --max-time 10 "http://localhost:8000/api/metrics/breakdown?date_from=2023-01-01&date_to=2023-01-03&dimension=campaign" \
+  -H "${INVITED_AUTH_HEADER}" -H "${INVITED_ORG_HEADER}")
+BREAKDOWN_COUNT=$(printf '%s' "${BREAKDOWN_JSON}" | python3 -c "import sys, json; data=json.loads(sys.stdin.read()); print(len(data.get('items', [])))")
+if [ "${BREAKDOWN_COUNT}" -le 0 ]; then
+  echo "Breakdown check failed: no items." >&2
+  exit 1
+fi
+
+# Recommendations check
+RECO_JSON=$(curl -fsS --max-time 10 "http://localhost:8000/api/recommendations?date_from=2023-01-01&date_to=2023-01-03" \
+  -H "${INVITED_AUTH_HEADER}" -H "${INVITED_ORG_HEADER}")
+RECO_COUNT=$(printf '%s' "${RECO_JSON}" | python3 -c "import sys, json; data=json.loads(sys.stdin.read()); print(data.get('total', 0))")
+# We expect at least MOCK_CONNECTION or AUTOSYNC_OFF or campaign rules
+if [ "${RECO_COUNT}" -le 0 ]; then
+  echo "Recommendations check failed: no items." >&2
+  exit 1
+fi
+
+# Change Plans check
+PLAN_JSON=$(curl -fsS --max-time 10 -X POST "http://localhost:8000/api/change-plans" \
+  -H "Content-Type: application/json" \
+  -H "${INVITED_AUTH_HEADER}" \
+  -H "${INVITED_ORG_HEADER}" \
+  -d "{\"connection_id\":${CONN_ID},\"title\":\"Test Plan\"}")
+PLAN_ID=$(printf '%s' "${PLAN_JSON}" | python3 -c "import sys, json; print(json.loads(sys.stdin.read())['id'])")
+
+if [ -z "$PLAN_ID" ]; then
+  echo "Change plan creation failed." >&2
+  exit 1
+fi
+
 CTR_VAL=$(printf '%s' "${SUMMARY_JSON}" | python3 -c "import sys, json; print(json.loads(sys.stdin.read())['totals'].get('ctr'))")
 if [ -z "$CTR_VAL" ] || [ "$CTR_VAL" = "None" ]; then
   echo "Dashboard efficiency check failed: ctr is empty" >&2

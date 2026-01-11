@@ -20,9 +20,19 @@ from app.db.models import (
     JobRun,
     JobStatus,
     MetricSnapshot,
+    Experiment,
+    ExperimentStatus,
+    BuilderCampaign,
+    BuilderAdGroup,
+    BuilderAd,
+    ChangePlan,
+    ChangePlanItem,
+    AdCampaign,
+    AdAd
 )
 from app.security.credentials_crypto import maybe_encrypt
 from app.services.auth_service import get_password_hash
+from app.services.ad_catalog_service import refresh_catalog_for_connection
 
 
 DEMO_MEMBER_EMAIL = "demo.member@example.com"
@@ -270,6 +280,155 @@ def _ensure_job_run(session: Session, org: Organization, connection: Connection,
     session.add(job)
     return job
 
+def _ensure_builder_data(session: Session, org: Organization):
+    # Ensure experiment
+    experiment = session.query(Experiment).filter(
+        Experiment.organization_id == org.id,
+        Experiment.status == ExperimentStatus.draft
+    ).first()
+
+    if not experiment:
+        experiment = Experiment(
+            organization_id=org.id,
+            total_budget=50000,
+            platforms=["yandex"],
+            status=ExperimentStatus.draft
+        )
+        session.add(experiment)
+        session.flush()
+
+    # Ensure campaign
+    campaign = session.query(BuilderCampaign).filter(
+        BuilderCampaign.experiment_id == experiment.id,
+        BuilderCampaign.name == "Демо Кампания"
+    ).first()
+
+    if not campaign:
+        campaign = BuilderCampaign(
+            organization_id=org.id,
+            experiment_id=experiment.id,
+            platform=Platform.yandex,
+            name="Демо Кампания",
+            status="draft"
+        )
+        session.add(campaign)
+        session.flush()
+
+    # Ensure group
+    group = session.query(BuilderAdGroup).filter(
+        BuilderAdGroup.campaign_id == campaign.id,
+        BuilderAdGroup.name == "Группа 1"
+    ).first()
+
+    if not group:
+        group = BuilderAdGroup(
+            organization_id=org.id,
+            campaign_id=campaign.id,
+            name="Группа 1",
+            status="draft"
+        )
+        session.add(group)
+        session.flush()
+
+    # Ensure ad
+    ad = session.query(BuilderAd).filter(
+        BuilderAd.ad_group_id == group.id,
+        BuilderAd.name == "Объявление 1"
+    ).first()
+
+    if not ad:
+        from app.utils.utm import build_utm_url
+        base_url = "https://example.com/landing"
+        utm_json = {
+            "utm_source": "yandex",
+            "utm_medium": "cpc",
+            "utm_campaign": "demo_campaign",
+            "utm_content": "banner_1",
+            "utm_term": "buy_now"
+        }
+        final_url = build_utm_url(base_url, utm_json)
+
+        ad = BuilderAd(
+            organization_id=org.id,
+            ad_group_id=group.id,
+            name="Объявление 1",
+            title="Лучшее предложение",
+            text="Покупайте наших слонов, они лучшие на рынке!",
+            base_url=base_url,
+            utm_json=utm_json,
+            final_url=final_url,
+            status="draft"
+        )
+        session.add(ad)
+        session.flush()
+
+def _ensure_change_plans(session: Session, org: Organization, user: User, connection: Connection):
+    # Ensure catalog is populated
+    refresh_catalog_for_connection(session, connection.id)
+
+    # Find a campaign
+    camp = session.query(AdCampaign).filter(AdCampaign.connection_id == connection.id).first()
+    if not camp:
+        return
+
+    # 1. Applied Plan
+    plan_applied = session.query(ChangePlan).filter(
+        ChangePlan.organization_id == org.id,
+        ChangePlan.title == "Демо: Остановка кампании"
+    ).first()
+
+    if not plan_applied:
+        plan_applied = ChangePlan(
+            organization_id=org.id,
+            connection_id=connection.id,
+            title="Демо: Остановка кампании",
+            status="applied",
+            created_by_user_id=user.id,
+            applied_at=datetime.now(timezone.utc)
+        )
+        session.add(plan_applied)
+        session.flush()
+
+        item = ChangePlanItem(
+            plan_id=plan_applied.id,
+            subject_type="campaign",
+            subject_id=camp.id,
+            action_type="pause",
+            params_json={},
+            status="applied"
+        )
+        session.add(item)
+
+        # Update catalog state
+        camp.desired_status = "paused"
+
+    # 2. Draft Plan
+    plan_draft = session.query(ChangePlan).filter(
+        ChangePlan.organization_id == org.id,
+        ChangePlan.title == "Демо: Увеличение бюджета"
+    ).first()
+
+    if not plan_draft:
+        plan_draft = ChangePlan(
+            organization_id=org.id,
+            connection_id=connection.id,
+            title="Демо: Увеличение бюджета",
+            status="draft",
+            created_by_user_id=user.id
+        )
+        session.add(plan_draft)
+        session.flush()
+
+        item = ChangePlanItem(
+            plan_id=plan_draft.id,
+            subject_type="campaign",
+            subject_id=camp.id,
+            action_type="set_daily_budget",
+            params_json={"amount": 5000},
+            status="pending"
+        )
+        session.add(item)
+
 
 def seed_demo(session: Session) -> dict:
     settings = get_settings()
@@ -337,6 +496,12 @@ def seed_demo(session: Session) -> dict:
                 }
             run = _ensure_sync_run(session, org, connection, date_from, date_to, status, result, error)
             _ensure_job_run(session, org, connection, run)
+
+        # Change plans
+        _ensure_change_plans(session, org, demo_user, connection)
+
+    # Builder data
+    _ensure_builder_data(session, org)
 
     session.commit()
 

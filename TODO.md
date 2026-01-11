@@ -115,3 +115,41 @@
 6.6 ЕРИР/маркировка интернет-рекламы (минимальная интеграция)  
 Статус: backlog  
 Проверка: отдельный dev endpoint + запись результата в job_runs, без секретов
+
+## 7) Done
+
+7.1 Конструктор рекламы: кампании/группы/объявления + UTM  
+Статус: done  
+Проверка: `make test` (test_builder.py)
+
+7.2 Каталог кампаний/групп/объявлений + UTM генератор  
+Статус: done  
+Проверка: `make test` (test_catalog.py)
+
+7.3 Метрики: breakdown по кампаниям/группам/объявлениям + дриллдаун  
+Статус: done  
+Проверка: `make test` (test_metrics_breakdown.py)
+
+7.4 Планы изменений (mock apply)  
+Статус: done  
+Проверка: `make test` (test_change_plans.py)
+
+## Notes
+- refresh_catalog_for_connection вызывается в sync_connection_metrics после успешного синка.
+- API: /api/connections/{id}/campaigns|ad-groups|ads, /api/utm/build, /api/settings/utm.
+- API Metrics: /api/metrics/breakdown, /api/metrics/timeseries (drilldown).
+- API Plans: /api/change-plans.
+
+## Next
+- Провайдер реального apply для Yandex/VK (за флагом)
+- автоматизация: правила и рекомендации
+- correlation_id и structured logs
+- баланс: леджер (транзакции)
+
+## Надо прогнать на Codex
+Команды:
+docker compose up -d --build
+docker compose run --rm api alembic upgrade head
+make test
+make selftest
+docker compose run --rm web npm run build

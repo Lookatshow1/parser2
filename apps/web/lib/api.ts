@@ -193,6 +193,162 @@ export type DemoSeedResponse = {
   period_to: string;
 };
 
+export type BuilderTreeAd = {
+  id: number;
+  ad_group_id: number;
+  name: string;
+  title?: string | null;
+  text?: string | null;
+  base_url?: string | null;
+  utm_json: Record<string, any>;
+  final_url?: string | null;
+  status: string;
+  external_id?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type BuilderTreeAdGroup = {
+  id: number;
+  campaign_id: number;
+  name: string;
+  status: string;
+  external_id?: string | null;
+  created_at: string;
+  updated_at: string;
+  ads: BuilderTreeAd[];
+};
+
+export type BuilderTreeCampaign = {
+  id: number;
+  experiment_id: number;
+  platform: string;
+  name: string;
+  status: string;
+  external_id?: string | null;
+  created_at: string;
+  updated_at: string;
+  ad_groups: BuilderTreeAdGroup[];
+};
+
+export type BuilderTreeResponse = {
+  campaigns: BuilderTreeCampaign[];
+};
+
+export type AdCampaignOut = {
+  id: number;
+  connection_id: number;
+  platform: string;
+  external_id: string;
+  name: string;
+  updated_at: string;
+};
+
+export type AdAdGroupOut = {
+  id: number;
+  connection_id: number;
+  platform: string;
+  external_id: string;
+  campaign_external_id: string;
+  name: string;
+  updated_at: string;
+};
+
+export type AdAdOut = {
+  id: number;
+  connection_id: number;
+  platform: string;
+  external_id: string;
+  ad_group_external_id: string;
+  campaign_external_id: string;
+  name: string;
+  updated_at: string;
+};
+
+export type UtmSettingsOut = {
+  organization_id: number;
+  utm_source: string;
+  utm_medium: string;
+  utm_campaign_tpl: string;
+  utm_content_tpl: string;
+  utm_term_tpl?: string | null;
+};
+
+export type UtmBuildResponse = {
+  final_url: string;
+};
+
+export type MetricsBreakdownItem = {
+  dimension: string;
+  id?: number | null;
+  external_id: string;
+  name?: string | null;
+  platform: string;
+  spend: number;
+  impressions: number;
+  clicks: number;
+  leads: number;
+  purchases: number;
+  revenue: number;
+  ctr?: number | null;
+  cpc?: number | null;
+  cpm?: number | null;
+  cpa?: number | null;
+  roas?: number | null;
+};
+
+export type MetricsBreakdownResponse = {
+  items: MetricsBreakdownItem[];
+  total: number;
+};
+
+export type RecommendationOut = {
+  id: number;
+  organization_id: number;
+  connection_id?: number | null;
+  subject_type: string;
+  subject_id?: number | null;
+  subject_name?: string | null;
+  code: string;
+  severity: string;
+  title: string;
+  description: string;
+  action: string;
+  meta_json: Record<string, any>;
+  valid_from: string;
+  valid_to: string;
+  created_at: string;
+  resolved_at?: string | null;
+};
+
+export type RecommendationListResponse = {
+  items: RecommendationOut[];
+  total: number;
+};
+
+export type ChangePlanItemOut = {
+  id: number;
+  subject_type: string;
+  subject_id: number;
+  action_type: string;
+  params_json: Record<string, any>;
+  status: string;
+  error?: string | null;
+};
+
+export type ChangePlanOut = {
+  id: number;
+  organization_id: number;
+  connection_id: number;
+  title: string;
+  status: string;
+  date_from?: string | null;
+  date_to?: string | null;
+  created_at: string;
+  applied_at?: string | null;
+  items: ChangePlanItemOut[];
+};
+
 export async function listConnections() {
   return request<{ items: ConnectionResponse[] }>("/connections");
 }
@@ -450,6 +606,10 @@ export async function acceptInvite(payload: { token: string }) {
 }
 
 export async function previewInvite(token: string) {
+  if (typeof window === "undefined") {
+    // Server-side: return empty/mock or throw to avoid fetch
+    return { status: "unknown" } as any;
+  }
   const response = await fetch(`${apiBase}/invites/${encodeURIComponent(token)}/preview`, {
     headers: {
       "Content-Type": "application/json",
@@ -565,6 +725,211 @@ export async function seedDev() {
 
 export async function demoSeed() {
   return request<DemoSeedResponse>("/dev/demo/seed", {
+    method: "POST"
+  });
+}
+
+// --- Builder API ---
+
+export async function listBuilderCampaigns(experimentId: number) {
+  return request<any[]>(`/experiments/${experimentId}/builder/campaigns`);
+}
+
+export async function createBuilderCampaign(experimentId: number, payload: { name: string; platform: string; status: string }) {
+  return request<any>(`/experiments/${experimentId}/builder/campaigns`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function updateBuilderCampaign(campaignId: number, payload: { name?: string; status?: string }) {
+  return request<any>(`/builder/campaigns/${campaignId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function deleteBuilderCampaign(campaignId: number) {
+  return request<void>(`/builder/campaigns/${campaignId}`, {
+    method: "DELETE"
+  });
+}
+
+export async function listBuilderAdGroups(campaignId: number) {
+  return request<any[]>(`/builder/campaigns/${campaignId}/ad-groups`);
+}
+
+export async function createBuilderAdGroup(campaignId: number, payload: { name: string; status: string }) {
+  return request<any>(`/builder/campaigns/${campaignId}/ad-groups`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function updateBuilderAdGroup(groupId: number, payload: { name?: string; status?: string }) {
+  return request<any>(`/builder/ad-groups/${groupId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function deleteBuilderAdGroup(groupId: number) {
+  return request<void>(`/builder/ad-groups/${groupId}`, {
+    method: "DELETE"
+  });
+}
+
+export async function listBuilderAds(groupId: number) {
+  return request<any[]>(`/builder/ad-groups/${groupId}/ads`);
+}
+
+export async function createBuilderAd(groupId: number, payload: { name: string; status: string; title?: string; text?: string; base_url?: string; utm_json?: any }) {
+  return request<any>(`/builder/ad-groups/${groupId}/ads`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function updateBuilderAd(adId: number, payload: { name?: string; status?: string; title?: string; text?: string; base_url?: string; utm_json?: any }) {
+  return request<any>(`/builder/ads/${adId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function deleteBuilderAd(adId: number) {
+  return request<void>(`/builder/ads/${adId}`, {
+    method: "DELETE"
+  });
+}
+
+export async function getBuilderTree(experimentId: number) {
+  return request<BuilderTreeResponse>(`/experiments/${experimentId}/builder/tree`);
+}
+
+// --- Catalog API ---
+
+export async function listCatalogCampaigns(connectionId: number, params?: { query?: string; limit?: number; offset?: number }) {
+  const q = new URLSearchParams();
+  if (params?.query) q.set("query", params.query);
+  if (params?.limit) q.set("limit", String(params.limit));
+  if (params?.offset) q.set("offset", String(params.offset));
+  return request<AdCampaignOut[]>(`/connections/${connectionId}/campaigns?${q.toString()}`);
+}
+
+export async function listCatalogAdGroups(connectionId: number, params?: { query?: string; limit?: number; offset?: number }) {
+  const q = new URLSearchParams();
+  if (params?.query) q.set("query", params.query);
+  if (params?.limit) q.set("limit", String(params.limit));
+  if (params?.offset) q.set("offset", String(params.offset));
+  return request<AdAdGroupOut[]>(`/connections/${connectionId}/ad-groups?${q.toString()}`);
+}
+
+export async function listCatalogAds(connectionId: number, params?: { query?: string; limit?: number; offset?: number }) {
+  const q = new URLSearchParams();
+  if (params?.query) q.set("query", params.query);
+  if (params?.limit) q.set("limit", String(params.limit));
+  if (params?.offset) q.set("offset", String(params.offset));
+  return request<AdAdOut[]>(`/connections/${connectionId}/ads?${q.toString()}`);
+}
+
+export async function buildUtmLink(payload: { url: string; platform?: string; campaign_external_id?: string; ad_group_external_id?: string; ad_external_id?: string }) {
+  return request<UtmBuildResponse>("/utm/build", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function getMetricsBreakdown(payload: {
+  date_from: string;
+  date_to: string;
+  dimension: string;
+  connection_ids?: number[];
+  limit?: number;
+  offset?: number;
+  query?: string;
+  order_by?: string;
+}) {
+  const params = new URLSearchParams({
+    date_from: payload.date_from,
+    date_to: payload.date_to,
+    dimension: payload.dimension,
+  });
+  if (payload.connection_ids && payload.connection_ids.length > 0) {
+    params.set("connection_ids", payload.connection_ids.join(","));
+  }
+  if (payload.limit) params.set("limit", String(payload.limit));
+  if (payload.offset) params.set("offset", String(payload.offset));
+  if (payload.query) params.set("query", payload.query);
+  if (payload.order_by) params.set("order_by", payload.order_by);
+
+  return request<MetricsBreakdownResponse>(`/metrics/breakdown?${params.toString()}`);
+}
+
+// --- Recommendations API ---
+
+export async function listRecommendations(params: { date_from: string; date_to: string; connection_id?: number; severity?: string; limit?: number; offset?: number }) {
+  const q = new URLSearchParams({
+    date_from: params.date_from,
+    date_to: params.date_to,
+  });
+  if (params.connection_id) q.set("connection_id", String(params.connection_id));
+  if (params.severity) q.set("severity", params.severity);
+  if (params.limit) q.set("limit", String(params.limit));
+  if (params.offset) q.set("offset", String(params.offset));
+  return request<RecommendationListResponse>(`/recommendations?${q.toString()}`);
+}
+
+export async function recomputeRecommendations(payload: { date_from: string; date_to: string; connection_ids?: number[] }) {
+  return request<{ status: string; created: number; updated: number }>("/recommendations/recompute", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function resolveRecommendation(recoId: number) {
+  return request<{ status: string }>(`/recommendations/${recoId}/resolve`, {
+    method: "POST"
+  });
+}
+
+// --- Change Plans API ---
+
+export async function listChangePlans(params: { connection_id?: number; status?: string; limit?: number; offset?: number }) {
+  const q = new URLSearchParams();
+  if (params.connection_id) q.set("connection_id", String(params.connection_id));
+  if (params.status) q.set("status", params.status);
+  if (params.limit) q.set("limit", String(params.limit));
+  if (params.offset) q.set("offset", String(params.offset));
+  return request<ChangePlanOut[]>(`/change-plans?${q.toString()}`);
+}
+
+export async function createChangePlan(payload: { connection_id: number; title: string; date_from?: string; date_to?: string }) {
+  return request<ChangePlanOut>("/change-plans", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function getChangePlan(planId: number) {
+  return request<ChangePlanOut>(`/change-plans/${planId}`);
+}
+
+export async function addChangePlanItem(planId: number, payload: { subject_type: string; subject_id: number; action_type: string; params: any }) {
+  return request<ChangePlanItemOut>(`/change-plans/${planId}/items`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function markPlanReady(planId: number) {
+  return request<{ status: string }>(`/change-plans/${planId}/ready`, {
+    method: "POST"
+  });
+}
+
+export async function applyPlan(planId: number) {
+  return request<{ status: string }>(`/change-plans/${planId}/apply`, {
     method: "POST"
   });
 }

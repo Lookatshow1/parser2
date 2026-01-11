@@ -28,13 +28,15 @@ def create_job(
     context: dict,
     organization_id: int | None = None,
     connection_id: int | None = None,
+    correlation_id: str | None = None,
 ) -> JobRun:
     job = JobRun(
         organization_id=organization_id,
         connection_id=connection_id,
         job_type=job_type,
         status=JobStatus.pending,
-        context_json=sanitize_payload(context)
+        context_json=sanitize_payload(context),
+        correlation_id=correlation_id,
     )
     db.add(job)
     db.commit()

@@ -1,5 +1,5 @@
 "use client";
-
+export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { createOrg, getActiveOrg, listOrgs, switchOrg } from "../../lib/api";
