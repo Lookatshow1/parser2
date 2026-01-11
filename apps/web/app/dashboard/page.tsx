@@ -163,7 +163,7 @@ export default function DashboardPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>{ru.labels.connections}</CardTitle>
+          <CardTitle>{STR.labels.connections}</CardTitle>
         </CardHeader>
         <CardContent>
           {loading && <Skeleton className="h-20 w-full" />}

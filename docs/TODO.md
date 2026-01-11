@@ -109,6 +109,10 @@
 Статус: done  
 Проверка: открыть /metrics и проверить карточки/график/таблицу
 
+4.13 Web styles pipeline: globals.css + tailwind config  
+Статус: done  
+Проверка: открыть /login и убедиться, что стили применяются
+
 ## 5) Auth + Organizations (стадия 0–1)
 
 5.1 Auth (JWT + refresh + /me)  

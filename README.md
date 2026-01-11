@@ -20,8 +20,10 @@ Open http://localhost:3000 after `make up`.
 ## Интерфейс (RU + компоненты)
 
 Интерфейс по умолчанию на русском. Web использует Tailwind + Radix UI и набор общих компонентов в `apps/web/components/ui`.
-Базовые стили и цветовая схема описаны в `apps/web/styles/globals.css`.
+Базовые стили и цветовая схема описаны в `apps/web/app/globals.css`.
 Правило продукта: сервис ориентирован на РФ, поэтому UI и тексты API по умолчанию на русском.
+
+Глобальные стили подключаются в `apps/web/app/layout.tsx` через `./globals.css`, файл лежит в `apps/web/app/globals.css`.
 
 ## Демо-дашборд
 

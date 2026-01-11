@@ -1,4 +1,4 @@
-import "../styles/globals.css";
+import "./globals.css";
 import { Toaster } from "sonner";
 import { AppShell } from "../components/app-shell";
 

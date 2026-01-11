@@ -1,0 +1,8 @@
+{
+  "general": {
+    "checkpointing": {
+      "enabled": false
+    },
+    "previewFeatures": true
+  }
+}
