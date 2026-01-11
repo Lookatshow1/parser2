@@ -699,3 +699,289 @@ class SyncRunResponse(BaseModel):
 class SyncRunListResponse(BaseModel):
     items: list[SyncRunResponse]
     total: int
+
+
+# --- Builder Schemas ---
+
+class BuilderCampaignCreateRequest(BaseModel):
+    platform: Platform
+    name: str = Field(..., min_length=1, max_length=255)
+    status: str = "draft"
+
+
+class BuilderCampaignUpdateRequest(BaseModel):
+    name: str | None = Field(None, min_length=1, max_length=255)
+    status: str | None = None
+
+
+class BuilderCampaignOut(BaseModel):
+    id: int
+    experiment_id: int
+    platform: Platform
+    name: str
+    status: str
+    external_id: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class BuilderAdGroupCreateRequest(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255)
+    status: str = "draft"
+
+
+class BuilderAdGroupUpdateRequest(BaseModel):
+    name: str | None = Field(None, min_length=1, max_length=255)
+    status: str | None = None
+
+
+class BuilderAdGroupOut(BaseModel):
+    id: int
+    campaign_id: int
+    name: str
+    status: str
+    external_id: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class BuilderAdCreateRequest(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255)
+    title: str | None = None
+    text: str | None = None
+    base_url: str | None = None
+    utm_json: dict = Field(default_factory=dict)
+    status: str = "draft"
+
+
+class BuilderAdUpdateRequest(BaseModel):
+    name: str | None = Field(None, min_length=1, max_length=255)
+    title: str | None = None
+    text: str | None = None
+    base_url: str | None = None
+    utm_json: dict | None = None
+    status: str | None = None
+
+
+class BuilderAdOut(BaseModel):
+    id: int
+    ad_group_id: int
+    name: str
+    title: str | None = None
+    text: str | None = None
+    base_url: str | None = None
+    utm_json: dict
+    final_url: str | None = None
+    status: str
+    external_id: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class BuilderTreeAd(BuilderAdOut):
+    pass
+
+
+class BuilderTreeAdGroup(BuilderAdGroupOut):
+    ads: list[BuilderTreeAd] = []
+
+
+class BuilderTreeCampaign(BuilderCampaignOut):
+    ad_groups: list[BuilderTreeAdGroup] = []
+
+
+class BuilderTreeResponse(BaseModel):
+    campaigns: list[BuilderTreeCampaign]
+
+# --- Catalog Schemas ---
+
+class AdCampaignOut(BaseModel):
+    id: int
+    connection_id: int
+    platform: Platform
+    external_id: str
+    name: str
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class AdAdGroupOut(BaseModel):
+    id: int
+    connection_id: int
+    platform: Platform
+    external_id: str
+    campaign_external_id: str
+    name: str
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class AdAdOut(BaseModel):
+    id: int
+    connection_id: int
+    platform: Platform
+    external_id: str
+    ad_group_external_id: str
+    campaign_external_id: str
+    name: str
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class UtmSettingsOut(BaseModel):
+    organization_id: int
+    utm_source: str
+    utm_medium: str
+    utm_campaign_tpl: str
+    utm_content_tpl: str
+    utm_term_tpl: str | None = None
+
+    class Config:
+        from_attributes = True
+
+class UtmSettingsUpdate(BaseModel):
+    utm_source: str | None = None
+    utm_medium: str | None = None
+    utm_campaign_tpl: str | None = None
+    utm_content_tpl: str | None = None
+    utm_term_tpl: str | None = None
+
+class UtmBuildRequest(BaseModel):
+    url: str
+    platform: Platform | None = None
+    campaign_external_id: str | None = None
+    ad_group_external_id: str | None = None
+    ad_external_id: str | None = None
+
+class UtmBuildResponse(BaseModel):
+    final_url: str
+
+# --- Metrics Breakdown ---
+
+class MetricsBreakdownItem(BaseModel):
+    dimension: str
+    id: int | None = None
+    external_id: str
+    name: str | None = None
+    platform: Platform
+    spend: int
+    impressions: int
+    clicks: int
+    leads: int
+    purchases: int
+    revenue: int
+    ctr: float | None = None
+    cpc: float | None = None
+    cpm: float | None = None
+    cpa: float | None = None
+    roas: float | None = None
+
+class MetricsBreakdownResponse(BaseModel):
+    items: list[MetricsBreakdownItem]
+    total: int
+
+# --- Recommendations ---
+
+class RecommendationOut(BaseModel):
+    id: int
+    organization_id: int
+    connection_id: int | None = None
+    subject_type: str
+    subject_id: int | None = None
+    subject_name: str | None = None
+    code: str
+    severity: str
+    title: str
+    description: str
+    action: str
+    meta_json: dict
+    valid_from: dt_date
+    valid_to: dt_date
+    created_at: str
+    resolved_at: str | None = None
+
+    class Config:
+        from_attributes = True
+
+class RecommendationListResponse(BaseModel):
+    items: list[RecommendationOut]
+    total: int
+
+class RecomputeRequest(BaseModel):
+    date_from: dt_date
+    date_to: dt_date
+    connection_ids: list[int] | None = None
+
+# --- Change Plans ---
+
+class ChangePlanItemOut(BaseModel):
+    id: int
+    subject_type: str
+    subject_id: int
+    action_type: str
+    params_json: dict
+    status: str
+    error: str | None = None
+
+    class Config:
+        from_attributes = True
+
+class ChangePlanOut(BaseModel):
+    id: int
+    organization_id: int
+    connection_id: int
+    title: str
+    status: str
+    date_from: dt_date | None = None
+    date_to: dt_date | None = None
+    created_at: datetime
+    applied_at: datetime | None = None
+    items: list[ChangePlanItemOut] = []
+
+    class Config:
+        from_attributes = True
+
+class CreatePlanRequest(BaseModel):
+    connection_id: int
+    title: str
+    date_from: dt_date | None = None
+    date_to: dt_date | None = None
+
+class AddItemRequest(BaseModel):
+    subject_type: str
+    subject_id: int
+    action_type: str
+    params: dict = {}
+
+# --- Unified Dashboard ---
+
+class UnifiedSeriesPoint(BaseModel):
+    date: dt_date
+    raw: dict[str, float]
+    norm: dict[str, float]
+    index: float
+
+class UnifiedDashboardResponse(BaseModel):
+    date_from: dt_date
+    date_to: dt_date
+    channel: str
+    available_channels: list[dict]
+    series: list[UnifiedSeriesPoint]
+    totals: dict[str, float]
+    kpi: dict[str, float | None]
+
+class DashboardChannel(BaseModel):
+    key: str
+    title: str

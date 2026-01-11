@@ -22,10 +22,15 @@ from app.api.plans import router as plans_router
 from app.api.jobs import router as jobs_router
 from app.api.sync_runs import router as sync_runs_router
 from app.api.me import router as me_router
+from app.api.builder import router as builder_router
+from app.api.catalog import router as catalog_router
+from app.api.recommendations import router as recommendations_router
+from app.api.change_plans import router as change_plans_router
 from app.api.schemas import ApiCapabilitiesResponse, ApiVersionResponse, HealthResponse, YandexSyncMetricsRequest
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.workers.yandex_tasks import sync_yandex_metrics
+from app.middleware.correlation import CorrelationIdMiddleware
 
 
 def create_app() -> FastAPI:
@@ -33,6 +38,9 @@ def create_app() -> FastAPI:
     app = FastAPI(title="Ads Aggregator API")
     settings = get_settings()
     origins = [origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()]
+
+    # Add middlewares
+    app.add_middleware(CorrelationIdMiddleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=origins or ["*"],
@@ -40,6 +48,7 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
     app.include_router(health_router)
     api_router = APIRouter(prefix="/api")
     api_router.include_router(health_router)
@@ -60,6 +69,10 @@ def create_app() -> FastAPI:
     api_router.include_router(dev_router)
     api_router.include_router(jobs_router)
     api_router.include_router(sync_runs_router)
+    api_router.include_router(builder_router)
+    api_router.include_router(catalog_router)
+    api_router.include_router(recommendations_router)
+    api_router.include_router(change_plans_router)
 
     @api_router.get("/version", response_model=ApiVersionResponse)
     def api_version():
@@ -70,7 +83,7 @@ def create_app() -> FastAPI:
         return ApiCapabilitiesResponse(
             platforms=["yandex", "ozon", "vk", "stub"],
             operations={
-                "create_campaign": False,
+                "create_campaign": True,
                 "fetch_metrics": True,
                 "sync_metrics": True,
                 "validate_connection": True,

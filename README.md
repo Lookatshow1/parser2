@@ -17,6 +17,27 @@ make up
 Frontend reads `NEXT_PUBLIC_API_BASE_URL` for backend base URL.
 Open http://localhost:3000 after `make up`.
 
+
+### Проверка production сборки
+
+Чтобы убедиться, что фронтенд-приложение корректно собирается для production, выполните:
+
+```bash
+make web-build
+```
+
+Эта команда запускает `npm run build` внутри `web` контейнера.
+
+### Сборка production образа (Docker)
+
+Для сборки оптимизированного production-образа (standalone mode):
+
+```bash
+make web-prod-build
+```
+
+Это создаст локальный образ `parser2-web-prod`.
+
 ## Интерфейс (RU + компоненты)
 
 Интерфейс по умолчанию на русском. Web использует Tailwind + Radix UI и набор общих компонентов в `apps/web/components/ui`.
