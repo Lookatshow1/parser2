@@ -80,7 +80,11 @@ export const ru = {
     success: "Успешно",
     failed: "Ошибка",
     canceled: "Отменено",
-    pending: "Ожидает"
+    pending: "Ожидает",
+    draft: "Черновик",
+    active: "Активно",
+    paused: "Пауза",
+    archived: "Архив"
   },
   inviteStatus: {
     sent: "Отправлено",

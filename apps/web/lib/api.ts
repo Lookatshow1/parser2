@@ -1,8 +1,8 @@
 import { clearOrgId, clearRefreshToken, clearToken, getOrgId, getToken } from "./session";
 import { ru } from "./ru";
 
-const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
-const apiBase = `${baseUrl}/api`;
+const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || ""; // Default to relative path
+const apiBase = baseUrl ? `${baseUrl}/api` : "/api";
 
 type ApiError = {
   error: {
@@ -34,6 +34,11 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const orgId = getOrgId();
   let response: Response;
   try {
+    // Use relative path for client-side requests to leverage Next.js proxy
+    // If running on server (SSR), we might need absolute URL if not handled by Next.js internal fetch
+    // But we use "use client" mostly.
+    // If apiBase is relative (/api), fetch works in browser.
+
     response = await fetch(`${apiBase}${path}`, {
       headers: {
         "Content-Type": "application/json",
@@ -55,10 +60,14 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
       error = null;
     }
     if (response.status === 401 && typeof window !== "undefined") {
-      clearToken();
-      clearRefreshToken();
-      clearOrgId();
-      window.location.href = "/login";
+      // Only redirect if not already on login page to avoid loops
+      if (!window.location.pathname.startsWith("/login")) {
+          clearToken();
+          clearRefreshToken();
+          clearOrgId();
+          window.location.href = "/login";
+      }
+      throw new Error("Требуется авторизация");
     }
     if (response.status === 409 && typeof window !== "undefined") {
       const message = error?.error?.message || "";
@@ -91,6 +100,54 @@ export type ConnectionResponse = {
   auto_sync_every_minutes?: number;
   auto_sync_window_days?: number;
   last_auto_sync_at?: string | null;
+};
+
+export type Campaign = {
+  id: number;
+  organization_id: number;
+  platform: string;
+  name: string;
+  status: string;
+  objective: string | null;
+  budget_total: number | null;
+  budget_daily: number | null;
+  start_date: string | null;
+  end_date: string | null;
+  created_by_user_id: number | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CampaignSummary = Campaign & {
+  ad_groups_count: number;
+  ads_count: number;
+};
+
+export type CampaignAdGroup = {
+  id: number;
+  campaign_id: number;
+  name: string;
+  status: string;
+  bid_strategy: string | null;
+  budget_daily: number | null;
+  targeting_json: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CampaignAd = {
+  id: number;
+  ad_group_id: number;
+  name: string;
+  status: string;
+  creative_json: Record<string, unknown>;
+  landing_url: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CampaignTree = Campaign & {
+  ad_groups: Array<CampaignAdGroup & { ads: CampaignAd[] }>;
 };
 
 export type PlanResponse = {
@@ -349,8 +406,196 @@ export type ChangePlanOut = {
   items: ChangePlanItemOut[];
 };
 
+export type KpiTimeseriesItem = {
+  date: string;
+  impressions: number;
+  clicks: number;
+  conversions: number;
+  spend: number;
+  impressions_index: number | null;
+  clicks_index: number | null;
+  conversions_index: number | null;
+  spend_index: number | null;
+};
+
+export type KpiTimeseriesResponse = {
+  items: KpiTimeseriesItem[];
+  meta: {
+    date_from: string;
+    date_to: string;
+    mode: string;
+    platform: string | null;
+    connection_ids: number[];
+  };
+};
+
+export type KpiSummaryResponse = {
+  impressions: number;
+  clicks: number;
+  conversions: number;
+  spend: number;
+  ctr: number | null;
+  cpc: number | null;
+  cpa: number | null;
+  currency: string;
+};
+
+export type DashboardChannel = {
+  key: string;
+  title: string;
+};
+
+export type UnifiedDashboardResponse = {
+  date_from: string;
+  date_to: string;
+  channel: string;
+  available_channels: DashboardChannel[];
+  series: Array<{
+    date: string;
+    raw: Record<string, number>;
+    norm: Record<string, number>;
+    index: number;
+  }>;
+  totals: Record<string, number>;
+  kpi: Record<string, number | null>;
+};
+
 export async function listConnections() {
   return request<{ items: ConnectionResponse[] }>("/connections");
+}
+
+export async function listCampaigns(params?: { platform?: string; status?: string; search?: string }) {
+  const orgId = getOrgId();
+  if (!orgId) throw new Error(ru.messages.selectOrg);
+  const q = new URLSearchParams();
+  if (params?.platform) q.set("platform", params.platform);
+  if (params?.status) q.set("status", params.status);
+  if (params?.search) q.set("search", params.search);
+  const suffix = q.toString() ? `?${q.toString()}` : "";
+  return request<{ items: Campaign[]; total: number }>(`/orgs/${orgId}/campaigns${suffix}`);
+}
+
+export async function createCampaign(payload: {
+  platform: string;
+  name: string;
+  status?: string;
+  objective?: string | null;
+  budget_total?: number | null;
+  budget_daily?: number | null;
+  start_date?: string | null;
+  end_date?: string | null;
+}) {
+  const orgId = getOrgId();
+  if (!orgId) throw new Error(ru.messages.selectOrg);
+  return request<Campaign>(`/orgs/${orgId}/campaigns`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getCampaign(campaignId: number) {
+  const orgId = getOrgId();
+  if (!orgId) throw new Error(ru.messages.selectOrg);
+  return request<CampaignSummary>(`/orgs/${orgId}/campaigns/${campaignId}`);
+}
+
+export async function getCampaignTree(campaignId: number) {
+  const orgId = getOrgId();
+  if (!orgId) throw new Error(ru.messages.selectOrg);
+  return request<{ campaign: CampaignTree }>(`/orgs/${orgId}/campaigns/${campaignId}/tree`);
+}
+
+export async function updateCampaign(campaignId: number, payload: Partial<Campaign>) {
+  const orgId = getOrgId();
+  if (!orgId) throw new Error(ru.messages.selectOrg);
+  return request<Campaign>(`/orgs/${orgId}/campaigns/${campaignId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteCampaign(campaignId: number) {
+  const orgId = getOrgId();
+  if (!orgId) throw new Error(ru.messages.selectOrg);
+  return request<{ ok: boolean }>(`/orgs/${orgId}/campaigns/${campaignId}`, {
+    method: "DELETE",
+  });
+}
+
+export async function publishCampaign(campaignId: number, action: "publish" | "pause" | "archive") {
+  const orgId = getOrgId();
+  if (!orgId) throw new Error(ru.messages.selectOrg);
+  return request<Campaign>(`/orgs/${orgId}/campaigns/${campaignId}/${action}`, {
+    method: "POST",
+  });
+}
+
+export async function listCampaignEvents(campaignId: number) {
+  const orgId = getOrgId();
+  if (!orgId) throw new Error(ru.messages.selectOrg);
+  return request<Array<{
+    id: number;
+    entity_type: string;
+    entity_id: number;
+    action: string;
+    payload_json: Record<string, unknown>;
+    created_at: string;
+    created_by_user_id: number | null;
+  }>>(`/orgs/${orgId}/campaigns/${campaignId}/events`);
+}
+
+export async function listCampaignAdGroups(params?: { campaign_id?: number }) {
+  const q = new URLSearchParams();
+  if (params?.campaign_id) q.set("campaign_id", String(params.campaign_id));
+  const suffix = q.toString() ? `?${q.toString()}` : "";
+  return request<{ items: CampaignAdGroup[]; total: number }>(`/ad-groups${suffix}`);
+}
+
+export async function createCampaignAdGroup(payload: { campaign_id: number; name: string; status?: string; bid_strategy?: string | null; budget_daily?: number | null; targeting_json?: Record<string, unknown> }) {
+  return request<CampaignAdGroup>("/ad-groups", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateCampaignAdGroup(groupId: number, payload: Partial<CampaignAdGroup>) {
+  return request<CampaignAdGroup>(`/ad-groups/${groupId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteCampaignAdGroup(groupId: number) {
+  return request<{ ok: boolean }>(`/ad-groups/${groupId}`, {
+    method: "DELETE",
+  });
+}
+
+export async function listCampaignAds(params?: { ad_group_id?: number }) {
+  const q = new URLSearchParams();
+  if (params?.ad_group_id) q.set("ad_group_id", String(params.ad_group_id));
+  const suffix = q.toString() ? `?${q.toString()}` : "";
+  return request<{ items: CampaignAd[]; total: number }>(`/ads${suffix}`);
+}
+
+export async function createCampaignAd(payload: { ad_group_id: number; name: string; status?: string; creative_json?: Record<string, unknown>; landing_url?: string | null }) {
+  return request<CampaignAd>("/ads", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateCampaignAd(adId: number, payload: Partial<CampaignAd>) {
+  return request<CampaignAd>(`/ads/${adId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteCampaignAd(adId: number) {
+  return request<{ ok: boolean }>(`/ads/${adId}`, {
+    method: "DELETE",
+  });
 }
 
 export async function createConnection(payload: {
@@ -932,4 +1177,67 @@ export async function applyPlan(planId: number) {
   return request<{ status: string }>(`/change-plans/${planId}/apply`, {
     method: "POST"
   });
+}
+
+export async function getKpiTimeseries(payload: {
+  date_from: string;
+  date_to: string;
+  connection_ids?: number[];
+  platform?: string;
+  mode?: "index" | "absolute";
+}): Promise<KpiTimeseriesResponse> {
+  const params = new URLSearchParams({
+    date_from: payload.date_from,
+    date_to: payload.date_to,
+  });
+  if (payload.connection_ids && payload.connection_ids.length > 0) {
+    params.set("connection_ids", payload.connection_ids.join(","));
+  }
+  if (payload.platform) {
+    params.set("platform", payload.platform);
+  }
+  if (payload.mode) {
+    params.set("mode", payload.mode);
+  }
+  return request<KpiTimeseriesResponse>(`/dashboard/kpi-timeseries?${params.toString()}`);
+}
+
+export async function getKpiSummary(payload: {
+  date_from: string;
+  date_to: string;
+  connection_ids?: number[];
+  platform?: string;
+}): Promise<KpiSummaryResponse> {
+  const params = new URLSearchParams({
+    date_from: payload.date_from,
+    date_to: payload.date_to,
+  });
+  if (payload.connection_ids && payload.connection_ids.length > 0) {
+    params.set("connection_ids", payload.connection_ids.join(","));
+  }
+  if (payload.platform) {
+    params.set("platform", payload.platform);
+  }
+  return request<KpiSummaryResponse>(`/dashboard/kpi-summary?${params.toString()}`);
+}
+
+export async function dashboardChannels(): Promise<DashboardChannel[]> {
+  return request<DashboardChannel[]>("/dashboard/channels");
+}
+
+export async function dashboardUnifiedTimeseries(payload: {
+  date_from: string;
+  date_to: string;
+  channel: string;
+  connection_ids?: number[];
+}): Promise<UnifiedDashboardResponse> {
+  const params = new URLSearchParams({
+    date_from: payload.date_from,
+    date_to: payload.date_to,
+    channel: payload.channel,
+  });
+  if (payload.connection_ids && payload.connection_ids.length > 0) {
+    params.set("connection_ids", payload.connection_ids.join(","));
+  }
+  return request<UnifiedDashboardResponse>(`/dashboard/unified-timeseries?${params.toString()}`);
 }

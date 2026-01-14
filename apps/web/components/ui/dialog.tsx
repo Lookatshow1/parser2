@@ -38,3 +38,6 @@ export const DialogDescription = ({ className, ...props }: React.HTMLAttributes<
   <p className={cn("text-sm text-slate-400", className)} {...props} />
 );
 
+export const DialogFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
+  <div className={cn("mt-6 flex items-center justify-end gap-2", className)} {...props} />
+);
