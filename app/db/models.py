@@ -39,6 +39,13 @@ class MembershipRole(str, enum.Enum):
     viewer = "viewer"
 
 
+class CampaignStatus(str, enum.Enum):
+    draft = "draft"
+    active = "active"
+    paused = "paused"
+    archived = "archived"
+
+
 class Organization(Base):
     __tablename__ = "organizations"
 
@@ -196,6 +203,11 @@ class Connection(Base):
         return bool(self.credentials_json)
 
 
+class CampaignPlanStatus(str, enum.Enum):
+    draft = "draft"
+    archived = "archived"
+
+
 class CampaignPlan(Base):
     __tablename__ = "campaign_plans"
 
@@ -211,6 +223,12 @@ class CampaignPlan(Base):
     currency: Mapped[str] = mapped_column(String(10), nullable=False, default="RUB", server_default="RUB")
     start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    status: Mapped[CampaignPlanStatus] = mapped_column(
+        Enum(CampaignPlanStatus, name="campaign_plan_status_enum"), 
+        default=CampaignPlanStatus.draft, 
+        server_default="draft",
+        nullable=False
+    )
 
     internal_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
@@ -222,6 +240,7 @@ class CampaignPlan(Base):
     advertiser: Mapped["Advertiser"] = relationship(back_populates="plans")
     experiments: Mapped[list["Experiment"]] = relationship(back_populates="plan")
     connection: Mapped["Connection"] = relationship(back_populates="plans")
+    builder_campaigns: Mapped[list["BuilderCampaign"]] = relationship(back_populates="plan")
 
 
 class Experiment(Base):
@@ -245,7 +264,7 @@ class Experiment(Base):
 
     plan: Mapped[CampaignPlan] = relationship(back_populates="experiments")
     creatives: Mapped[list["CreativeVariant"]] = relationship(back_populates="experiment")
-    campaigns: Mapped[list["ExperimentCampaign"]] = relationship(back_populates="campaigns")
+    campaigns: Mapped[list["ExperimentCampaign"]] = relationship(back_populates="experiment")
     builder_campaigns: Mapped[list["BuilderCampaign"]] = relationship(back_populates="experiment")
 
 
@@ -330,17 +349,23 @@ class BuilderCampaign(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
-    experiment_id: Mapped[int] = mapped_column(ForeignKey("experiments.id", ondelete="CASCADE"), nullable=False)
+    experiment_id: Mapped[int | None] = mapped_column(ForeignKey("experiments.id", ondelete="CASCADE"), nullable=True)
+    plan_id: Mapped[int | None] = mapped_column(ForeignKey("campaign_plans.id", ondelete="CASCADE"), nullable=True)
     platform: Mapped[Platform] = mapped_column(Enum(Platform, name="platform_enum"), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     status: Mapped[str] = mapped_column(String(50), server_default="draft", nullable=False)
     external_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    external_ref: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    daily_budget: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    total_budget: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    goal: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
 
-    experiment: Mapped[Experiment] = relationship(back_populates="builder_campaigns")
+    experiment: Mapped[Experiment | None] = relationship(back_populates="builder_campaigns")
+    plan: Mapped["CampaignPlan | None"] = relationship(back_populates="builder_campaigns")
     ad_groups: Mapped[list["BuilderAdGroup"]] = relationship(back_populates="campaign", cascade="all, delete-orphan")
 
 
@@ -350,15 +375,19 @@ class BuilderAdGroup(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
     campaign_id: Mapped[int] = mapped_column(ForeignKey("builder_campaigns.id", ondelete="CASCADE"), nullable=False)
+    plan_id: Mapped[int | None] = mapped_column(ForeignKey("campaign_plans.id", ondelete="CASCADE"), nullable=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     status: Mapped[str] = mapped_column(String(50), server_default="draft", nullable=False)
     external_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    targeting_json: Mapped[dict] = mapped_column(JSONType, server_default='{}', nullable=False)
+    bid: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
 
     campaign: Mapped[BuilderCampaign] = relationship(back_populates="ad_groups")
+    plan: Mapped["CampaignPlan | None"] = relationship()
     ads: Mapped[list["BuilderAd"]] = relationship(back_populates="ad_group", cascade="all, delete-orphan")
 
 
@@ -382,6 +411,101 @@ class BuilderAd(Base):
     )
 
     ad_group: Mapped[BuilderAdGroup] = relationship(back_populates="ads")
+
+
+class Campaign(Base):
+    __tablename__ = "campaigns"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    platform: Mapped[Platform] = mapped_column(Enum(Platform, name="platform_enum"), nullable=False)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    objective: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    status: Mapped[CampaignStatus] = mapped_column(
+        Enum(CampaignStatus, name="campaign_status_enum", native_enum=False),
+        default=CampaignStatus.draft,
+        nullable=False,
+    )
+    budget_total: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    budget_daily: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    created_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    ad_groups: Mapped[list["CampaignAdGroup"]] = relationship(back_populates="campaign", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        Index("idx_campaigns_org_platform_status", "organization_id", "platform", "status"),
+    )
+
+
+class CampaignAdGroup(Base):
+    __tablename__ = "ad_groups"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    campaign_id: Mapped[int] = mapped_column(ForeignKey("campaigns.id", ondelete="CASCADE"), nullable=False)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    status: Mapped[CampaignStatus] = mapped_column(
+        Enum(CampaignStatus, name="campaign_status_enum", native_enum=False),
+        default=CampaignStatus.draft,
+        nullable=False,
+    )
+    bid_strategy: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    budget_daily: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    targeting_json: Mapped[dict] = mapped_column(JSONType, nullable=False, server_default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    campaign: Mapped[Campaign] = relationship(back_populates="ad_groups")
+    ads: Mapped[list["CampaignAd"]] = relationship(back_populates="ad_group", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        Index("idx_ad_groups_campaign_status", "campaign_id", "status"),
+    )
+
+
+class CampaignAd(Base):
+    __tablename__ = "ads"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    ad_group_id: Mapped[int] = mapped_column(ForeignKey("ad_groups.id", ondelete="CASCADE"), nullable=False)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    status: Mapped[CampaignStatus] = mapped_column(
+        Enum(CampaignStatus, name="campaign_status_enum", native_enum=False),
+        default=CampaignStatus.draft,
+        nullable=False,
+    )
+    creative_json: Mapped[dict] = mapped_column(JSONType, nullable=False, server_default="{}")
+    landing_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    ad_group: Mapped[CampaignAdGroup] = relationship(back_populates="ads")
+
+    __table_args__ = (
+        Index("idx_ads_ad_group_status", "ad_group_id", "status"),
+    )
+
+
+class CampaignEvent(Base):
+    __tablename__ = "campaign_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    entity_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    entity_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    action: Mapped[str] = mapped_column(String(50), nullable=False)
+    payload_json: Mapped[dict] = mapped_column(JSONType, nullable=False, server_default="{}")
+    created_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 
 class MetricSnapshot(Base):

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ChevronDown, LogOut, UserCircle2 } from "lucide-react";
+import { Activity, BarChart3, ChevronDown, Cog, CreditCard, LayoutDashboard, Megaphone, Sparkles, Users, LogOut, UserCircle2 } from "lucide-react";
 import { getActiveOrg, getMe, listOrgs, switchOrg } from "../lib/api";
 import { clearOrgId, clearRefreshToken, clearToken, getOrgId, getToken, setOrgId } from "../lib/session";
 import { STR } from "../lib/strings";
@@ -12,14 +12,15 @@ import { Button } from "./ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
 
 const navItems = [
-  { href: "/dashboard", label: STR.nav.dashboard },
-  { href: "/connections", label: STR.nav.connections },
-  { href: "/metrics", label: STR.nav.metrics },
-  { href: "/recommendations", label: "Рекомендации" },
-  { href: "/orgs/members", label: STR.nav.members },
-  { href: "/orgs/audit", label: STR.nav.audit },
-  { href: "/balance", label: STR.nav.balance },
-  { href: "/settings", label: STR.nav.settings },
+  { href: "/dashboard", label: STR.nav.dashboard, icon: LayoutDashboard },
+  { href: "/connections", label: STR.nav.connections, icon: Activity },
+  { href: "/campaigns", label: STR.nav.campaigns, icon: Megaphone },
+  { href: "/metrics", label: STR.nav.metrics, icon: BarChart3 },
+  { href: "/recommendations", label: "Рекомендации", icon: Sparkles },
+  { href: "/orgs/members", label: STR.nav.members, icon: Users },
+  { href: "/orgs/audit", label: STR.nav.audit, icon: Activity },
+  { href: "/balance", label: STR.nav.balance, icon: CreditCard },
+  { href: "/settings", label: STR.nav.settings, icon: Cog },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -88,10 +89,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "rounded-md px-3 py-2 text-slate-300 transition-colors hover:bg-slate-900",
+                  "flex items-center gap-2 rounded-md px-3 py-2 text-slate-300 transition-colors hover:bg-slate-900",
                   pathname === item.href && "bg-slate-900 text-white"
                 )}
               >
+                <item.icon className="h-4 w-4" />
                 {item.label}
               </Link>
             ))}

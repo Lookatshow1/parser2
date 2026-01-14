@@ -5,6 +5,7 @@ export const ru = {
     connections: "Подключения",
     syncRuns: "Синхронизации",
     metrics: "Метрики",
+    campaigns: "Кампании",
     orgs: "Организации",
     members: "Участники",
     audit: "Аудит",

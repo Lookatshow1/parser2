@@ -8,6 +8,8 @@ from app.db.session import get_db
 from app.services.auth_service import get_password_hash
 from app.security.credentials_crypto import maybe_encrypt
 from app.dev.demo_seed import seed_demo
+from app.dev.campaign_seed import seed_campaigns
+from app.api.deps import get_current_org, get_current_user
 
 router = APIRouter(prefix="/dev")
 
@@ -146,3 +148,18 @@ def seed_demo_data(session: Session = Depends(get_db)):
         period_from=result["period_from"],
         period_to=result["period_to"],
     )
+
+
+@router.post("/seed_campaigns")
+def seed_campaigns_data(
+    session: Session = Depends(get_db),
+    org: Organization = Depends(get_current_org),
+    user: User = Depends(get_current_user),
+):
+    settings = get_settings()
+    _ensure_dev_access(settings)
+    result = seed_campaigns(session, org, user)
+    return {
+        "campaign_id": result["campaign_id"],
+        "group_ids": result["group_ids"],
+    }

@@ -355,6 +355,8 @@ class PlanCreateRequest(BaseModel):
 class PlanResponse(BaseModel):
     id: int
     advertiser_id: int
+    organization_id: int
+    connection_id: int | None = None
     name: str
     platform: Platform
     budget: Decimal | None = None
@@ -362,8 +364,11 @@ class PlanResponse(BaseModel):
     start_date: dt_date | None = None
     end_date: dt_date | None = None
     internal_code: str | None = None
+    status: str = "draft"
     created_at: datetime
     updated_at: datetime
+    
+    model_config = {"from_attributes": True}
 
 
 class PlanListResponse(BaseModel):
@@ -802,6 +807,158 @@ class BuilderTreeCampaign(BuilderCampaignOut):
 class BuilderTreeResponse(BaseModel):
     campaigns: list[BuilderTreeCampaign]
 
+# --- Campaigns Schemas ---
+
+class CampaignCreateRequest(BaseModel):
+    platform: Platform
+    name: str = Field(..., min_length=1, max_length=255)
+    objective: str | None = None
+    status: str = "draft"
+    budget_total: Decimal | None = None
+    budget_daily: Decimal | None = None
+    start_date: dt_date | None = None
+    end_date: dt_date | None = None
+
+
+class CampaignUpdateRequest(BaseModel):
+    platform: Platform | None = None
+    name: str | None = Field(None, min_length=1, max_length=255)
+    objective: str | None = None
+    status: str | None = None
+    budget_total: Decimal | None = None
+    budget_daily: Decimal | None = None
+    start_date: dt_date | None = None
+    end_date: dt_date | None = None
+
+
+class CampaignOut(BaseModel):
+    id: int
+    organization_id: int
+    platform: Platform
+    name: str
+    objective: str | None
+    status: str
+    budget_total: Decimal | None
+    budget_daily: Decimal | None
+    start_date: dt_date | None
+    end_date: dt_date | None
+    created_by_user_id: int | None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class CampaignListResponse(BaseModel):
+    items: list[CampaignOut]
+    total: int
+
+
+class CampaignSummaryResponse(CampaignOut):
+    ad_groups_count: int
+    ads_count: int
+
+
+class CampaignAdGroupCreateRequest(BaseModel):
+    campaign_id: int
+    name: str = Field(..., min_length=1, max_length=255)
+    status: str = "draft"
+    bid_strategy: str | None = None
+    budget_daily: Decimal | None = None
+    targeting_json: dict = Field(default_factory=dict)
+
+
+class CampaignAdGroupUpdateRequest(BaseModel):
+    name: str | None = Field(None, min_length=1, max_length=255)
+    status: str | None = None
+    bid_strategy: str | None = None
+    budget_daily: Decimal | None = None
+    targeting_json: dict | None = None
+
+
+class CampaignAdGroupOut(BaseModel):
+    id: int
+    campaign_id: int
+    name: str
+    status: str
+    bid_strategy: str | None
+    budget_daily: Decimal | None
+    targeting_json: dict
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class CampaignAdGroupListResponse(BaseModel):
+    items: list[CampaignAdGroupOut]
+    total: int
+
+
+class CampaignAdCreateRequest(BaseModel):
+    ad_group_id: int
+    name: str = Field(..., min_length=1, max_length=255)
+    status: str = "draft"
+    creative_json: dict = Field(default_factory=dict)
+    landing_url: str | None = None
+
+
+class CampaignAdUpdateRequest(BaseModel):
+    name: str | None = Field(None, min_length=1, max_length=255)
+    status: str | None = None
+    creative_json: dict | None = None
+    landing_url: str | None = None
+
+
+class CampaignAdOut(BaseModel):
+    id: int
+    ad_group_id: int
+    name: str
+    status: str
+    creative_json: dict
+    landing_url: str | None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class CampaignAdListResponse(BaseModel):
+    items: list[CampaignAdOut]
+    total: int
+
+
+class CampaignTreeAd(CampaignAdOut):
+    pass
+
+
+class CampaignTreeAdGroup(CampaignAdGroupOut):
+    ads: list[CampaignTreeAd] = []
+
+
+class CampaignTree(CampaignOut):
+    ad_groups: list[CampaignTreeAdGroup] = []
+
+
+class CampaignTreeResponse(BaseModel):
+    campaign: CampaignTree
+
+class CampaignEventOut(BaseModel):
+    id: int
+    organization_id: int
+    entity_type: str
+    entity_id: int
+    action: str
+    payload_json: dict
+    created_by_user_id: int | None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
 # --- Catalog Schemas ---
 
 class AdCampaignOut(BaseModel):
@@ -985,3 +1142,37 @@ class UnifiedDashboardResponse(BaseModel):
 class DashboardChannel(BaseModel):
     key: str
     title: str
+
+# --- KPI Dashboard ---
+
+class KpiTimeseriesItem(BaseModel):
+    date: str
+    impressions: int
+    clicks: int
+    conversions: int
+    spend: int
+    impressions_index: float | None = None
+    clicks_index: float | None = None
+    conversions_index: float | None = None
+    spend_index: float | None = None
+
+class KpiTimeseriesMeta(BaseModel):
+    date_from: str
+    date_to: str
+    mode: str
+    platform: str | None = None
+    connection_ids: list[int] = []
+
+class KpiTimeseriesResponse(BaseModel):
+    items: list[KpiTimeseriesItem]
+    meta: KpiTimeseriesMeta
+
+class KpiSummaryResponse(BaseModel):
+    impressions: int
+    clicks: int
+    conversions: int
+    spend: int
+    ctr: float | None = None
+    cpc: float | None = None
+    cpa: float | None = None
+    currency: str = "RUB"
