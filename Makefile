@@ -34,7 +34,7 @@ web-build:
 
 web-prod-build:
 	@$(MAKE) doctor
-	docker build -t parser2-web-prod apps/web
+	NODE_OPTIONS="--max-old-space-size=4096" NEXT_TELEMETRY_DISABLED=1 docker compose run --rm web npm run build
 
 ps:
 	@$(MAKE) doctor
@@ -42,7 +42,9 @@ ps:
 
 reset-db:
 	@$(MAKE) doctor
-	docker compose down --volumes
+	docker compose down --remove-orphans
+	@PROJECT_NAME=$${COMPOSE_PROJECT_NAME:-parser2}; \
+	docker volume rm -f "$${PROJECT_NAME}_db_data" >/dev/null 2>&1 || true
 	docker compose up -d db redis
 	@echo "Waiting for DB..."
 	@sleep 5

@@ -12,7 +12,7 @@ def run_check(cmd, error_message):
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             check=True,
-            timeout=10,
+            timeout=20,
         )
     except Exception:
         print(error_message, file=sys.stderr)

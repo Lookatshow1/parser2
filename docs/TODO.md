@@ -109,6 +109,18 @@
 Статус: done  
 Проверка: открыть /metrics и проверить карточки/график/таблицу
 
+4.13 UTM automation v2: правила + reconcile + плановый пересчёт  
+Статус: done  
+Проверка: `pytest -q tests/test_utm_reconcile.py` и `pytest -q tests/test_utm_rules.py`
+
+4.14 Автопилот: настройки/запуски/действия + UI  
+Статус: done  
+Проверка: `pytest -q tests/test_automation.py` и открыть /autopilot
+
+4.15 UI дизайн-система: токены, тема, компоненты  
+Статус: done  
+Проверка: `make web-prod-build`
+
 4.13 Кампании: CRUD + конструктор + дерево/канбан в UI  
 Статус: done  
 Проверка: открыть /campaigns, создать кампанию, добавить группу и объявление
@@ -180,7 +192,13 @@
 - Dashboard: endpoint `/api/metrics/timeseries` и страница /metrics с графиком/итогами по периоду.
 - UI: русификация интерфейса, единые компоненты, состояния загрузки/ошибок.
 - Демо-режим: dev seed с демо-учёткой и данными на 14 дней.
+- Настройки организации: /settings/org-profile хранит реквизиты, часовой пояс и валюту в org_profiles.
+- UTM v2: правила в org_utm_rules, reconcile через /connections/{id}/utm/reconcile, ночной пересчёт через celery beat.
+- Автопилот: org_automation_settings/runs/actions, ручной запуск /api/automation/run и UI /autopilot.
+- UI: токены темы + переключение dark/light в настройках, компоненты через единый стиль.
 - Сервис ориентирован на РФ: UI и тексты API по умолчанию на русском.
+- Web стили: базовые токены и body-стили вынесены из @layer в globals.css для стабильного подключения.
+- 2026-01-15: ревизия после Gemini — миграции, тесты, selftest и web build приведены к зелёному состоянию.
 
 ## Next (после MVP)
 

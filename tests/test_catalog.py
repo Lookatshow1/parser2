@@ -36,8 +36,14 @@ def test_catalog_refresh(session, connection_yandex, metric_snapshot_factory):
     assert a is not None
     assert a.ad_group_external_id == "g1"
 
-def test_catalog_api(client, auth_headers, connection_yandex, session):
+def test_catalog_api(client, auth_headers, connection_yandex, session, metric_snapshot_factory):
     # Seed catalog
+    metric_snapshot_factory(
+        connection=connection_yandex,
+        campaign_external_id="c1",
+        ad_group_external_id="g1",
+        ad_external_id="a1"
+    )
     refresh_catalog_for_connection(session, connection_yandex.id)
 
     # List campaigns

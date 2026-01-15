@@ -14,7 +14,9 @@ make migrate
 make up
 ```
 
-Frontend reads `NEXT_PUBLIC_API_BASE_URL` for backend base URL.
+Frontend uses `/api` proxy by default. In docker compose web requests are forwarded to API via
+`INTERNAL_API_BASE_URL` (default `http://api:8000`). If you run web locally without Docker,
+set `NEXT_PUBLIC_API_BASE_URL=http://localhost:8000` to talk to the API directly.
 Open http://localhost:3000 after `make up`.
 
 
@@ -51,7 +53,11 @@ make web-prod-build
 1) Создайте mock подключение Яндекс (см. smoke flow ниже).
 2) Запустите синк за последние 14 дней.
 3) Откройте http://localhost:3000/metrics, чтобы увидеть карточки, график и таблицу.
-4) Откройте http://localhost:3000/dashboard, если нужен обзор по всем подключениям.
+4) Откройте http://localhost:3000/dashboard для KPI-дашборда с объединённым графиком метрик:
+   - Переключатель "Индекс / Абсолютные значения"
+   - Фильтры по каналам (Яндекс/VK/Ozon) и подключениям
+   - Нормализация метрик (индексы 0-100) для сравнения разных масштабов
+   - KPI-карточки: показы, клики, CTR, конверсии, CPA, расход, CPC
 
 ## Демо-режим (готовые данные)
 
@@ -206,6 +212,14 @@ make doctor
 ```
 
 ## Event endpoints examples
+
+## Автопилот и UTM
+
+- Автоматический пересчёт UTM: `POST /api/connections/{id}/utm/reconcile` и плановый запуск через Celery beat (`utm-reconcile-scheduler`).
+- Правила UTM: `/api/settings/utm/rules` (создание/обновление).
+- Профиль организации: `GET/PUT /api/settings/org-profile` (реквизиты, часовой пояс, валюта).
+- Автопилот: `/api/automation/settings`, `/api/automation/run`, `/api/automation/runs`, `/api/automation/actions`.
+- UI: раздел `/autopilot` показывает историю запусков и предложенные действия.
 
 Lead:
 

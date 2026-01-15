@@ -6,6 +6,7 @@ os.environ.setdefault(
     "test:MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA=",
 )
 os.environ.setdefault("CREDENTIALS_ENC_ACTIVE_KID", "test")
+os.environ.setdefault("REDIS_URL", "redis://redis:6379/0")
 
 from sqlalchemy import create_engine, event, text
 from sqlalchemy.orm import sessionmaker
@@ -17,7 +18,20 @@ from app.main import create_app
 from app.core.config import get_settings
 from app.db.session import get_db
 from app.db.base import Base
-from app.db.models import Advertiser, Membership, MembershipRole, Organization, User
+from datetime import date as dt_date
+
+from app.db.models import (
+    Advertiser,
+    Connection,
+    Experiment,
+    ExperimentStatus,
+    Membership,
+    MembershipRole,
+    MetricSnapshot,
+    Organization,
+    Platform,
+    User,
+)
 from app.services.auth_service import create_access_token, get_password_hash
 from app.db import session as db_session_module
 
@@ -88,6 +102,11 @@ def db(db_session):
 
 
 @pytest.fixture()
+def session(db_session):
+    return db_session
+
+
+@pytest.fixture()
 def client(db_session):
     app = create_app()
 
@@ -103,26 +122,141 @@ def client(db_session):
 
 
 @pytest.fixture()
-def auth_context(db_session):
+def org_a(db_session):
+    org = Organization(name="Org A")
+    db_session.add(org)
+    db_session.commit()
+    db_session.refresh(org)
+    return org
+
+
+@pytest.fixture()
+def org_b(db_session):
+    org = Organization(name="Org B")
+    db_session.add(org)
+    db_session.commit()
+    db_session.refresh(org)
+    return org
+
+
+@pytest.fixture()
+def user_a(db_session, org_a):
     user = User(
-        email="user@example.com",
+        email="user_a@example.com",
         password_hash=get_password_hash("password123"),
         is_active=True,
+        active_organization_id=org_a.id,
     )
-    org = Organization(name="Test Org")
-    db_session.add_all([user, org])
+    db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
-    db_session.refresh(org)
-
-    membership = Membership(user_id=user.id, organization_id=org.id, role=MembershipRole.owner.value)
-    db_session.add(membership)
-    user.active_organization_id = org.id
+    db_session.add(Membership(user_id=user.id, organization_id=org_a.id, role=MembershipRole.owner.value))
     db_session.commit()
+    return user
 
-    token = create_access_token(str(user.id))["access_token"]
+
+@pytest.fixture()
+def user_b(db_session, org_b):
+    user = User(
+        email="user_b@example.com",
+        password_hash=get_password_hash("password123"),
+        is_active=True,
+        active_organization_id=org_b.id,
+    )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+    db_session.add(Membership(user_id=user.id, organization_id=org_b.id, role=MembershipRole.owner.value))
+    db_session.commit()
+    return user
+
+
+@pytest.fixture()
+def auth_context(user_a, org_a):
+    token = create_access_token(str(user_a.id))["access_token"]
     headers = {
         "Authorization": f"Bearer {token}",
-        "X-Org-Id": str(org.id),
+        "X-Org-Id": str(org_a.id),
     }
-    return {"user": user, "org": org, "headers": headers}
+    return {"user": user_a, "org": org_a, "headers": headers}
+
+
+@pytest.fixture()
+def auth_headers(auth_context):
+    return auth_context["headers"]
+
+
+@pytest.fixture()
+def connection_yandex(db_session, org_a):
+    conn = Connection(
+        organization_id=org_a.id,
+        advertiser_id=1,
+        platform=Platform.yandex,
+        name="Yandex Connection",
+        credentials_json={"mock": True},
+    )
+    db_session.add(conn)
+    db_session.commit()
+    db_session.refresh(conn)
+    return conn
+
+
+@pytest.fixture()
+def experiment_a(db_session, org_a):
+    exp = Experiment(
+        organization_id=org_a.id,
+        status=ExperimentStatus.draft,
+    )
+    db_session.add(exp)
+    db_session.commit()
+    db_session.refresh(exp)
+    return exp
+
+
+@pytest.fixture()
+def metric_snapshot_factory(db_session):
+    def _factory(
+        *,
+        connection: Connection,
+        date: dt_date | None = None,
+        level: str | None = None,
+        campaign_external_id: str = "c1",
+        ad_group_external_id: str | None = None,
+        ad_external_id: str | None = None,
+        clicks: int = 0,
+        impressions: int = 0,
+        spend: int = 0,
+        leads: int = 0,
+        purchases: int = 0,
+        revenue: int = 0,
+    ):
+        resolved_level = level
+        if resolved_level is None:
+            if ad_external_id is not None:
+                resolved_level = "ad"
+            elif ad_group_external_id is not None:
+                resolved_level = "ad_group"
+            else:
+                resolved_level = "campaign"
+        snapshot = MetricSnapshot(
+            organization_id=connection.organization_id,
+            connection_id=connection.id,
+            platform=connection.platform,
+            date=date or dt_date.today(),
+            level=resolved_level,
+            campaign_external_id=campaign_external_id,
+            ad_group_external_id=ad_group_external_id,
+            ad_external_id=ad_external_id,
+            clicks=clicks,
+            impressions=impressions,
+            spend=spend,
+            leads=leads,
+            purchases=purchases,
+            revenue=revenue,
+        )
+        db_session.add(snapshot)
+        db_session.commit()
+        db_session.refresh(snapshot)
+        return snapshot
+
+    return _factory

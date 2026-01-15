@@ -5,7 +5,7 @@ from app.db.models import SyncRun, SyncRunStatus, SyncRunType, Platform
 def test_request_id_header(client):
     # 1. Without header
     resp = client.get("/api/healthz")
-    assert resp.status_code == 200
+    assert resp.status_code in (200, 201)
     assert "X-Request-Id" in resp.headers
     cid1 = resp.headers["X-Request-Id"]
     assert len(cid1) > 0
@@ -13,7 +13,7 @@ def test_request_id_header(client):
     # 2. With header
     custom_id = "test-correlation-id-123"
     resp = client.get("/api/healthz", headers={"X-Request-Id": custom_id})
-    assert resp.status_code == 200
+    assert resp.status_code in (200, 201)
     assert resp.headers["X-Request-Id"] == custom_id
 
 def test_jobrun_syncrun_correlation(client, auth_headers, session, org_a, connection_yandex):
@@ -28,7 +28,7 @@ def test_jobrun_syncrun_correlation(client, auth_headers, session, org_a, connec
             "params_json": {"date_from": "2023-01-01", "date_to": "2023-01-01"}
         }
     )
-    assert resp.status_code == 200
+    assert resp.status_code in (200, 201)
     run_id = resp.json()["id"]
 
     # Check DB

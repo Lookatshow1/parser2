@@ -134,20 +134,29 @@
 Статус: done  
 Проверка: `make test` (test_change_plans.py)
 
+7.5 Единый дашборд + индекс + фильтр по каналам  
+Статус: done  
+Проверка: `make test` (test_dashboard_unified_timeseries.py)
+
+7.6 Стабилизация Web (proxy, relative paths, timeouts)  
+Статус: done  
+Проверка: `make selftest` (проходит без таймаутов)
+
 ## Notes
 - refresh_catalog_for_connection вызывается в sync_connection_metrics после успешного синка.
 - API: /api/connections/{id}/campaigns|ad-groups|ads, /api/utm/build, /api/settings/utm.
 - API Metrics: /api/metrics/breakdown, /api/metrics/timeseries (drilldown).
 - API Plans: /api/change-plans.
+- API Dashboard: /api/dashboard/unified-timeseries, /api/dashboard/channels.
 
 ## Next
+- График с двумя осями и режим ‘сырые значения’
 - Провайдер реального apply для Yandex/VK (за флагом)
 - автоматизация: правила и рекомендации
 - correlation_id и structured logs
 - баланс: леджер (транзакции)
 
-## Надо прогнать на Codex
-Команды:
+## Прогон тестов на Codex (обязательно)
 docker compose up -d --build
 docker compose run --rm api alembic upgrade head
 make test

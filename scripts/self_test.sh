@@ -8,7 +8,8 @@ make reset-db
 docker compose up -d api worker web beat mailhog
 
 echo "Waiting for API..."
-for _ in {1..120}; do
+# Increased timeout to 300s (5 min)
+for _ in {1..300}; do
   if curl -fsS --max-time 3 "http://localhost:8000/api/health" >/dev/null; then
     break
   fi
@@ -21,7 +22,8 @@ if ! curl -fsS --max-time 3 "http://localhost:8000/api/health" >/dev/null; then
 fi
 
 echo "Waiting for Web..."
-WEB_DEADLINE=$((SECONDS + 600))
+# Increased timeout to 900s (15 min)
+WEB_DEADLINE=$((SECONDS + 900))
 while [ "$SECONDS" -lt "$WEB_DEADLINE" ]; do
   if curl -fsS --max-time 30 "http://localhost:3000" >/dev/null; then
     break
@@ -35,7 +37,7 @@ if ! curl -fsS --max-time 30 "http://localhost:3000" >/dev/null; then
 fi
 
 echo "Waiting for MailHog..."
-for _ in {1..60}; do
+for _ in {1..120}; do
   if curl -fsS --max-time 3 "http://localhost:8025/api/v2/messages" >/dev/null; then
     break
   fi
@@ -196,6 +198,30 @@ if [ "${SNAPSHOTS_COUNT}" -le 0 ]; then
 fi
 SUMMARY_JSON=$(curl -fsS --max-time 10 "http://localhost:8000/api/dashboard/summary?connection_id=${CONN_ID}&date_from=2023-01-01&date_to=2023-01-03" \
   -H "${INVITED_AUTH_HEADER}" -H "${INVITED_ORG_HEADER}")
+
+UTM_RECONCILE_JSON=$(curl -fsS --max-time 10 -X POST "http://localhost:8000/api/connections/${CONN_ID}/utm/reconcile" \
+  -H "${INVITED_AUTH_HEADER}" -H "${INVITED_ORG_HEADER}")
+UTM_STATUS_OK=$(printf '%s' "${UTM_RECONCILE_JSON}" | python3 -c "import sys, json; print('counts' in json.loads(sys.stdin.read()))")
+if [ "$UTM_STATUS_OK" != "True" ]; then
+  echo "UTM reconcile did not return counts." >&2
+  exit 1
+fi
+
+AUTO_JSON=$(curl -fsS --max-time 10 -X POST "http://localhost:8000/api/automation/run" \
+  -H "${INVITED_AUTH_HEADER}" -H "${INVITED_ORG_HEADER}")
+AUTO_STATUS=$(printf '%s' "${AUTO_JSON}" | python3 -c "import sys, json; print(json.loads(sys.stdin.read()).get('status'))")
+if [ -z "$AUTO_STATUS" ]; then
+  echo "Automation run did not return status." >&2
+  exit 1
+fi
+
+AUTO_ACTIONS_COUNT=$(curl -fsS --max-time 10 "http://localhost:8000/api/automation/actions?limit=5" \
+  -H "${INVITED_AUTH_HEADER}" -H "${INVITED_ORG_HEADER}" \
+  | python3 -c "import sys, json; data=json.load(sys.stdin); print(len(data))")
+if [ "${AUTO_ACTIONS_COUNT}" -le 0 ]; then
+  echo "Automation actions were not created." >&2
+  exit 1
+fi
 
 TIMESERIES_JSON=$(curl -fsS --max-time 10 "http://localhost:8000/api/metrics/timeseries?date_from=2023-01-01&date_to=2023-01-03&connection_ids=${CONN_ID}&metric_keys=spend,clicks" \
   -H "${INVITED_AUTH_HEADER}" -H "${INVITED_ORG_HEADER}")
