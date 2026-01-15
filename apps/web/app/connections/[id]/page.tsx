@@ -181,20 +181,20 @@ export default function ConnectionDetailPage({ params }: { params: { id: string 
           <CardTitle>Подключение #{connectionId}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <p className="text-sm text-slate-400">Сводка за последние 14 дней</p>
-          {error && <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</div>}
-          {notice && <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">{notice}</div>}
+          <p className="text-sm text-muted">Сводка за последние 14 дней</p>
+          {error && <div className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">{error}</div>}
+          {notice && <div className="rounded-md border border-success/40 bg-success/10 px-3 py-2 text-sm text-success">{notice}</div>}
           {loading && <Skeleton className="h-20 w-full" />}
           {!loading && summary && (
             <div className="grid gap-3 md:grid-cols-4 text-sm">
-              <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">Показы: {summary.impressions}</div>
-              <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">Клики: {summary.clicks}</div>
-              <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">Расход: {summary.spend}</div>
-              <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">CTR: {summary.ctr ?? "—"}</div>
-              <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">CPC: {summary.cpc ?? "—"}</div>
-              <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">CPM: {summary.cpm ?? "—"}</div>
-              <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">CPA: {summary.cpa ?? "—"}</div>
-              <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">ROAS: {summary.roas ?? "—"}</div>
+              <div className="rounded-lg border border-border bg-panel-strong p-3">Показы: {summary.impressions}</div>
+              <div className="rounded-lg border border-border bg-panel-strong p-3">Клики: {summary.clicks}</div>
+              <div className="rounded-lg border border-border bg-panel-strong p-3">Расход: {summary.spend}</div>
+              <div className="rounded-lg border border-border bg-panel-strong p-3">CTR: {summary.ctr ?? "—"}</div>
+              <div className="rounded-lg border border-border bg-panel-strong p-3">CPC: {summary.cpc ?? "—"}</div>
+              <div className="rounded-lg border border-border bg-panel-strong p-3">CPM: {summary.cpm ?? "—"}</div>
+              <div className="rounded-lg border border-border bg-panel-strong p-3">CPA: {summary.cpa ?? "—"}</div>
+              <div className="rounded-lg border border-border bg-panel-strong p-3">ROAS: {summary.roas ?? "—"}</div>
             </div>
           )}
           <div className="grid gap-3 md:grid-cols-4 text-sm">
@@ -227,17 +227,17 @@ export default function ConnectionDetailPage({ params }: { params: { id: string 
                   <TableCell>#{run.id}</TableCell>
                   <TableCell><Badge variant={statusVariant[run.status] || "muted"}>{formatStatus(run.status)}</Badge></TableCell>
                   <TableCell>{new Date(run.created_at).toLocaleString()}</TableCell>
-                  <TableCell className="text-slate-400">
+                  <TableCell className="text-muted">
                     {run.result_json && "inserted" in run.result_json
                       ? `${run.result_json.inserted}/${run.result_json.updated}/${run.result_json.unchanged}`
                       : "—"}
                   </TableCell>
-                  <TableCell className="text-slate-400">{run.error_text ? String(run.error_text).slice(0, 80) : "—"}</TableCell>
+                  <TableCell className="text-muted">{run.error_text ? String(run.error_text).slice(0, 80) : "—"}</TableCell>
                 </TableRow>
               ))}
               {runs.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-slate-400">Синхронизаций пока нет.</TableCell>
+                  <TableCell colSpan={5} className="text-center text-muted">Синхронизаций пока нет.</TableCell>
                 </TableRow>
               )}
             </TableBody>
@@ -265,12 +265,12 @@ export default function ConnectionDetailPage({ params }: { params: { id: string 
                   <TableCell>#{job.id}</TableCell>
                   <TableCell>{job.job_type}</TableCell>
                   <TableCell><Badge variant={statusVariant[job.status] || "muted"}>{formatStatus(job.status)}</Badge></TableCell>
-                  <TableCell className="text-slate-400">{job.error_text ? String(job.error_text).slice(0, 80) : "—"}</TableCell>
+                  <TableCell className="text-muted">{job.error_text ? String(job.error_text).slice(0, 80) : "—"}</TableCell>
                 </TableRow>
               ))}
               {jobRuns.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center text-slate-400">Задач пока нет.</TableCell>
+                  <TableCell colSpan={4} className="text-center text-muted">Задач пока нет.</TableCell>
                 </TableRow>
               )}
             </TableBody>
@@ -303,7 +303,7 @@ export default function ConnectionDetailPage({ params }: { params: { id: string 
               ))}
               {metrics.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center text-slate-400">{ru.messages.noMetrics}</TableCell>
+                  <TableCell colSpan={4} className="text-center text-muted">{ru.messages.noMetrics}</TableCell>
                 </TableRow>
               )}
             </TableBody>

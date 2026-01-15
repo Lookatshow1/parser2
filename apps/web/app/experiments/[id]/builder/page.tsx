@@ -190,7 +190,7 @@ export default function BuilderPage() {
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[350px_1fr] h-[calc(100vh-100px)]">
       {/* Sidebar Tree */}
       <Card className="flex flex-col overflow-hidden">
-        <CardHeader className="py-4 px-4 border-b border-slate-800 bg-slate-900/50">
+        <CardHeader className="py-4 px-4 border-b border-border bg-panel/50">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base">Структура</CardTitle>
             <Button size="sm" variant="secondary" onClick={handleCreateCampaign}><Plus className="h-4 w-4" /></Button>
@@ -201,14 +201,14 @@ export default function BuilderPage() {
           {tree.map(campaign => (
             <div key={campaign.id} className="space-y-1">
               <div
-                className={`flex items-center gap-2 p-2 rounded-md cursor-pointer hover:bg-slate-800 ${selection?.type === 'campaign' && selection.id === campaign.id ? 'bg-slate-800 ring-1 ring-slate-700' : ''}`}
+                className={`flex items-center gap-2 p-2 rounded-md cursor-pointer hover:bg-panel-strong ${selection?.type === 'campaign' && selection.id === campaign.id ? 'bg-panel-strong ring-1 ring-border' : ''}`}
                 onClick={() => handleSelect("campaign", campaign.id)}
               >
                 <div
-                  className="p-1 hover:bg-slate-700 rounded"
+                  className="rounded p-1 hover:bg-panel-strong"
                   onClick={(e) => { e.stopPropagation(); toggleExpand(`c-${campaign.id}`); }}
                 >
-                  {expanded[`c-${campaign.id}`] ? <ChevronDown className="h-3 w-3 text-slate-400" /> : <ChevronRight className="h-3 w-3 text-slate-400" />}
+                  {expanded[`c-${campaign.id}`] ? <ChevronDown className="h-3 w-3 text-muted" /> : <ChevronRight className="h-3 w-3 text-muted" />}
                 </div>
                 <span className="text-sm font-medium truncate flex-1">{campaign.name}</span>
                 <Button
@@ -222,18 +222,18 @@ export default function BuilderPage() {
               </div>
 
               {expanded[`c-${campaign.id}`] && (
-                <div className="pl-4 space-y-1 border-l border-slate-800 ml-3">
+                <div className="ml-3 space-y-1 border-l border-border pl-4">
                   {campaign.ad_groups.map(group => (
                     <div key={group.id} className="space-y-1">
                       <div
-                        className={`flex items-center gap-2 p-2 rounded-md cursor-pointer hover:bg-slate-800 ${selection?.type === 'group' && selection.id === group.id ? 'bg-slate-800 ring-1 ring-slate-700' : ''}`}
+                        className={`flex items-center gap-2 p-2 rounded-md cursor-pointer hover:bg-panel-strong ${selection?.type === 'group' && selection.id === group.id ? 'bg-panel-strong ring-1 ring-border' : ''}`}
                         onClick={() => handleSelect("group", group.id, campaign.id)}
                       >
                         <div
-                          className="p-1 hover:bg-slate-700 rounded"
+                          className="rounded p-1 hover:bg-panel-strong"
                           onClick={(e) => { e.stopPropagation(); toggleExpand(`g-${group.id}`); }}
                         >
-                          {expanded[`g-${group.id}`] ? <ChevronDown className="h-3 w-3 text-slate-400" /> : <ChevronRight className="h-3 w-3 text-slate-400" />}
+                          {expanded[`g-${group.id}`] ? <ChevronDown className="h-3 w-3 text-muted" /> : <ChevronRight className="h-3 w-3 text-muted" />}
                         </div>
                         <span className="text-sm truncate flex-1">{group.name}</span>
                         <Button
@@ -247,34 +247,34 @@ export default function BuilderPage() {
                       </div>
 
                       {expanded[`g-${group.id}`] && (
-                        <div className="pl-4 space-y-1 border-l border-slate-800 ml-3">
+                        <div className="ml-3 space-y-1 border-l border-border pl-4">
                           {group.ads.map(ad => (
                             <div
                               key={ad.id}
-                              className={`flex items-center gap-2 p-2 rounded-md cursor-pointer hover:bg-slate-800 ${selection?.type === 'ad' && selection.id === ad.id ? 'bg-slate-800 ring-1 ring-slate-700' : ''}`}
+                              className={`flex items-center gap-2 p-2 rounded-md cursor-pointer hover:bg-panel-strong ${selection?.type === 'ad' && selection.id === ad.id ? 'bg-panel-strong ring-1 ring-border' : ''}`}
                               onClick={() => handleSelect("ad", ad.id, group.id)}
                             >
-                              <span className="text-xs text-slate-400">AD</span>
+                              <span className="text-xs text-muted">AD</span>
                               <span className="text-sm truncate flex-1">{ad.name}</span>
                             </div>
                           ))}
-                          {!group.ads.length && <div className="text-xs text-slate-500 pl-2 py-1">Нет объявлений</div>}
+                          {!group.ads.length && <div className="text-xs text-muted pl-2 py-1">Нет объявлений</div>}
                         </div>
                       )}
                     </div>
                   ))}
-                  {!campaign.ad_groups.length && <div className="text-xs text-slate-500 pl-2 py-1">Нет групп</div>}
+                  {!campaign.ad_groups.length && <div className="text-xs text-muted pl-2 py-1">Нет групп</div>}
                 </div>
               )}
             </div>
           ))}
-          {!tree.length && !loading && <div className="text-sm text-slate-400 text-center py-4">Нет кампаний</div>}
+          {!tree.length && !loading && <div className="text-sm text-muted text-center py-4">Нет кампаний</div>}
         </CardContent>
       </Card>
 
       {/* Editor Panel */}
       <Card className="flex flex-col overflow-hidden">
-        <CardHeader className="py-4 px-6 border-b border-slate-800 bg-slate-900/50">
+        <CardHeader className="py-4 px-6 border-b border-border bg-panel/50">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base">
               {selection ? (
@@ -291,7 +291,7 @@ export default function BuilderPage() {
         </CardHeader>
         <CardContent className="flex-1 overflow-y-auto p-6">
           {!selection && (
-            <div className="flex h-full items-center justify-center text-slate-500">
+            <div className="flex h-full items-center justify-center text-muted">
               Выберите элемент слева для редактирования
             </div>
           )}
@@ -309,7 +309,7 @@ export default function BuilderPage() {
               <div className="space-y-2">
                 <Label>Статус</Label>
                 <select
-                  className="flex h-10 w-full rounded-md border border-slate-800 bg-slate-950 px-3 py-2 text-sm ring-offset-slate-950 file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex h-10 w-full rounded-md border border-border bg-panel px-3 py-2 text-sm text-text placeholder:text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:cursor-not-allowed disabled:opacity-50"
                   value={formData.status || "draft"}
                   onChange={e => setFormData({...formData, status: e.target.value})}
                 >
@@ -331,14 +331,14 @@ export default function BuilderPage() {
                   <div className="space-y-2">
                     <Label>Текст</Label>
                     <textarea
-                      className="flex min-h-[80px] w-full rounded-md border border-slate-800 bg-slate-950 px-3 py-2 text-sm ring-offset-slate-950 placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="flex min-h-[80px] w-full rounded-md border border-border bg-panel px-3 py-2 text-sm text-text placeholder:text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:cursor-not-allowed disabled:opacity-50"
                       value={formData.text || ""}
                       onChange={e => setFormData({...formData, text: e.target.value})}
                     />
                   </div>
 
-                  <div className="pt-4 border-t border-slate-800 space-y-4">
-                    <h3 className="font-medium text-slate-200">Ссылка и UTM</h3>
+                  <div className="pt-4 border-t border-border space-y-4">
+                    <h3 className="font-medium text-text">Ссылка и UTM</h3>
                     <div className="space-y-2">
                       <Label>Посадочная страница (Base URL)</Label>
                       <Input
@@ -350,35 +350,35 @@ export default function BuilderPage() {
 
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label className="text-xs text-slate-400">utm_source</Label>
+                        <Label className="text-xs text-muted">utm_source</Label>
                         <Input
                           value={formData.utm_json?.utm_source || ""}
                           onChange={e => updateUtm("utm_source", e.target.value)}
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label className="text-xs text-slate-400">utm_medium</Label>
+                        <Label className="text-xs text-muted">utm_medium</Label>
                         <Input
                           value={formData.utm_json?.utm_medium || ""}
                           onChange={e => updateUtm("utm_medium", e.target.value)}
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label className="text-xs text-slate-400">utm_campaign</Label>
+                        <Label className="text-xs text-muted">utm_campaign</Label>
                         <Input
                           value={formData.utm_json?.utm_campaign || ""}
                           onChange={e => updateUtm("utm_campaign", e.target.value)}
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label className="text-xs text-slate-400">utm_content</Label>
+                        <Label className="text-xs text-muted">utm_content</Label>
                         <Input
                           value={formData.utm_json?.utm_content || ""}
                           onChange={e => updateUtm("utm_content", e.target.value)}
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label className="text-xs text-slate-400">utm_term</Label>
+                        <Label className="text-xs text-muted">utm_term</Label>
                         <Input
                           value={formData.utm_json?.utm_term || ""}
                           onChange={e => updateUtm("utm_term", e.target.value)}
@@ -386,10 +386,10 @@ export default function BuilderPage() {
                       </div>
                     </div>
 
-                    <div className="bg-slate-900 p-3 rounded-md space-y-2">
-                      <Label className="text-xs text-slate-400">Итоговая ссылка (после сохранения)</Label>
+                    <div className="rounded-md bg-panel p-3 space-y-2">
+                      <Label className="text-xs text-muted">Итоговая ссылка (после сохранения)</Label>
                       <div className="flex gap-2">
-                        <div className="flex-1 text-sm break-all font-mono text-slate-300 bg-slate-950 p-2 rounded border border-slate-800">
+                        <div className="flex-1 rounded border border-border bg-panel-strong p-2 text-sm font-mono text-muted break-all">
                           {formData.final_url || "—"}
                         </div>
                         <Button size="icon" variant="secondary" onClick={copyLink} disabled={!formData.final_url}>

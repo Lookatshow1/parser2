@@ -32,10 +32,10 @@ export default function HomePage() {
         <CardTitle>{ru.appName}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <p className="text-slate-300">Используйте меню слева, чтобы управлять подключениями, планами и экспериментами.</p>
-        {error && <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</div>}
-        {notice && <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">{notice}</div>}
-        <Button onClick={handleSeed}>Создать демо-данные</Button>
+        <p className="text-muted">{ru.messages.homeIntro}</p>
+        {error && <div className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">{error}</div>}
+        {notice && <div className="rounded-md border border-success/40 bg-success/10 px-3 py-2 text-sm text-success">{notice}</div>}
+        <Button onClick={handleSeed}>{ru.actions.seedDemo}</Button>
       </CardContent>
     </Card>
   );

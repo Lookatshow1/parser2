@@ -5,7 +5,7 @@ export const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDi
   ({ className, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn("rounded-xl border border-slate-800 bg-slate-900/60 shadow-sm", className)}
+      className={cn("rounded-2xl border border-border bg-panel shadow-card", className)}
       {...props}
     />
   )
@@ -13,11 +13,11 @@ export const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDi
 Card.displayName = "Card";
 
 export const CardHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn("flex items-start justify-between gap-2 border-b border-slate-800 px-5 py-4", className)} {...props} />
+  <div className={cn("flex items-start justify-between gap-2 border-b border-border px-5 py-4", className)} {...props} />
 );
 
 export const CardTitle = ({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
-  <h3 className={cn("text-lg font-semibold", className)} {...props} />
+  <h3 className={cn("text-lg font-semibold text-text", className)} {...props} />
 );
 
 export const CardContent = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
@@ -25,6 +25,5 @@ export const CardContent = ({ className, ...props }: React.HTMLAttributes<HTMLDi
 );
 
 export const CardFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn("flex items-center justify-end gap-2 border-t border-slate-800 px-5 py-4", className)} {...props} />
+  <div className={cn("flex items-center justify-end gap-2 border-t border-border px-5 py-4", className)} {...props} />
 );
-

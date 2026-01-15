@@ -182,13 +182,13 @@ export default function MetricsPage() {
         <CardHeader className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div>
           <CardTitle>{STR.labels.metrics}</CardTitle>
-            <p className="text-sm text-slate-400">Обзор эффективности за выбранный период.</p>
+            <p className="text-sm text-muted">Обзор эффективности за выбранный период.</p>
           </div>
           <Badge variant="muted">Демо-режим</Badge>
         </CardHeader>
         <CardContent className="space-y-4">
           {error && (
-            <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+            <div className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
               {error}
             </div>
           )}
@@ -196,7 +196,7 @@ export default function MetricsPage() {
             <select
               value={selectedConnection}
               onChange={(event) => setSelectedConnection(event.target.value)}
-              className="h-10 rounded-md border border-slate-800 bg-slate-900 px-3 text-sm text-slate-100"
+              className="h-10 rounded-md border border-border bg-panel-strong px-3 text-sm text-text"
             >
               <option value="all">Все подключения</option>
               {connections.map((connection) => (
@@ -235,7 +235,7 @@ export default function MetricsPage() {
           <CardHeader>
             <CardTitle>CTR / CPC</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-1 text-sm text-slate-300">
+          <CardContent className="space-y-1 text-sm text-muted">
             <div>CTR: {formatFloat(totals.ctr, 4)}</div>
             <div>CPC: {formatFloat(totals.cpc, 2)}</div>
           </CardContent>
@@ -267,10 +267,10 @@ export default function MetricsPage() {
                 </TableHeader>
                 <TableBody>
                   {breakdownItems.map((item, idx) => (
-                    <TableRow key={idx} className="cursor-pointer hover:bg-slate-900/50" onClick={() => handleDrilldown(item)}>
+                    <TableRow key={idx} className="cursor-pointer hover:bg-panel-strong" onClick={() => handleDrilldown(item)}>
                       <TableCell>
                         <div className="font-medium">{item.name}</div>
-                        <div className="text-xs text-slate-500 font-mono">{item.external_id}</div>
+                        <div className="text-xs text-muted font-mono">{item.external_id}</div>
                       </TableCell>
                       <TableCell>{formatNumber(item.spend)}</TableCell>
                       <TableCell>{formatNumber(item.impressions)}</TableCell>
@@ -282,7 +282,7 @@ export default function MetricsPage() {
                   ))}
                   {!breakdownItems.length && (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center text-slate-500 py-8">Нет данных</TableCell>
+                      <TableCell colSpan={7} className="text-center text-muted py-8">Нет данных</TableCell>
                     </TableRow>
                   )}
                 </TableBody>
@@ -308,7 +308,7 @@ export default function MetricsPage() {
         <CardContent>
           {loading && <Skeleton className="h-64 w-full" />}
           {!loading && chartData.length === 0 && (
-            <div className="text-sm text-slate-400">{STR.messages.noMetrics}</div>
+            <div className="text-sm text-muted">{STR.messages.noMetrics}</div>
           )}
           {!loading && chartData.length > 0 && (
             <div className="h-72 w-full">
@@ -332,20 +332,20 @@ export default function MetricsPage() {
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-4 gap-4 text-sm">
-              <div className="bg-slate-900 p-3 rounded border border-slate-800">
-                <div className="text-slate-400">Расход</div>
+              <div className="rounded border border-border bg-panel p-3">
+                <div className="text-muted">Расход</div>
                 <div className="text-lg font-semibold">{formatNumber(drilldownItem?.spend)}</div>
               </div>
-              <div className="bg-slate-900 p-3 rounded border border-slate-800">
-                <div className="text-slate-400">Клики</div>
+              <div className="rounded border border-border bg-panel p-3">
+                <div className="text-muted">Клики</div>
                 <div className="text-lg font-semibold">{formatNumber(drilldownItem?.clicks)}</div>
               </div>
-              <div className="bg-slate-900 p-3 rounded border border-slate-800">
-                <div className="text-slate-400">CPC</div>
+              <div className="rounded border border-border bg-panel p-3">
+                <div className="text-muted">CPC</div>
                 <div className="text-lg font-semibold">{formatFloat(drilldownItem?.cpc)}</div>
               </div>
-              <div className="bg-slate-900 p-3 rounded border border-slate-800">
-                <div className="text-slate-400">ROAS</div>
+              <div className="rounded border border-border bg-panel p-3">
+                <div className="text-muted">ROAS</div>
                 <div className="text-lg font-semibold">{formatFloat(drilldownItem?.roas)}</div>
               </div>
             </div>

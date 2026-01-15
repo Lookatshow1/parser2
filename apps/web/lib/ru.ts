@@ -6,6 +6,8 @@ export const ru = {
     syncRuns: "Синхронизации",
     metrics: "Метрики",
     campaigns: "Кампании",
+    autopilot: "Автопилот",
+    recommendations: "Рекомендации",
     orgs: "Организации",
     members: "Участники",
     audit: "Аудит",
@@ -38,7 +40,9 @@ export const ru = {
     createOrg: "Создать организацию",
     start: "Запустить",
     back: "Назад",
-    close: "Закрыть"
+    close: "Закрыть",
+    demoAccess: "Демо-доступ",
+    seedDemo: "Создать демо-данные"
   },
   labels: {
     email: "Почта",
@@ -66,7 +70,23 @@ export const ru = {
     sendStatus: "Статус отправки",
     activeOrg: "Активная организация",
     noData: "Нет данных",
-    filters: "Фильтры"
+    filters: "Фильтры",
+    theme: "Тема",
+    themeDark: "Тёмная",
+    themeLight: "Светлая",
+    orgProfile: "Профиль организации",
+    legalType: "Форма",
+    legalName: "Юр. наименование",
+    inn: "ИНН",
+    kpp: "КПП",
+    ogrn: "ОГРН",
+    ogrnip: "ОГРНИП",
+    legalAddress: "Юр. адрес",
+    emailForDocs: "Почта для документов",
+    phone: "Телефон",
+    timezone: "Часовой пояс",
+    currency: "Валюта",
+    done: "Готово"
   },
   roles: {
     owner: "Владелец",
@@ -107,6 +127,39 @@ export const ru = {
     syncQueued: "Синхронизация поставлена в очередь",
     syncRunning: "Синхронизация выполняется",
     syncFinished: "Синхронизация завершена",
-    noMetrics: "Нет данных за выбранный период"
+    noMetrics: "Нет данных за выбранный период",
+    demoReady: "Демо-данные подготовлены. Можно войти.",
+    loginSuccess: "Вы вошли в систему.",
+    signupSuccess: "Регистрация успешна.",
+    accountCreated: "Аккаунт создан. Теперь можно войти.",
+    homeIntro: "Используйте меню слева, чтобы управлять подключениями, планами и экспериментами.",
+    orgProfileSaved: "Профиль организации сохранён"
+  },
+  pages: {
+    dashboardTitle: "KPI-дашборд",
+    dashboardSubtitle: "Объединённый график метрик с нормализацией",
+    dashboardEmptyTitle: "Нет данных за выбранный период",
+    dashboardEmptyDesc: "Запустите синхронизацию или измените фильтры.",
+    connectionsSubtitle: "Управляйте подключениями и синхронизациями по рекламным кабинетам.",
+    connectionsEmptyDesc: "Создайте подключение и запустите первую синхронизацию.",
+    campaignsEmptyTitle: "Кампаний пока нет",
+    campaignsEmptyDesc: "Создайте первую кампанию и начните наполнять структуру."
+  },
+  autopilot: {
+    title: "Автопилот рекламы",
+    subtitle: "Автоматические рекомендации и черновики улучшений.",
+    stateTitle: "Состояние",
+    runsTitle: "Последние запуски",
+    actionsTitle: "Предложенные действия",
+    enabled: "Включён",
+    disabled: "Выключен",
+    enableButton: "Включить",
+    pauseButton: "Пауза",
+    interval: "Интервал",
+    noRuns: "Запусков пока нет.",
+    noActions: "Пока нет предложений.",
+    started: "Автопилот запущен",
+    paused: "Автопилот выключен",
+    resumed: "Автопилот включён"
   }
 };

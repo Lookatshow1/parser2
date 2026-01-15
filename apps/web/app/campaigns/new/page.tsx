@@ -64,8 +64,8 @@ export default function CampaignBuilderPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-100">Конструктор кампании</h1>
-        <p className="text-sm text-slate-400">Шаг {step + 1} из 3: {steps[step]}</p>
+        <h1 className="text-2xl font-semibold text-text">Конструктор кампании</h1>
+        <p className="text-sm text-muted">Шаг {step + 1} из 3: {steps[step]}</p>
       </div>
 
       {step === 0 && (
@@ -81,7 +81,7 @@ export default function CampaignBuilderPage() {
             <div className="space-y-2">
               <Label>Платформа</Label>
               <select
-                className="w-full rounded-md border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+                className="w-full rounded-md border border-border bg-panel px-3 py-2 text-sm text-text"
                 value={form.platform}
                 onChange={(e) => setForm({ ...form, platform: e.target.value })}
               >
@@ -130,14 +130,14 @@ export default function CampaignBuilderPage() {
           <CardHeader>
             <CardTitle>Резюме</CardTitle>
           </CardHeader>
-          <CardContent className="grid gap-3 text-sm text-slate-300">
-            <div>Название: <span className="text-slate-100">{summary.name}</span></div>
-            <div>Платформа: <span className="text-slate-100">{summary.platform}</span></div>
-            <div>Цель: <span className="text-slate-100">{summary.objective}</span></div>
-            <div>Бюджет на период: <span className="text-slate-100">{summary.budget_total}</span></div>
-            <div>Бюджет на день: <span className="text-slate-100">{summary.budget_daily}</span></div>
-            <div>Дата начала: <span className="text-slate-100">{summary.start_date}</span></div>
-            <div>Дата окончания: <span className="text-slate-100">{summary.end_date}</span></div>
+          <CardContent className="grid gap-3 text-sm text-muted">
+            <div>Название: <span className="text-text">{summary.name}</span></div>
+            <div>Платформа: <span className="text-text">{summary.platform}</span></div>
+            <div>Цель: <span className="text-text">{summary.objective}</span></div>
+            <div>Бюджет на период: <span className="text-text">{summary.budget_total}</span></div>
+            <div>Бюджет на день: <span className="text-text">{summary.budget_daily}</span></div>
+            <div>Дата начала: <span className="text-text">{summary.start_date}</span></div>
+            <div>Дата окончания: <span className="text-text">{summary.end_date}</span></div>
           </CardContent>
         </Card>
       )}

@@ -171,8 +171,8 @@ export default function OrgMembersPage() {
     return (
       <Card>
           <CardContent className="space-y-2 py-6">
-          <p className="text-slate-300">{STR.messages.loginRequired}</p>
-          <Link href="/login" className="text-blue-400">{STR.nav.login}</Link>
+          <p className="text-muted">{STR.messages.loginRequired}</p>
+          <Link href="/login" className="text-accent">{STR.nav.login}</Link>
         </CardContent>
       </Card>
     );
@@ -182,8 +182,8 @@ export default function OrgMembersPage() {
     return (
       <Card>
         <CardContent className="space-y-2 py-6">
-          <p className="text-slate-300">{STR.messages.selectOrg}</p>
-          <Link href="/orgs" className="text-blue-400">{STR.nav.orgs}</Link>
+          <p className="text-muted">{STR.messages.selectOrg}</p>
+          <Link href="/orgs" className="text-accent">{STR.nav.orgs}</Link>
         </CardContent>
       </Card>
     );
@@ -196,9 +196,9 @@ export default function OrgMembersPage() {
           <CardTitle>{STR.nav.members}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {error && <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</div>}
-          {notice && <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">{notice}</div>}
-          <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-400">
+          {error && <div className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">{error}</div>}
+          {notice && <div className="rounded-md border border-success/40 bg-success/10 px-3 py-2 text-sm text-success">{notice}</div>}
+          <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted">
             <div>Организация #{orgId}</div>
             <Dialog>
               <DialogTrigger asChild>
@@ -225,7 +225,7 @@ export default function OrgMembersPage() {
                       id="invite-role"
                       value={role}
                       onChange={(event) => setRole(event.target.value)}
-                      className="h-10 w-full rounded-md border border-slate-800 bg-slate-900 px-3 text-sm"
+                      className="h-10 w-full rounded-md border border-border bg-panel-strong px-3 text-sm text-text"
                     >
                       <option value="member">{STR.roles.member}</option>
                       <option value="admin">{STR.roles.admin}</option>
@@ -235,13 +235,13 @@ export default function OrgMembersPage() {
                     {STR.actions.invite}
                   </Button>
                   {inviteToken && (
-                    <div className="rounded-md border border-slate-800 bg-slate-900 px-3 py-2 text-xs text-slate-300">
-                      Токен приглашения: <span className="text-slate-100">{inviteToken}</span>
+                    <div className="rounded-md border border-border bg-panel px-3 py-2 text-xs text-muted">
+                      Токен приглашения: <span className="text-text">{inviteToken}</span>
                     </div>
                   )}
                   {joinUrl && (
-                    <div className="rounded-md border border-slate-800 bg-slate-900 px-3 py-2 text-xs text-slate-300">
-                      Ссылка для вступления: <span className="text-slate-100">{joinUrl}</span>
+                    <div className="rounded-md border border-border bg-panel px-3 py-2 text-xs text-muted">
+                      Ссылка для вступления: <span className="text-text">{joinUrl}</span>
                     </div>
                   )}
                 </div>
@@ -257,7 +257,7 @@ export default function OrgMembersPage() {
         </CardHeader>
         <CardContent>
           {loading && <Skeleton className="h-20 w-full" />}
-          {!loading && members.length === 0 && <div className="text-sm text-slate-400">{STR.messages.noMembers}</div>}
+          {!loading && members.length === 0 && <div className="text-sm text-muted">{STR.messages.noMembers}</div>}
           {!loading && members.length > 0 && (
             <Table>
               <TableHeader>
@@ -272,13 +272,13 @@ export default function OrgMembersPage() {
                 {members.map((member) => (
                   <TableRow key={member.user_id}>
                     <TableCell>
-                      <div className="font-medium text-slate-100">{member.email}</div>
-                      <div className="text-xs text-slate-500">{member.is_you ? "Вы" : ""}</div>
+                      <div className="font-medium text-text">{member.email}</div>
+                      <div className="text-xs text-muted">{member.is_you ? "Вы" : ""}</div>
                     </TableCell>
                     <TableCell>
                       <Badge variant={member.role === "owner" ? "info" : "muted"}>{roleLabel(member.role)}</Badge>
                     </TableCell>
-                    <TableCell className="text-slate-400">
+                    <TableCell className="text-muted">
                       {new Date(member.joined_at).toLocaleDateString()}
                     </TableCell>
                     <TableCell className="text-right">
@@ -292,7 +292,7 @@ export default function OrgMembersPage() {
                         <DropdownMenuItem onClick={() => handleRoleChange(member.user_id, "member")}>Сделать участником</DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleRoleChange(member.user_id, "viewer")}>Сделать наблюдателем</DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => handleRemove(member.user_id)} className="text-red-300">
+                          <DropdownMenuItem onClick={() => handleRemove(member.user_id)} className="text-danger">
                             Удалить
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -312,7 +312,7 @@ export default function OrgMembersPage() {
         </CardHeader>
         <CardContent>
           {loading && <Skeleton className="h-20 w-full" />}
-          {!loading && invites.length === 0 && <div className="text-sm text-slate-400">{STR.messages.noInvites}</div>}
+          {!loading && invites.length === 0 && <div className="text-sm text-muted">{STR.messages.noInvites}</div>}
           {!loading && invites.length > 0 && (
             <Table>
               <TableHeader>
@@ -334,16 +334,16 @@ export default function OrgMembersPage() {
                   return (
                     <TableRow key={invite.id}>
                       <TableCell>
-                        <div className="font-medium text-slate-100">{invite.invited_email}</div>
-                        <div className="text-xs text-slate-500">Отправок: {invite.send_count ?? 0}</div>
+                        <div className="font-medium text-text">{invite.invited_email}</div>
+                        <div className="text-xs text-muted">Отправок: {invite.send_count ?? 0}</div>
                         {invite.last_error && (
-                          <div className="text-xs text-rose-400">Ошибка: {invite.last_error}</div>
+                          <div className="text-xs text-danger">Ошибка: {invite.last_error}</div>
                         )}
                       </TableCell>
                       <TableCell>
                         <Badge variant="muted">{roleLabel(invite.role)}</Badge>
                       </TableCell>
-                      <TableCell className="text-slate-400">
+                      <TableCell className="text-muted">
                         {new Date(invite.expires_at).toLocaleDateString()}
                       </TableCell>
                       <TableCell>
@@ -357,7 +357,7 @@ export default function OrgMembersPage() {
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => handleResend(invite.id)}>{STR.actions.resend}</DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => handleRevoke(invite.id)} className="text-red-300">
+                            <DropdownMenuItem onClick={() => handleRevoke(invite.id)} className="text-danger">
                               Отозвать
                             </DropdownMenuItem>
                           </DropdownMenuContent>

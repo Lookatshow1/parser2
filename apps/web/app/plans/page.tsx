@@ -68,7 +68,7 @@ export default function PlansPage() {
             <select
               value={selectedConnection}
               onChange={(event) => setSelectedConnection(event.target.value)}
-              className="h-10 rounded-md border border-slate-800 bg-slate-900 px-3 text-sm text-slate-100"
+              className="h-10 rounded-md border border-border bg-panel px-3 text-sm text-text"
             >
               <option value="all">Все подключения</option>
               {connections.map((c) => (
@@ -108,7 +108,7 @@ export default function PlansPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>#{item.connection_id}</TableCell>
-                    <TableCell className="text-slate-400 text-sm">
+                    <TableCell className="text-muted text-sm">
                       {new Date(item.created_at).toLocaleString()}
                     </TableCell>
                     <TableCell className="text-right">
@@ -120,7 +120,7 @@ export default function PlansPage() {
                 ))}
                 {!items.length && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-slate-500 py-8">Нет планов</TableCell>
+                    <TableCell colSpan={6} className="text-center text-muted py-8">Нет планов</TableCell>
                   </TableRow>
                 )}
               </TableBody>

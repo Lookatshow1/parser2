@@ -73,7 +73,7 @@ export default function PlanDetailPage() {
   };
 
   if (loading && !plan) return <div className="p-6"><Skeleton className="h-40 w-full" /></div>;
-  if (!plan) return <div className="p-6 text-center text-slate-500">План не найден</div>;
+  if (!plan) return <div className="p-6 text-center text-muted">План не найден</div>;
 
   return (
     <div className="space-y-6">
@@ -84,7 +84,7 @@ export default function PlanDetailPage() {
               {plan.title}
               <Badge variant={statusVariant[plan.status]}>{plan.status.toUpperCase()}</Badge>
             </CardTitle>
-            <div className="text-sm text-slate-400 mt-1">
+            <div className="text-sm text-muted mt-1">
               Подключение #{plan.connection_id} · Создан {new Date(plan.created_at).toLocaleString()}
             </div>
           </div>
@@ -102,7 +102,7 @@ export default function PlanDetailPage() {
         </CardHeader>
         <CardContent>
           {plan.error && (
-            <div className="mb-4 p-3 bg-red-900/20 border border-red-900/50 rounded text-red-200 text-sm">
+            <div className="mb-4 rounded-md border border-danger/40 bg-danger/10 p-3 text-sm text-danger">
               Ошибка: {plan.error}
             </div>
           )}
@@ -128,13 +128,13 @@ export default function PlanDetailPage() {
                   </TableCell>
                   <TableCell>
                     <Badge variant={statusVariant[item.status] || "secondary"}>{item.status}</Badge>
-                    {item.error && <div className="text-xs text-red-400 mt-1">{item.error}</div>}
+                    {item.error && <div className="text-xs text-danger mt-1">{item.error}</div>}
                   </TableCell>
                 </TableRow>
               ))}
               {!plan.items.length && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-slate-500 py-4">Нет действий</TableCell>
+                  <TableCell colSpan={5} className="text-center text-muted py-4">Нет действий</TableCell>
                 </TableRow>
               )}
             </TableBody>

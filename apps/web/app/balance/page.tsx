@@ -11,7 +11,7 @@ export default function BalancePage() {
           <CardTitle>{STR.nav.balance}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-sm text-slate-400">Раздел в разработке. Скоро появятся пополнения и история списаний.</div>
+          <div className="text-sm text-muted">Раздел в разработке. Скоро появятся пополнения и история списаний.</div>
         </CardContent>
       </Card>
     </div>

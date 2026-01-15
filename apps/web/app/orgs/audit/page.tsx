@@ -57,8 +57,8 @@ export default function OrgAuditPage() {
     return (
       <Card>
           <CardContent className="space-y-2 py-6">
-          <p className="text-slate-300">{STR.messages.loginRequired}</p>
-          <Link href="/login" className="text-blue-400">{STR.nav.login}</Link>
+          <p className="text-muted">{STR.messages.loginRequired}</p>
+          <Link href="/login" className="text-accent">{STR.nav.login}</Link>
         </CardContent>
       </Card>
     );
@@ -68,8 +68,8 @@ export default function OrgAuditPage() {
     return (
       <Card>
         <CardContent className="space-y-2 py-6">
-          <p className="text-slate-300">{STR.messages.selectOrg}</p>
-          <Link href="/orgs" className="text-blue-400">{STR.nav.orgs}</Link>
+          <p className="text-muted">{STR.messages.selectOrg}</p>
+          <Link href="/orgs" className="text-accent">{STR.nav.orgs}</Link>
         </CardContent>
       </Card>
     );
@@ -82,12 +82,12 @@ export default function OrgAuditPage() {
           <CardTitle>{STR.nav.audit}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-400">
+          <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted">
             <div>Организация #{orgId} · {total} событий</div>
             <div className="flex items-center gap-2">
               <span>{STR.labels.action}</span>
               <select
-                className="rounded-md border border-slate-800 bg-slate-900 px-3 py-2 text-sm"
+                className="rounded-md border border-border bg-panel-strong px-3 py-2 text-sm text-text"
                 value={actionFilter}
                 onChange={(event) => setActionFilter(event.target.value)}
               >
@@ -98,14 +98,14 @@ export default function OrgAuditPage() {
               </select>
             </div>
           </div>
-          {error && <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</div>}
+          {error && <div className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">{error}</div>}
         </CardContent>
       </Card>
 
       <Card>
         <CardContent className="space-y-4">
           {loading && <Skeleton className="h-24 w-full" />}
-          {!loading && filteredItems.length === 0 && <div className="text-sm text-slate-400">{STR.messages.noAudit}</div>}
+          {!loading && filteredItems.length === 0 && <div className="text-sm text-muted">{STR.messages.noAudit}</div>}
           {!loading && filteredItems.length > 0 && (
             <Table>
               <TableHeader>
@@ -122,13 +122,13 @@ export default function OrgAuditPage() {
                     <TableCell>
                       <Badge variant="info">{event.action}</Badge>
                     </TableCell>
-                    <TableCell className="text-slate-400">
+                    <TableCell className="text-muted">
                       {event.subject_type || "-"} #{event.subject_id ?? "-"}
                     </TableCell>
-                    <TableCell className="text-slate-400">
+                    <TableCell className="text-muted">
                       {event.actor_user_id ?? "система"}
                     </TableCell>
-                    <TableCell className="text-slate-400">
+                    <TableCell className="text-muted">
                       {new Date(event.created_at).toLocaleString()}
                     </TableCell>
                   </TableRow>

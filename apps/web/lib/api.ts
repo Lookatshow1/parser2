@@ -181,6 +181,40 @@ export type JobRunItem = {
   result_json?: Record<string, unknown> | null;
 };
 
+export type AutomationSettings = {
+  organization_id: number;
+  is_enabled: boolean;
+  run_interval_minutes: number;
+  last_run_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AutomationRun = {
+  id: number;
+  organization_id: number;
+  status: string;
+  started_at: string | null;
+  finished_at: string | null;
+  result_json: Record<string, unknown>;
+  error_text: string | null;
+  created_at: string;
+};
+
+export type AutomationAction = {
+  id: number;
+  organization_id: number;
+  run_id: number | null;
+  recommendation_id: number | null;
+  action_type: string;
+  status: string;
+  title: string;
+  description: string;
+  payload_json: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+};
+
 export type AuthToken = {
   access_token: string;
   refresh_token: string;
@@ -218,6 +252,23 @@ export type OrgInvite = {
   sent_at?: string | null;
   send_count?: number;
   last_error?: string | null;
+};
+
+export type OrgProfile = {
+  organization_id: number;
+  legal_type: string | null;
+  legal_name: string | null;
+  inn: string | null;
+  kpp: string | null;
+  ogrn: string | null;
+  ogrnip: string | null;
+  legal_address: string | null;
+  email_for_docs: string | null;
+  phone: string | null;
+  timezone: string;
+  currency: string;
+  created_at: string;
+  updated_at: string;
 };
 
 export type OrgMember = {
@@ -739,6 +790,51 @@ export async function listJobRuns(payload: { connection_id?: number; limit?: num
   return request<{ items: JobRunItem[] }>(`/job-runs${suffix}`);
 }
 
+export async function getAutomationSettings() {
+  return request<AutomationSettings>("/automation/settings");
+}
+
+export async function updateAutomationSettings(payload: Partial<AutomationSettings>) {
+  return request<AutomationSettings>("/automation/settings", {
+    method: "PATCH",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function runAutomation() {
+  return request<AutomationRun>("/automation/run", { method: "POST" });
+}
+
+export async function listAutomationRuns(payload: { status?: string; limit?: number; offset?: number } = {}) {
+  const params = new URLSearchParams();
+  if (payload.status) {
+    params.set("status", payload.status);
+  }
+  if (payload.limit) {
+    params.set("limit", String(payload.limit));
+  }
+  if (payload.offset) {
+    params.set("offset", String(payload.offset));
+  }
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  return request<AutomationRun[]>(`/automation/runs${suffix}`);
+}
+
+export async function listAutomationActions(payload: { status?: string; limit?: number; offset?: number } = {}) {
+  const params = new URLSearchParams();
+  if (payload.status) {
+    params.set("status", payload.status);
+  }
+  if (payload.limit) {
+    params.set("limit", String(payload.limit));
+  }
+  if (payload.offset) {
+    params.set("offset", String(payload.offset));
+  }
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  return request<AutomationAction[]>(`/automation/actions${suffix}`);
+}
+
 export async function getDashboardSummary(payload: { connection_id: number; date_from: string; date_to: string }) {
   const params = new URLSearchParams({
     connection_id: String(payload.connection_id),
@@ -812,6 +908,17 @@ export async function getMe() {
 
 export async function listOrgs() {
   return request<{ items: Organization[] }>("/orgs");
+}
+
+export async function getOrgProfile() {
+  return request<OrgProfile>("/settings/org-profile");
+}
+
+export async function updateOrgProfile(payload: Partial<OrgProfile>) {
+  return request<OrgProfile>("/settings/org-profile", {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
 }
 
 export async function createOrg(payload: { name: string }) {

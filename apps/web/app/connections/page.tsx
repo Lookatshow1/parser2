@@ -20,6 +20,8 @@ import { STR } from "../../lib/strings";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { EmptyState } from "../../components/ui/empty-state";
+import { PageHeader } from "../../components/ui/page-header";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Skeleton } from "../../components/ui/skeleton";
@@ -255,15 +257,17 @@ export default function ConnectionsPage() {
 
   return (
     <div className="space-y-6">
+      <PageHeader
+        title={STR.labels.connections}
+        subtitle={STR.pages.connectionsSubtitle}
+      />
+
       <Card>
-        <CardHeader>
-          <CardTitle>{STR.labels.connections}</CardTitle>
-        </CardHeader>
         <CardContent className="space-y-4">
           {!getToken() && <Badge variant="warning">{STR.messages.loginRequired}</Badge>}
           {getToken() && !getOrgId() && <Badge variant="warning">{STR.messages.selectOrg}</Badge>}
-          {error && <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</div>}
-          {notice && <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">{notice}</div>}
+          {error && <div className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">{error}</div>}
+          {notice && <div className="rounded-md border border-success/40 bg-success/10 px-3 py-2 text-sm text-success">{notice}</div>}
           <div className="grid gap-3 md:grid-cols-[1fr_200px]">
             <div className="space-y-2">
               <Label>{STR.labels.activeOrg}</Label>
@@ -274,7 +278,7 @@ export default function ConnectionsPage() {
                   if (!value) return;
                   handleOrgSwitch(value);
                 }}
-                className="h-10 w-full rounded-md border border-slate-800 bg-slate-900 px-3 text-sm"
+                className="h-10 w-full rounded-md border border-border bg-panel-strong px-3 text-sm text-text"
               >
                 <option value="">{STR.messages.selectOrg}</option>
                 {orgs.map((org) => (
@@ -284,7 +288,7 @@ export default function ConnectionsPage() {
                 ))}
               </select>
             </div>
-            <div className="text-xs text-slate-400">Активная: {activeOrgId ? `#${activeOrgId}` : "—"}</div>
+            <div className="text-xs text-muted">Активная: {activeOrgId ? `#${activeOrgId}` : "—"}</div>
           </div>
 
           <div className="grid gap-3 md:grid-cols-3">
@@ -299,7 +303,7 @@ export default function ConnectionsPage() {
                     setCredentialsJson(credentialsTemplates[next]);
                   }
                 }}
-                className="h-10 w-full rounded-md border border-slate-800 bg-slate-900 px-3 text-sm"
+                className="h-10 w-full rounded-md border border-border bg-panel-strong px-3 text-sm text-text"
               >
                 {platforms.map((item) => (
                   <option key={item} value={item}>
@@ -317,13 +321,13 @@ export default function ConnectionsPage() {
               <textarea
                 value={credentialsJson}
                 onChange={(event) => setCredentialsJson(event.target.value)}
-                className="h-10 w-full rounded-md border border-slate-800 bg-slate-900 px-3 py-2 text-sm"
+                className="h-10 w-full rounded-md border border-border bg-panel-strong px-3 py-2 text-sm text-text"
               />
             </div>
           </div>
 
           <div className="grid gap-3 md:grid-cols-3">
-            <label className="flex items-center gap-2 text-sm text-slate-300">
+            <label className="flex items-center gap-2 text-sm text-text">
               <input
                 type="checkbox"
                 checked={autoSyncEnabled}
@@ -374,10 +378,11 @@ export default function ConnectionsPage() {
         <CardContent>
           {loading && <Skeleton className="h-20 w-full" />}
           {!loading && items.length === 0 && (
-            <div className="flex flex-col gap-3 text-sm text-slate-400">
-              <div>{STR.messages.noConnections}</div>
-              <Button size="sm" onClick={handleCreate}>{STR.actions.create}</Button>
-            </div>
+            <EmptyState
+              title={STR.messages.noConnections}
+              description={STR.pages.connectionsEmptyDesc}
+              action={<Button size="sm" onClick={handleCreate}>{STR.actions.create}</Button>}
+            />
           )}
           {!loading && items.length > 0 && (
             <Table>
@@ -406,10 +411,10 @@ export default function ConnectionsPage() {
                         {formatStatus(item.last_sync_status)}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-slate-400">
+                    <TableCell className="text-muted">
                       {item.last_sync_finished_at ?? "—"}
                     </TableCell>
-                    <TableCell className="text-slate-400">
+                    <TableCell className="text-muted">
                       {item.auto_sync_enabled ? `Да (${item.auto_sync_every_minutes ?? 0}м / ${item.auto_sync_window_days ?? 0}д)` : "Нет"}
                     </TableCell>
                     <TableCell className="text-right">
@@ -506,7 +511,7 @@ export default function ConnectionsPage() {
                       <Badge variant={syncStatusVariant[run.status] || "muted"}>{formatStatus(run.status)}</Badge>
                     </TableCell>
                     <TableCell>{new Date(run.created_at).toLocaleString()}</TableCell>
-                    <TableCell className="text-slate-400">
+                    <TableCell className="text-muted">
                       {run.result_json && "inserted" in run.result_json
                         ? `${run.result_json.inserted}/${run.result_json.updated}/${run.result_json.unchanged}`
                         : run.error_text
@@ -517,7 +522,7 @@ export default function ConnectionsPage() {
                 ))}
                 {syncRuns.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-slate-400">
+                    <TableCell colSpan={5} className="text-center text-muted">
                       Синхронизаций пока нет.
                     </TableCell>
                   </TableRow>
@@ -556,7 +561,7 @@ export default function ConnectionsPage() {
                 ))}
                 {metrics.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center text-slate-400">
+                    <TableCell colSpan={4} className="text-center text-muted">
                       {STR.messages.noMetrics}
                     </TableCell>
                   </TableRow>

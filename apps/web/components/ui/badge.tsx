@@ -7,12 +7,12 @@ const badgeVariants = cva(
   {
     variants: {
       variant: {
-        default: "border-slate-700 text-slate-200",
-        success: "border-emerald-500/40 text-emerald-300",
-        warning: "border-amber-500/40 text-amber-300",
-        danger: "border-red-500/40 text-red-300",
-        info: "border-blue-500/40 text-blue-300",
-        muted: "border-slate-800 text-slate-400"
+        default: "border-border text-text",
+        success: "border-success/40 text-success",
+        warning: "border-accent/40 text-accent",
+        danger: "border-danger/40 text-danger",
+        info: "border-accent/40 text-accent",
+        muted: "border-border text-muted"
       }
     },
     defaultVariants: { variant: "default" }
@@ -26,4 +26,3 @@ export interface BadgeProps
 export function Badge({ className, variant, ...props }: BadgeProps) {
   return <div className={cn(badgeVariants({ variant }), className)} {...props} />;
 }
-

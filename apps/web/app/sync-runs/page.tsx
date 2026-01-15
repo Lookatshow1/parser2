@@ -122,10 +122,10 @@ export default function SyncRunsPage() {
           <CardTitle>{ru.labels.syncRuns}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {error && <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</div>}
-          {notice && <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">{notice}</div>}
+          {error && <div className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">{error}</div>}
+          {notice && <div className="rounded-md border border-success/40 bg-success/10 px-3 py-2 text-sm text-success">{notice}</div>}
           <div className="grid gap-3 md:grid-cols-4">
-            <select value={selected ?? ""} onChange={(event) => setSelected(Number(event.target.value) || null)} className="h-10 rounded-md border border-slate-800 bg-slate-900 px-3 text-sm">
+            <select value={selected ?? ""} onChange={(event) => setSelected(Number(event.target.value) || null)} className="h-10 rounded-md border border-border bg-panel px-3 text-sm text-text">
               <option value="">Выберите подключение</option>
               {connections.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -163,17 +163,17 @@ export default function SyncRunsPage() {
                     <TableCell>#{run.id}</TableCell>
                     <TableCell><Badge variant={statusVariant[run.status] || "muted"}>{formatStatus(run.status)}</Badge></TableCell>
                     <TableCell>{new Date(run.created_at).toLocaleString()}</TableCell>
-                    <TableCell className="text-slate-400">
+                    <TableCell className="text-muted">
                       {run.result_json && "inserted" in run.result_json
                         ? `${run.result_json.inserted}/${run.result_json.updated}/${run.result_json.unchanged}`
                         : "—"}
                     </TableCell>
-                    <TableCell className="text-slate-400">{run.error_text ? String(run.error_text).slice(0, 80) : "—"}</TableCell>
+                    <TableCell className="text-muted">{run.error_text ? String(run.error_text).slice(0, 80) : "—"}</TableCell>
                   </TableRow>
                 ))}
                 {runs.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-slate-400">Запусков пока нет.</TableCell>
+                    <TableCell colSpan={5} className="text-center text-muted">Запусков пока нет.</TableCell>
                   </TableRow>
                 )}
               </TableBody>

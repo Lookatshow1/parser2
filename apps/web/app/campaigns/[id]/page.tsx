@@ -148,13 +148,13 @@ export default function CampaignDetailPage() {
   }, [tree]);
 
   if (!tree && loading) {
-    return <div className="text-sm text-slate-400">Загрузка...</div>;
+    return <div className="text-sm text-muted">Загрузка...</div>;
   }
 
   if (!tree) {
     return (
       <div className="space-y-4">
-        <div className="text-sm text-slate-400">Кампания не найдена.</div>
+        <div className="text-sm text-muted">Кампания не найдена.</div>
         <Button variant="secondary" onClick={() => router.push("/campaigns")}>Вернуться</Button>
       </div>
     );
@@ -166,8 +166,8 @@ export default function CampaignDetailPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-100">{tree.name}</h1>
-          <p className="text-sm text-slate-400">Платформа: {tree.platform}</p>
+          <h1 className="text-2xl font-semibold text-text">{tree.name}</h1>
+          <p className="text-sm text-muted">Платформа: {tree.platform}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant={statusVariant[tree.status] || "muted"}>{statusLabel(tree.status)}</Badge>
@@ -196,7 +196,7 @@ export default function CampaignDetailPage() {
                   <Button onClick={handleAddGroup}>Добавить</Button>
                 </div>
                 {tree.ad_groups.length === 0 && (
-                  <div className="rounded-md border border-dashed border-slate-800 px-4 py-6 text-center text-sm text-slate-400">
+                  <div className="rounded-md border border-dashed border-border px-4 py-6 text-center text-sm text-muted">
                     Групп пока нет.
                   </div>
                 )}
@@ -212,7 +212,7 @@ export default function CampaignDetailPage() {
                     <TableBody>
                       {tree.ad_groups.map((group) => (
                         <TableRow key={group.id}>
-                          <TableCell className="font-medium text-slate-100">{group.name}</TableCell>
+                          <TableCell className="font-medium text-text">{group.name}</TableCell>
                           <TableCell>{statusLabel(group.status)}</TableCell>
                           <TableCell>{group.ads.length}</TableCell>
                         </TableRow>
@@ -232,7 +232,7 @@ export default function CampaignDetailPage() {
                   <div className="space-y-2">
                     <Label>Группа</Label>
                     <select
-                      className="w-full rounded-md border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+                      className="w-full rounded-md border border-border bg-panel px-3 py-2 text-sm text-text"
                       value={adForm.ad_group_id}
                       onChange={(e) => setAdForm({ ...adForm, ad_group_id: e.target.value })}
                     >
@@ -259,7 +259,7 @@ export default function CampaignDetailPage() {
                   <div className="space-y-2">
                     <Label>CTA</Label>
                     <select
-                      className="w-full rounded-md border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+                      className="w-full rounded-md border border-border bg-panel px-3 py-2 text-sm text-text"
                       value={adForm.call_to_action}
                       onChange={(e) => setAdForm({ ...adForm, call_to_action: e.target.value })}
                     >
@@ -282,15 +282,15 @@ export default function CampaignDetailPage() {
                   Добавить объявление
                 </Button>
 
-                <div className="rounded-md border border-slate-800 bg-slate-900/60 p-4">
-                  <div className="text-xs uppercase text-slate-500">Превью</div>
+                <div className="rounded-md border border-border bg-panel/60 p-4">
+                  <div className="text-xs uppercase text-muted">Превью</div>
                   <div className="mt-3 space-y-2">
-                    <div className="h-32 w-full rounded-md bg-slate-800/60 flex items-center justify-center text-xs text-slate-400">
+                    <div className="flex h-32 w-full items-center justify-center rounded-md bg-panel-strong/60 text-xs text-muted">
                       {adForm.image_url ? "Изображение" : "Изображение не задано"}
                     </div>
-                    <div className="text-sm font-semibold text-slate-100">{adForm.title || "Заголовок"}</div>
-                    <div className="text-sm text-slate-400">{adForm.text || "Текст объявления"}</div>
-                    <div className="text-xs text-blue-400">{adForm.call_to_action}</div>
+                    <div className="text-sm font-semibold text-text">{adForm.title || "Заголовок"}</div>
+                    <div className="text-sm text-muted">{adForm.text || "Текст объявления"}</div>
+                    <div className="text-xs text-accent">{adForm.call_to_action}</div>
                   </div>
                 </div>
               </CardContent>
@@ -304,37 +304,37 @@ export default function CampaignDetailPage() {
               <CardHeader>
                 <CardTitle>Группы</CardTitle>
               </CardHeader>
-              <CardContent className="text-2xl font-semibold text-slate-100">{stats.ad_groups_count}</CardContent>
+              <CardContent className="text-2xl font-semibold text-text">{stats.ad_groups_count}</CardContent>
             </Card>
             <Card>
               <CardHeader>
                 <CardTitle>Объявления</CardTitle>
               </CardHeader>
-              <CardContent className="text-2xl font-semibold text-slate-100">{stats.ads_count}</CardContent>
+              <CardContent className="text-2xl font-semibold text-text">{stats.ads_count}</CardContent>
             </Card>
             <Card>
               <CardHeader>
                 <CardTitle>Статус</CardTitle>
               </CardHeader>
-              <CardContent className="text-2xl font-semibold text-slate-100">{statusLabel(tree.status)}</CardContent>
+              <CardContent className="text-2xl font-semibold text-text">{statusLabel(tree.status)}</CardContent>
             </Card>
             <Card>
               <CardHeader>
                 <CardTitle>Цель</CardTitle>
               </CardHeader>
-              <CardContent className="text-sm text-slate-300">{tree.objective || "—"}</CardContent>
+              <CardContent className="text-sm text-muted">{tree.objective || "—"}</CardContent>
             </Card>
             <Card>
               <CardHeader>
                 <CardTitle>Бюджет на период</CardTitle>
               </CardHeader>
-              <CardContent className="text-sm text-slate-300">{tree.budget_total ? `${tree.budget_total} ₽` : "—"}</CardContent>
+              <CardContent className="text-sm text-muted">{tree.budget_total ? `${tree.budget_total} ₽` : "—"}</CardContent>
             </Card>
             <Card>
               <CardHeader>
                 <CardTitle>Бюджет на день</CardTitle>
               </CardHeader>
-              <CardContent className="text-sm text-slate-300">{tree.budget_daily ? `${tree.budget_daily} ₽` : "—"}</CardContent>
+              <CardContent className="text-sm text-muted">{tree.budget_daily ? `${tree.budget_daily} ₽` : "—"}</CardContent>
             </Card>
           </div>
         </TabsContent>
@@ -346,7 +346,7 @@ export default function CampaignDetailPage() {
             </CardHeader>
             <CardContent>
               {events.length === 0 && (
-                <div className="text-sm text-slate-400">Событий пока нет.</div>
+                <div className="text-sm text-muted">Событий пока нет.</div>
               )}
               {events.length > 0 && (
                 <Table>

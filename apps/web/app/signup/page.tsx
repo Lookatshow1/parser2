@@ -32,8 +32,8 @@ export default function SignupPage() {
     setNotice(null);
     try {
       await registerUserWithInvite({ email, password, invite_token: inviteToken || undefined });
-      setNotice("Аккаунт создан. Теперь можно войти.");
-      toast.success("Регистрация успешна.");
+      setNotice(STR.messages.accountCreated);
+      toast.success(STR.messages.signupSuccess);
       router.push(inviteToken ? `/login?invite=${encodeURIComponent(inviteToken)}` : "/login");
     } catch (err) {
       const message = (err as Error).message;
@@ -48,9 +48,9 @@ export default function SignupPage() {
         <CardTitle>{STR.nav.signup}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {inviteLabel && <div className="text-sm text-slate-400">{inviteLabel}</div>}
-        {error && <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</div>}
-        {notice && <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">{notice}</div>}
+        {inviteLabel && <div className="text-sm text-muted">{inviteLabel}</div>}
+        {error && <div className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">{error}</div>}
+        {notice && <div className="rounded-md border border-success/40 bg-success/10 px-3 py-2 text-sm text-success">{notice}</div>}
         <div className="space-y-2">
           <Label htmlFor="signup-email">{STR.labels.email}</Label>
           <Input

@@ -9,6 +9,8 @@ import { STR } from "../../lib/strings";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { EmptyState } from "../../components/ui/empty-state";
+import { PageHeader } from "../../components/ui/page-header";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Skeleton } from "../../components/ui/skeleton";
@@ -67,13 +69,11 @@ export default function CampaignsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-100">Кампании</h1>
-          <p className="text-sm text-slate-400">Создавайте кампании, группы и объявления в одном месте.</p>
-        </div>
-        <Button onClick={() => router.push("/campaigns/new")}>Создать кампанию</Button>
-      </div>
+      <PageHeader
+        title="Кампании"
+        subtitle="Создавайте кампании, группы и объявления в одном месте."
+        actions={<Button onClick={() => router.push("/campaigns/new")}>Создать кампанию</Button>}
+      />
 
       <Card>
         <CardHeader>
@@ -83,7 +83,7 @@ export default function CampaignsPage() {
           <div className="space-y-2">
             <Label>Платформа</Label>
             <select
-              className="w-full rounded-md border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+              className="w-full rounded-md border border-border bg-panel-strong px-3 py-2 text-sm text-text"
               value={platform}
               onChange={(event) => setPlatform(event.target.value)}
             >
@@ -97,7 +97,7 @@ export default function CampaignsPage() {
           <div className="space-y-2">
             <Label>Статус</Label>
             <select
-              className="w-full rounded-md border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+              className="w-full rounded-md border border-border bg-panel-strong px-3 py-2 text-sm text-text"
               value={status}
               onChange={(event) => setStatus(event.target.value)}
             >
@@ -128,9 +128,11 @@ export default function CampaignsPage() {
             </div>
           )}
           {!loading && filtered.length === 0 && (
-            <div className="rounded-md border border-dashed border-slate-800 px-4 py-6 text-center text-sm text-slate-400">
-              Кампаний пока нет. Создайте первую кампанию.
-            </div>
+            <EmptyState
+              title="Кампаний пока нет"
+              description="Создайте первую кампанию и начните наполнять структуру."
+              action={<Button size="sm" onClick={() => router.push("/campaigns/new")}>Создать кампанию</Button>}
+            />
           )}
           {!loading && filtered.length > 0 && (
             <Table>
@@ -147,12 +149,13 @@ export default function CampaignsPage() {
               <TableBody>
                 {filtered.map((item) => (
                   <TableRow key={item.id}>
-                    <TableCell className="font-medium text-slate-100">{item.name}</TableCell>
+                    <TableCell className="font-medium text-text">{item.name}</TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2 text-slate-200">
-                        {platformMeta[item.platform]?.Icon ? (
-                          <platformMeta[item.platform].Icon className="h-4 w-4 text-slate-400" />
-                        ) : null}
+                      <div className="flex items-center gap-2 text-text">
+                        {(() => {
+                          const Icon = platformMeta[item.platform]?.Icon;
+                          return Icon ? <Icon className="h-4 w-4 text-muted" /> : null;
+                        })()}
                         <span>{platformMeta[item.platform]?.label || item.platform}</span>
                       </div>
                     </TableCell>

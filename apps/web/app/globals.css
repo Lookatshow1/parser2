@@ -2,26 +2,58 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap");
-
-body {
-  @apply bg-slate-950 text-slate-100 antialiased;
-}
-
 :root {
   color-scheme: dark;
+  --bg: 222 47% 9%;
+  --panel: 222 45% 13%;
+  --panel-strong: 222 43% 16%;
+  --border: 220 20% 24%;
+  --text: 210 40% 96%;
+  --muted: 215 16% 65%;
+  --accent: 217 91% 60%;
+  --accent-2: 168 76% 40%;
+  --danger: 0 72% 51%;
+  --success: 142 71% 45%;
+  --shadow-soft: 0 20px 50px rgba(0, 0, 0, 0.25);
+  --shadow-card: 0 12px 32px rgba(0, 0, 0, 0.28);
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+  --bg: 0 0% 98%;
+  --panel: 0 0% 100%;
+  --panel-strong: 210 40% 96%;
+  --border: 220 13% 85%;
+  --text: 222 47% 11%;
+  --muted: 215 16% 45%;
+  --accent: 217 91% 55%;
+  --accent-2: 168 66% 35%;
+  --danger: 0 72% 45%;
+  --success: 142 71% 40%;
+  --shadow-soft: 0 16px 30px rgba(15, 23, 42, 0.12);
+  --shadow-card: 0 10px 24px rgba(15, 23, 42, 0.12);
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: hsl(var(--bg));
+  color: hsl(var(--text));
+  -webkit-font-smoothing: antialiased;
 }
 
 * {
-  @apply border-slate-800;
+  border-color: hsl(var(--border));
 }
 
 a {
-  @apply text-slate-100;
+  color: hsl(var(--text));
+  text-decoration: none;
 }
 
 ::selection {
-  @apply bg-blue-500 text-white;
+  background: hsl(var(--accent));
+  color: #fff;
 }
 
 .scrollbar-muted::-webkit-scrollbar {
@@ -30,9 +62,10 @@ a {
 }
 
 .scrollbar-muted::-webkit-scrollbar-thumb {
-  @apply bg-slate-800 rounded-full;
+  background: hsl(var(--border));
+  border-radius: 9999px;
 }
 
 .scrollbar-muted::-webkit-scrollbar-track {
-  @apply bg-slate-950;
+  background: hsl(var(--bg));
 }

@@ -126,7 +126,7 @@ export default function RecommendationsPage() {
             <select
               value={selectedConnection}
               onChange={(event) => setSelectedConnection(event.target.value)}
-              className="h-10 rounded-md border border-slate-800 bg-slate-900 px-3 text-sm text-slate-100"
+              className="h-10 rounded-md border border-border bg-panel-strong px-3 text-sm text-text"
             >
               <option value="all">Все подключения</option>
               {connections.map((c) => (
@@ -160,7 +160,7 @@ export default function RecommendationsPage() {
                 {items.map((item) => {
                   const Icon = severityIcon[item.severity] || Info;
                   return (
-                    <TableRow key={item.id} className="cursor-pointer hover:bg-slate-900/50" onClick={() => setSelectedItem(item)}>
+                    <TableRow key={item.id} className="cursor-pointer hover:bg-panel-strong" onClick={() => setSelectedItem(item)}>
                       <TableCell>
                         <Badge variant={severityVariant[item.severity] || "outline"} className="gap-1">
                           <Icon className="h-3 w-3" />
@@ -169,18 +169,18 @@ export default function RecommendationsPage() {
                       </TableCell>
                       <TableCell>
                         <div className="font-medium">{item.title}</div>
-                        <div className="text-xs text-slate-500 truncate max-w-md">{item.description}</div>
+                        <div className="text-xs text-muted truncate max-w-md">{item.description}</div>
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">{item.subject_name || `#${item.subject_id}`}</div>
-                        <div className="text-xs text-slate-500 capitalize">{item.subject_type}</div>
+                        <div className="text-xs text-muted capitalize">{item.subject_type}</div>
                       </TableCell>
-                      <TableCell className="text-slate-400 text-sm">
+                      <TableCell className="text-muted text-sm">
                         {new Date(item.created_at).toLocaleDateString()}
                       </TableCell>
                       <TableCell className="text-right">
                         {item.resolved_at ? (
-                          <Badge variant="success" className="gap-1"><CheckCircle2 className="h-3 w-3" /> Done</Badge>
+                          <Badge variant="success" className="gap-1"><CheckCircle2 className="h-3 w-3" /> Готово</Badge>
                         ) : (
                           <Button size="sm" variant="ghost">Открыть</Button>
                         )}
@@ -190,7 +190,7 @@ export default function RecommendationsPage() {
                 })}
                 {!items.length && (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-slate-500 py-8">Нет рекомендаций</TableCell>
+                    <TableCell colSpan={5} className="text-center text-muted py-8">Нет рекомендаций</TableCell>
                   </TableRow>
                 )}
               </TableBody>
@@ -208,18 +208,18 @@ export default function RecommendationsPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="text-sm text-slate-300">{selectedItem?.description}</div>
+            <div className="text-sm text-muted">{selectedItem?.description}</div>
 
-            <div className="bg-slate-900 p-3 rounded border border-slate-800">
-              <div className="text-xs text-slate-500 mb-1 uppercase">Действие</div>
+            <div className="rounded border border-border bg-panel p-3">
+              <div className="mb-1 text-xs uppercase text-muted">Действие</div>
               <div className="text-sm">{selectedItem?.action}</div>
             </div>
 
             {selectedItem?.meta_json && Object.keys(selectedItem.meta_json).length > 0 && (
               <div className="grid grid-cols-2 gap-2 text-xs">
                 {Object.entries(selectedItem.meta_json).map(([k, v]) => (
-                  <div key={k} className="bg-slate-950 p-2 rounded border border-slate-800 flex justify-between">
-                    <span className="text-slate-500">{k}</span>
+                  <div key={k} className="flex justify-between rounded border border-border bg-panel-strong p-2">
+                    <span className="text-muted">{k}</span>
                     <span className="font-mono">{String(v)}</span>
                   </div>
                 ))}
@@ -231,7 +231,7 @@ export default function RecommendationsPage() {
               <Button onClick={handleResolve}>Отметить как сделанное</Button>
             )}
             {selectedItem?.resolved_at && (
-              <div className="text-sm text-emerald-400 flex items-center gap-2">
+              <div className="text-sm text-success flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4" />
                 Выполнено {new Date(selectedItem.resolved_at).toLocaleString()}
               </div>

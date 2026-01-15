@@ -25,8 +25,8 @@ export default function InvitePage() {
     return (
       <Card>
         <CardContent className="space-y-2 py-6">
-          <p className="text-slate-300">Формат ссылки на приглашение изменился.</p>
-          <Link href={`/invite/${encodeURIComponent(token)}`} className="text-blue-400">
+          <p className="text-muted">Формат ссылки на приглашение изменился.</p>
+          <Link href={`/invite/${encodeURIComponent(token)}`} className="text-accent hover:opacity-80">
             Перейти к приглашению
           </Link>
         </CardContent>
@@ -55,8 +55,8 @@ export default function InvitePage() {
     return (
       <Card>
         <CardContent className="space-y-2 py-6">
-          <p className="text-slate-300">Нужно войти, чтобы принять приглашение.</p>
-          <Link href="/login" className="text-blue-400">Перейти ко входу</Link>
+          <p className="text-muted">Нужно войти, чтобы принять приглашение.</p>
+          <Link href="/login" className="text-accent hover:opacity-80">Перейти ко входу</Link>
         </CardContent>
       </Card>
     );
@@ -69,12 +69,12 @@ export default function InvitePage() {
       </CardHeader>
       <CardContent className="space-y-4">
         {token ? (
-          <div className="text-sm text-slate-300">Токен приглашения найден.</div>
+          <div className="text-sm text-muted">Токен приглашения найден.</div>
         ) : (
-          <div className="text-sm text-slate-400">В ссылке нет токена.</div>
+          <div className="text-sm text-muted">В ссылке нет токена.</div>
         )}
-        {error && <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</div>}
-        {status && <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">{status}</div>}
+        {error && <div className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">{error}</div>}
+        {status && <div className="rounded-md border border-success/40 bg-success/10 px-3 py-2 text-sm text-success">{status}</div>}
         <Button onClick={handleAccept} disabled={!token}>{STR.actions.acceptInvite}</Button>
       </CardContent>
     </Card>

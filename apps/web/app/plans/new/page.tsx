@@ -43,8 +43,8 @@ export default function NewPlanPage() {
         <CardTitle>Создание плана</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {error && <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</div>}
-        {notice && <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">{notice}</div>}
+        {error && <div className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">{error}</div>}
+        {notice && <div className="rounded-md border border-success/40 bg-success/10 px-3 py-2 text-sm text-success">{notice}</div>}
         <div className="space-y-2">
           <Label>URL лендинга</Label>
           <Input value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://example.com" />
@@ -56,7 +56,7 @@ export default function NewPlanPage() {
             onChange={(event) => setBusinessDescription(event.target.value)}
             placeholder="Короткое описание"
             rows={3}
-            className="w-full rounded-md border border-slate-800 bg-slate-900 px-3 py-2 text-sm"
+            className="w-full rounded-md border border-border bg-panel px-3 py-2 text-sm text-text placeholder:text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
           />
         </div>
         <div className="space-y-2">

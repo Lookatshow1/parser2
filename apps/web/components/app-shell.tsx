@@ -8,6 +8,7 @@ import { getActiveOrg, getMe, listOrgs, switchOrg } from "../lib/api";
 import { clearOrgId, clearRefreshToken, clearToken, getOrgId, getToken, setOrgId } from "../lib/session";
 import { STR } from "../lib/strings";
 import { cn } from "../lib/utils";
+import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
 
@@ -16,7 +17,8 @@ const navItems = [
   { href: "/connections", label: STR.nav.connections, icon: Activity },
   { href: "/campaigns", label: STR.nav.campaigns, icon: Megaphone },
   { href: "/metrics", label: STR.nav.metrics, icon: BarChart3 },
-  { href: "/recommendations", label: "Рекомендации", icon: Sparkles },
+  { href: "/autopilot", label: STR.nav.autopilot, icon: Sparkles },
+  { href: "/recommendations", label: STR.nav.recommendations, icon: Activity },
   { href: "/orgs/members", label: STR.nav.members, icon: Users },
   { href: "/orgs/audit", label: STR.nav.audit, icon: Activity },
   { href: "/balance", label: STR.nav.balance, icon: CreditCard },
@@ -31,6 +33,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [activeOrgId, setActiveOrgId] = useState<string | null>(getOrgId());
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [loadingOrgs, setLoadingOrgs] = useState(false);
+  const [isDemo, setIsDemo] = useState(false);
 
   const canShowShell = useMemo(() => Boolean(token), [token]);
 
@@ -59,6 +62,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     load();
   }, [token]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setIsDemo(window.location.hostname === "localhost");
+  }, []);
+
   const handleOrgSwitch = async (value: string) => {
     try {
       const orgId = Number(value);
@@ -79,18 +87,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div className="min-h-screen bg-bg">
       <div className="mx-auto flex min-h-screen max-w-7xl">
-        <aside className="hidden w-60 flex-col border-r border-slate-900 bg-slate-950/80 px-4 py-6 lg:flex">
-          <div className="mb-8 text-lg font-semibold text-slate-100">{STR.appName}</div>
+        <aside className="hidden w-64 flex-col border-r border-border bg-panel px-4 py-6 lg:flex">
+          <div className="mb-8 text-lg font-semibold text-text">{STR.appName}</div>
           <nav className="flex flex-col gap-1 text-sm">
             {navItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex items-center gap-2 rounded-md px-3 py-2 text-slate-300 transition-colors hover:bg-slate-900",
-                  pathname === item.href && "bg-slate-900 text-white"
+                  "flex items-center gap-2 rounded-md px-3 py-2 text-muted transition-colors hover:bg-panel-strong hover:text-text",
+                  pathname === item.href && "bg-panel-strong text-text"
                 )}
               >
                 <item.icon className="h-4 w-4" />
@@ -100,16 +108,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </nav>
         </aside>
         <div className="flex flex-1 flex-col">
-          <header className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-900 bg-slate-950/80 px-6 py-4">
+          <header className="flex flex-wrap items-center justify-between gap-4 border-b border-border bg-panel px-6 py-4">
             <div className="flex items-center gap-3">
-              <Link href="/" className="text-lg font-semibold text-slate-100 lg:hidden">
+              <Link href="/" className="text-lg font-semibold text-text lg:hidden">
                 {STR.appName}
               </Link>
               {canShowShell && (
                 <div className="flex items-center gap-2">
-                  <span className="text-xs uppercase text-slate-500">{STR.labels.activeOrg}</span>
+                  <span className="text-xs uppercase text-muted">{STR.labels.activeOrg}</span>
                   <select
-                    className="rounded-md border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+                    className="rounded-md border border-border bg-panel-strong px-3 py-2 text-sm text-text"
                     disabled={loadingOrgs || orgs.length === 0}
                     value={activeOrgId ?? ""}
                     onChange={(event) => handleOrgSwitch(event.target.value)}
@@ -121,6 +129,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       </option>
                     ))}
                   </select>
+                  {isDemo ? <Badge variant="info">Демо</Badge> : null}
                 </div>
               )}
             </div>
@@ -151,7 +160,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </header>
           <main className="flex-1 px-6 py-6">
             {!token && (
-              <div className="mb-6 rounded-lg border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm text-slate-300">
+              <div className="mb-6 rounded-lg border border-border bg-panel-strong px-4 py-3 text-sm text-muted">
                 {STR.messages.loginRequired}
               </div>
             )}

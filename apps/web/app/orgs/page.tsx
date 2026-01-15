@@ -86,9 +86,9 @@ export default function OrgsPage() {
           <CardTitle>{ru.nav.orgs}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {error && <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</div>}
-          {notice && <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">{notice}</div>}
-          <div className="text-sm text-slate-400">
+          {error && <div className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">{error}</div>}
+          {notice && <div className="rounded-md border border-success/40 bg-success/10 px-3 py-2 text-sm text-success">{notice}</div>}
+          <div className="text-sm text-muted">
             {ru.labels.activeOrg}: {activeOrg ? `${activeOrg.name} (#${activeOrg.id})` : "не выбрана"}
           </div>
           <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
@@ -107,7 +107,7 @@ export default function OrgsPage() {
         </CardHeader>
         <CardContent>
           {loading && <Skeleton className="h-20 w-full" />}
-          {!loading && items.length === 0 && <div className="text-sm text-slate-400">Организаций пока нет.</div>}
+          {!loading && items.length === 0 && <div className="text-sm text-muted">Организаций пока нет.</div>}
           {!loading && items.length > 0 && (
             <Table>
               <TableHeader>
@@ -121,7 +121,7 @@ export default function OrgsPage() {
                 {items.map((org) => (
                   <TableRow key={org.id}>
                     <TableCell>#{org.id}</TableCell>
-                    <TableCell className="text-slate-100">{org.name}</TableCell>
+                    <TableCell className="text-text">{org.name}</TableCell>
                     <TableCell className="text-right">
                       <Button variant="secondary" size="sm" onClick={() => handleSwitch(org)}>
                         {ru.actions.switchOrg}
@@ -136,7 +136,7 @@ export default function OrgsPage() {
       </Card>
 
       <Card>
-        <CardContent className="text-sm text-slate-400">
+        <CardContent className="text-sm text-muted">
           Сохранённая организация в браузере: {getOrgId() || "нет"}
         </CardContent>
       </Card>

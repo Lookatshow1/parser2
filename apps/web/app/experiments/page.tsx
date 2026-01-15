@@ -75,10 +75,10 @@ export default function ExperimentsPage() {
           <CardTitle>{ru.nav.experiments}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {error && <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</div>}
-          {notice && <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">{notice}</div>}
+          {error && <div className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">{error}</div>}
+          {notice && <div className="rounded-md border border-success/40 bg-success/10 px-3 py-2 text-sm text-success">{notice}</div>}
           <div className="grid gap-3 md:grid-cols-4">
-            <select value={planId} onChange={(event) => setPlanId(event.target.value)} className="h-10 rounded-md border border-slate-800 bg-slate-900 px-3 text-sm">
+            <select value={planId} onChange={(event) => setPlanId(event.target.value)} className="h-10 rounded-md border border-border bg-panel px-3 text-sm text-text">
               <option value="">Выберите план</option>
               {plans.map((plan) => (
                 <option key={plan.id} value={plan.id}>
@@ -118,7 +118,7 @@ export default function ExperimentsPage() {
                   <TableCell>{item.status}</TableCell>
                   <TableCell>План {item.plan_id ?? "—"}</TableCell>
                   <TableCell className="text-right">
-                    <Link className="text-blue-300 hover:text-blue-200" href={`/experiments/${item.id}`}>
+                    <Link className="text-accent hover:opacity-80" href={`/experiments/${item.id}`}>
                       Отчёт
                     </Link>
                   </TableCell>
@@ -126,7 +126,7 @@ export default function ExperimentsPage() {
               ))}
               {items.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center text-slate-400">Экспериментов пока нет.</TableCell>
+                  <TableCell colSpan={4} className="text-center text-muted">Экспериментов пока нет.</TableCell>
                 </TableRow>
               )}
             </TableBody>

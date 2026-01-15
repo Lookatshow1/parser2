@@ -120,10 +120,10 @@ export default function CatalogPage() {
                       <TableCell>{c.id}</TableCell>
                       <TableCell>{c.name}</TableCell>
                       <TableCell className="font-mono text-xs">{c.external_id}</TableCell>
-                      <TableCell className="text-slate-400">{new Date(c.updated_at).toLocaleString()}</TableCell>
+                      <TableCell className="text-muted">{new Date(c.updated_at).toLocaleString()}</TableCell>
                     </TableRow>
                   ))}
-                  {!campaigns.length && !loading && <TableRow><TableCell colSpan={4} className="text-center text-slate-500">Нет данных</TableCell></TableRow>}
+                  {!campaigns.length && !loading && <TableRow><TableCell colSpan={4} className="text-center text-muted">Нет данных</TableCell></TableRow>}
                 </TableBody>
               </Table>
             </TabsContent>
@@ -147,14 +147,14 @@ export default function CatalogPage() {
                       <TableCell className="font-mono text-xs">{g.campaign_external_id}</TableCell>
                     </TableRow>
                   ))}
-                  {!groups.length && !loading && <TableRow><TableCell colSpan={4} className="text-center text-slate-500">Нет данных</TableCell></TableRow>}
+                  {!groups.length && !loading && <TableRow><TableCell colSpan={4} className="text-center text-muted">Нет данных</TableCell></TableRow>}
                 </TableBody>
               </Table>
             </TabsContent>
 
             <TabsContent value="ads" className="mt-4">
-              <div className="mb-4 p-4 bg-slate-900 rounded-md border border-slate-800">
-                <h3 className="text-sm font-medium mb-2 text-slate-300">Генератор ссылок</h3>
+              <div className="mb-4 rounded-md border border-border bg-panel p-4">
+                <h3 className="mb-2 text-sm font-medium text-muted">Генератор ссылок</h3>
                 <div className="flex gap-2">
                   <Input
                     placeholder="https://example.com/landing"
@@ -162,12 +162,12 @@ export default function CatalogPage() {
                     onChange={e => setUtmUrl(e.target.value)}
                   />
                   {generatedUrl && (
-                    <div className="flex-1 bg-slate-950 border border-slate-800 rounded px-3 py-2 text-sm font-mono truncate text-slate-400">
+                    <div className="flex-1 rounded border border-border bg-panel-strong px-3 py-2 text-sm font-mono text-muted truncate">
                       {generatedUrl}
                     </div>
                   )}
                 </div>
-                <p className="text-xs text-slate-500 mt-2">
+                <p className="mt-2 text-xs text-muted">
                   Введите URL и нажмите кнопку "Link" в таблице, чтобы сгенерировать ссылку с UTM для конкретного объявления.
                 </p>
               </div>
@@ -196,7 +196,7 @@ export default function CatalogPage() {
                       </TableCell>
                     </TableRow>
                   ))}
-                  {!ads.length && !loading && <TableRow><TableCell colSpan={5} className="text-center text-slate-500">Нет данных</TableCell></TableRow>}
+                  {!ads.length && !loading && <TableRow><TableCell colSpan={5} className="text-center text-muted">Нет данных</TableCell></TableRow>}
                 </TableBody>
               </Table>
             </TabsContent>

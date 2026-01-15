@@ -36,8 +36,8 @@ export default function ExperimentReportPage() {
           <CardTitle>Отчёт эксперимента #{id}</CardTitle>
         </CardHeader>
         <CardContent>
-          {error && <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</div>}
-          {report && <div className="text-sm text-slate-300">Статус: {report.status}</div>}
+          {error && <div className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">{error}</div>}
+          {report && <div className="text-sm text-muted">Статус: {report.status}</div>}
         </CardContent>
       </Card>
 
@@ -68,7 +68,7 @@ export default function ExperimentReportPage() {
               ))}
               {report && report.metrics.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-slate-400">Данных пока нет.</TableCell>
+                  <TableCell colSpan={5} className="text-center text-muted">Данных пока нет.</TableCell>
                 </TableRow>
               )}
             </TableBody>
