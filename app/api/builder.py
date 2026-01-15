@@ -24,10 +24,12 @@ from app.db.models import (
     BuilderCampaign,
     BuilderAdGroup,
     BuilderAd,
-    OrgAuditEvent
+    OrgAuditEvent,
+    OrgUtmSettings,
+    CampaignPlan
 )
 from app.db.session import get_db
-from app.utils.utm import build_utm_url
+from app.utils.utm import build_utm_url, build_utm_from_org_settings
 
 router = APIRouter(tags=["builder"])
 
@@ -87,6 +89,35 @@ def create_builder_campaign(
     db.commit()
     db.refresh(campaign)
     log_audit(db, org.id, "campaign_created", "builder_campaign", campaign.id, {"name": campaign.name})
+    db.commit()
+    return campaign
+
+@router.post("/plans/{plan_id}/builder/campaigns", response_model=BuilderCampaignOut)
+def create_builder_campaign_for_plan(
+    plan_id: int,
+    item: BuilderCampaignCreateRequest,
+    org: Organization = Depends(get_current_org),
+    db: Session = Depends(get_db)
+):
+    """Создать кампанию напрямую в плане (без эксперимента)"""
+    plan = db.query(CampaignPlan).filter(
+        CampaignPlan.id == plan_id,
+        CampaignPlan.organization_id == org.id
+    ).first()
+    if not plan:
+        raise HTTPException(status_code=404, detail="План не найден")
+    
+    campaign = BuilderCampaign(
+        organization_id=org.id,
+        plan_id=plan_id,
+        platform=item.platform,
+        name=item.name,
+        status=item.status
+    )
+    db.add(campaign)
+    db.commit()
+    db.refresh(campaign)
+    log_audit(db, org.id, "campaign_created", "builder_campaign", campaign.id, {"name": campaign.name, "plan_id": plan_id})
     db.commit()
     return campaign
 
@@ -260,14 +291,35 @@ def create_builder_ad(
     if not group:
         raise HTTPException(status_code=404, detail="Ad group not found")
 
-    # Validate URL if present
+    # Get organization UTM settings for automatic generation
+    utm_settings = db.query(OrgUtmSettings).filter(OrgUtmSettings.organization_id == org.id).first()
+    
+    # Get campaign and plan for template replacements
+    campaign = db.query(BuilderCampaign).filter(BuilderCampaign.id == group.campaign_id).first()
+    platform = campaign.platform if campaign else None
+    
+    # Validate URL if present and build final_url
     final_url = None
     if item.base_url:
         try:
             parsed = urlparse(item.base_url)
             if not parsed.scheme or not parsed.netloc:
                 raise ValueError("Invalid URL")
-            final_url = build_utm_url(item.base_url, item.utm_json)
+            
+            # Use org settings if available, otherwise use custom utm_json
+            if utm_settings and platform:
+                final_url = build_utm_from_org_settings(
+                    base_url=item.base_url,
+                    org_settings=utm_settings,
+                    platform=platform,
+                    campaign_id=campaign.external_id or str(campaign.id),
+                    ad_group_id=group.external_id or str(group.id),
+                    ad_id=None,  # ad_id will be set after creation
+                    custom_utm=item.utm_json if item.utm_json else None
+                )
+            else:
+                # Fallback to manual UTM building
+                final_url = build_utm_url(item.base_url, item.utm_json or {})
         except ValueError:
             raise HTTPException(status_code=422, detail="Invalid base_url")
 
@@ -312,6 +364,14 @@ def update_builder_ad(
     if item.status is not None:
         ad.status = item.status
 
+    # Get organization UTM settings for automatic generation
+    utm_settings = db.query(OrgUtmSettings).filter(OrgUtmSettings.organization_id == org.id).first()
+    
+    # Get campaign and plan for template replacements
+    group = db.query(BuilderAdGroup).filter(BuilderAdGroup.id == ad.ad_group_id).first()
+    campaign = group.campaign if group else None
+    platform = campaign.platform if campaign else None
+    
     # Recalculate final_url if base_url or utm_json changes
     new_base_url = item.base_url if item.base_url is not None else ad.base_url
     new_utm_json = item.utm_json if item.utm_json is not None else ad.utm_json
@@ -322,7 +382,21 @@ def update_builder_ad(
                 parsed = urlparse(new_base_url)
                 if not parsed.scheme or not parsed.netloc:
                     raise ValueError("Invalid URL")
-                ad.final_url = build_utm_url(new_base_url, new_utm_json)
+                
+                # Use org settings if available
+                if utm_settings and platform and group:
+                    ad.final_url = build_utm_from_org_settings(
+                        base_url=new_base_url,
+                        org_settings=utm_settings,
+                        platform=platform,
+                        campaign_id=campaign.external_id or str(campaign.id) if campaign else None,
+                        ad_group_id=group.external_id or str(group.id) if group else None,
+                        ad_id=ad.external_id or str(ad.id),
+                        custom_utm=new_utm_json if new_utm_json else None
+                    )
+                else:
+                    # Fallback to manual UTM building
+                    ad.final_url = build_utm_url(new_base_url, new_utm_json or {})
             except ValueError:
                 raise HTTPException(status_code=422, detail="Invalid base_url")
         else:

@@ -1,7 +1,7 @@
 from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select, desc, asc
+from sqlalchemy import func, select, desc, asc, text
 from sqlalchemy.orm import Session
 
 from app.api.schemas import (

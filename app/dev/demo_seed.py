@@ -28,7 +28,8 @@ from app.db.models import (
     ChangePlan,
     ChangePlanItem,
     AdCampaign,
-    AdAd
+    AdAd,
+    OrgProfile
 )
 from app.security.credentials_crypto import maybe_encrypt
 from app.services.auth_service import get_password_hash
@@ -69,6 +70,27 @@ def _ensure_org(session: Session, name: str) -> Organization:
         session.add(org)
         session.flush()
     return org
+
+
+def _ensure_org_profile(session: Session, org: Organization) -> OrgProfile:
+    profile = session.query(OrgProfile).filter(OrgProfile.organization_id == org.id).first()
+    if profile is None:
+        profile = OrgProfile(
+            organization_id=org.id,
+            legal_type="ООО",
+            legal_name="Демо-организация",
+            inn="7700000000",
+            kpp="770001001",
+            ogrn="1027700000000",
+            legal_address="Москва, ул. Демонстрационная, 1",
+            email_for_docs="demo@example.com",
+            phone="+7 999 000-00-00",
+            timezone="Europe/Moscow",
+            currency="RUB",
+        )
+        session.add(profile)
+        session.flush()
+    return profile
 
 
 def _ensure_membership(session: Session, user: User, org: Organization, role: str) -> Membership:
@@ -442,6 +464,7 @@ def seed_demo(session: Session) -> dict:
     demo_viewer = _ensure_user(session, DEMO_VIEWER_EMAIL, DEMO_MEMBER_PASSWORD, False)
 
     org = _ensure_org(session, demo_org_name)
+    _ensure_org_profile(session, org)
 
     _ensure_membership(session, demo_user, org, MembershipRole.owner.value)
     _ensure_membership(session, demo_member, org, MembershipRole.member.value)

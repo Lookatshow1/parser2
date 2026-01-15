@@ -57,6 +57,30 @@ class Organization(Base):
     )
 
 
+class OrgProfile(Base):
+    __tablename__ = "org_profiles"
+
+    organization_id: Mapped[int] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    legal_type: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    legal_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    inn: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    kpp: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    ogrn: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    ogrnip: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    legal_address: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    email_for_docs: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    timezone: Mapped[str] = mapped_column(String(64), nullable=False, server_default="Europe/Moscow")
+    currency: Mapped[str] = mapped_column(String(10), nullable=False, server_default="RUB")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -862,6 +886,11 @@ class AdAd(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
     desired_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    target_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    final_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    utm_applied_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    utm_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    url_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
     __table_args__ = (
         UniqueConstraint("connection_id", "external_id", name="uq_ad_ads"),
@@ -879,12 +908,31 @@ class OrgUtmSettings(Base):
     utm_campaign_tpl: Mapped[str] = mapped_column(String(255), server_default="{campaign_id}", nullable=False)
     utm_content_tpl: Mapped[str] = mapped_column(String(255), server_default="{ad_id}", nullable=False)
     utm_term_tpl: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("organization_id", name="uq_org_utm_settings"),
+    )
+
+
+class OrgUtmRule(Base):
+    __tablename__ = "org_utm_rules"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    is_enabled: Mapped[bool] = mapped_column(Boolean, server_default=text("true"), nullable=False)
+    match_platform: Mapped[Platform | None] = mapped_column(Enum(Platform, name="platform_enum"), nullable=True)
+    match_connection_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    match_campaign_contains: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    match_ad_group_contains: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    match_ad_contains: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    template_json: Mapped[dict] = mapped_column(JSONType, nullable=False, server_default='{}')
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
 
     __table_args__ = (
-        UniqueConstraint("organization_id", name="uq_org_utm_settings"),
+        Index("idx_org_utm_rules_org_enabled", "organization_id", "is_enabled"),
     )
 
 class OrgRecommendation(Base):
@@ -911,6 +959,63 @@ class OrgRecommendation(Base):
         UniqueConstraint("organization_id", "connection_id", "subject_type", "subject_id", "code", "valid_from", "valid_to", name="uq_org_recommendations"),
         Index("idx_org_recommendations_org_created", "organization_id", text("created_at DESC")),
         Index("idx_org_recommendations_conn_created", "organization_id", "connection_id", text("created_at DESC")),
+    )
+
+
+class OrgAutomationSettings(Base):
+    __tablename__ = "org_automation_settings"
+
+    organization_id: Mapped[int] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), primary_key=True
+    )
+    is_enabled: Mapped[bool] = mapped_column(Boolean, server_default=text("true"), nullable=False)
+    run_interval_minutes: Mapped[int] = mapped_column(Integer, server_default="1440", nullable=False)
+    last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+
+class OrgAutomationRun(Base):
+    __tablename__ = "org_automation_runs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), server_default="queued", nullable=False)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    result_json: Mapped[dict] = mapped_column(JSONType, server_default='{}', nullable=False)
+    error_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    __table_args__ = (
+        Index("idx_org_automation_runs_org_created", "organization_id", text("created_at DESC")),
+    )
+
+
+class OrgAutomationAction(Base):
+    __tablename__ = "org_automation_actions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    run_id: Mapped[int | None] = mapped_column(ForeignKey("org_automation_runs.id", ondelete="SET NULL"), nullable=True)
+    recommendation_id: Mapped[int | None] = mapped_column(
+        ForeignKey("org_recommendations.id", ondelete="SET NULL"), nullable=True
+    )
+    action_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), server_default="draft", nullable=False)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    payload_json: Mapped[dict] = mapped_column(JSONType, server_default='{}', nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        Index("idx_org_automation_actions_org_status", "organization_id", "status"),
+        Index("idx_org_automation_actions_org_created", "organization_id", text("created_at DESC")),
     )
 
 class ChangePlan(Base):

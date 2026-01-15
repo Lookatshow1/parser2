@@ -4,39 +4,12 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
 from app.api.deps import get_current_org, get_current_user
+from app.api.schemas import ChangePlanOut, ChangePlanItemOut
+from pydantic import BaseModel
 from app.db.models import Organization, User, ChangePlan, ChangePlanItem
 from app.db.session import get_db
 from app.services.change_plans_service import create_plan, add_item, set_plan_status, execute_plan
-from pydantic import BaseModel
-
 router = APIRouter(prefix="/change-plans", tags=["change-plans"])
-
-class ChangePlanItemOut(BaseModel):
-    id: int
-    subject_type: str
-    subject_id: int
-    action_type: str
-    params_json: dict
-    status: str
-    error: str | None = None
-
-    class Config:
-        from_attributes = True
-
-class ChangePlanOut(BaseModel):
-    id: int
-    organization_id: int
-    connection_id: int
-    title: str
-    status: str
-    date_from: date | None = None
-    date_to: date | None = None
-    created_at: str
-    applied_at: str | None = None
-    items: list[ChangePlanItemOut] = []
-
-    class Config:
-        from_attributes = True
 
 class CreatePlanRequest(BaseModel):
     connection_id: int

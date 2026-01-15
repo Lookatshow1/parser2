@@ -992,6 +992,10 @@ class AdAdOut(BaseModel):
     ad_group_external_id: str
     campaign_external_id: str
     name: str
+    target_url: str | None = None
+    final_url: str | None = None
+    url_status: str | None = None
+    utm_applied_at: datetime | None = None
     updated_at: datetime
 
     class Config:
@@ -1007,6 +1011,39 @@ class UtmSettingsOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+class OrgProfileOut(BaseModel):
+    organization_id: int
+    legal_type: str | None = None
+    legal_name: str | None = None
+    inn: str | None = None
+    kpp: str | None = None
+    ogrn: str | None = None
+    ogrnip: str | None = None
+    legal_address: str | None = None
+    email_for_docs: str | None = None
+    phone: str | None = None
+    timezone: str
+    currency: str
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class OrgProfileUpdate(BaseModel):
+    legal_type: str | None = None
+    legal_name: str | None = None
+    inn: str | None = None
+    kpp: str | None = None
+    ogrn: str | None = None
+    ogrnip: str | None = None
+    legal_address: str | None = None
+    email_for_docs: str | None = None
+    phone: str | None = None
+    timezone: str | None = None
+    currency: str | None = None
 
 class UtmSettingsUpdate(BaseModel):
     utm_source: str | None = None
@@ -1024,6 +1061,99 @@ class UtmBuildRequest(BaseModel):
 
 class UtmBuildResponse(BaseModel):
     final_url: str
+
+
+class UtmRuleOut(BaseModel):
+    id: int
+    organization_id: int
+    is_enabled: bool
+    match_platform: Platform | None = None
+    match_connection_id: int | None = None
+    match_campaign_contains: str | None = None
+    match_ad_group_contains: str | None = None
+    match_ad_contains: str | None = None
+    template_json: dict
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class UtmRuleCreate(BaseModel):
+    is_enabled: bool | None = True
+    match_platform: Platform | None = None
+    match_connection_id: int | None = None
+    match_campaign_contains: str | None = None
+    match_ad_group_contains: str | None = None
+    match_ad_contains: str | None = None
+    template_json: dict = Field(default_factory=dict)
+
+
+class UtmRuleUpdate(BaseModel):
+    is_enabled: bool | None = None
+    match_platform: Platform | None = None
+    match_connection_id: int | None = None
+    match_campaign_contains: str | None = None
+    match_ad_group_contains: str | None = None
+    match_ad_contains: str | None = None
+    template_json: dict | None = None
+
+
+class UtmStatusOut(BaseModel):
+    ok: int = 0
+    invalid_url: int = 0
+    blocked_scheme: int = 0
+    missing_url: int = 0
+    unknown: int = 0
+
+
+class AutomationSettingsOut(BaseModel):
+    organization_id: int
+    is_enabled: bool
+    run_interval_minutes: int
+    last_run_at: datetime | None = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class AutomationSettingsUpdate(BaseModel):
+    is_enabled: bool | None = None
+    run_interval_minutes: int | None = None
+
+
+class AutomationRunOut(BaseModel):
+    id: int
+    organization_id: int
+    status: str
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+    result_json: dict
+    error_text: str | None = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class AutomationActionOut(BaseModel):
+    id: int
+    organization_id: int
+    run_id: int | None = None
+    recommendation_id: int | None = None
+    action_type: str
+    status: str
+    title: str
+    description: str
+    payload_json: dict
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
 
 # --- Metrics Breakdown ---
 

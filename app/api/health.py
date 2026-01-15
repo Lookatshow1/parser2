@@ -1,8 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import text
+from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
+from pathlib import Path
+
 from app.db.session import get_db, engine
 from app.api.schemas import HealthResponse, HealthzResponse
 from app.core.config import get_settings
@@ -28,7 +31,8 @@ def health_check(db: Session = Depends(get_db)):
         context = MigrationContext.configure(conn)
         current_rev = context.get_current_revision()
 
-        script = ScriptDirectory.from_config(get_settings().alembic_cfg)
+        alembic_ini = Path(__file__).resolve().parents[2] / "alembic.ini"
+        script = ScriptDirectory.from_config(Config(str(alembic_ini)))
         head_rev = script.get_current_head()
 
         if current_rev != head_rev:

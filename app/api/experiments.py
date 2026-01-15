@@ -8,6 +8,7 @@ from sqlalchemy import desc
 from app.api.schemas import (
     ExperimentCampaignsResponse,
     ExperimentCampaignItem,
+    ExperimentCampaignsRequest,
     MetricAggregateResponse,
     ExperimentSummaryResponse,
     ExperimentCreateRequest,
@@ -20,10 +21,11 @@ from app.api.schemas import (
     SyncRunResponse,
     SyncRunListResponse
 )
-from app.db.models import Platform, Experiment, ExperimentStatus, CampaignPlan, SyncRun, SyncRunStatus
+from app.db.models import Platform, Experiment, ExperimentStatus, CampaignPlan, SyncRun, SyncRunStatus, ExperimentCampaign
 from app.db.session import get_db
 from app.services.sync_service import sync_yandex_campaigns, sync_yandex_metrics
 from app.services.metrics_service import get_experiment_campaigns, get_experiment_metrics, get_experiment_summary
+from app.services.experiment_service import ExperimentService
 from app.core.config import get_settings
 from app.workers.sync_tasks import execute_sync_run
 
@@ -149,6 +151,54 @@ def list_experiment_campaigns(
         "total": total
     }
 
+@router.put("/{experiment_id}/campaigns", response_model=ExperimentCampaignsResponse)
+def update_experiment_campaigns(
+    experiment_id: int,
+    request: ExperimentCampaignsRequest,
+    db: Session = Depends(get_db)
+):
+    # Check experiment exists
+    experiment = db.query(Experiment).get(experiment_id)
+    if not experiment:
+        raise HTTPException(status_code=404, detail="Experiment not found")
+    
+    # Validate items
+    for item in request.items:
+        if not item.campaign_external_id or not item.campaign_external_id.strip():
+            raise HTTPException(status_code=400, detail="campaign_external_id cannot be empty")
+    
+    # Delete existing campaigns for this experiment
+    db.query(ExperimentCampaign).filter(
+        ExperimentCampaign.experiment_id == experiment_id
+    ).delete()
+    
+    # Create new campaigns
+    for item in request.items:
+        campaign = ExperimentCampaign(
+            experiment_id=experiment_id,
+            organization_id=experiment.organization_id,
+            platform=item.platform,
+            campaign_external_id=item.campaign_external_id.strip()
+        )
+        db.add(campaign)
+    
+    db.commit()
+    
+    # Return updated list (all platforms, not filtered)
+    all_campaigns = db.query(ExperimentCampaign).filter(
+        ExperimentCampaign.experiment_id == experiment_id
+    ).all()
+    
+    return {
+        "items": [
+            ExperimentCampaignItem(
+                platform=c.platform,
+                campaign_external_id=c.campaign_external_id
+            ) for c in all_campaigns
+        ],
+        "total": len(all_campaigns)
+    }
+
 @router.get("/{experiment_id}/metrics", response_model=MetricAggregateResponse)
 def get_metrics(
     experiment_id: int,
@@ -173,3 +223,15 @@ def get_summary(
     db: Session = Depends(get_db)
 ):
     return get_experiment_summary(db, experiment_id, date_from, date_to, platform)
+
+@router.get("/{experiment_id}/report", response_model=ExperimentReportResponse)
+def get_experiment_report(
+    experiment_id: int,
+    db: Session = Depends(get_db)
+):
+    experiment = db.query(Experiment).get(experiment_id)
+    if not experiment:
+        raise HTTPException(status_code=404, detail="Experiment not found")
+    
+    service = ExperimentService()
+    return service.report(db, experiment_id)

@@ -136,4 +136,5 @@ def apply_change_plan(self, plan_id: int, correlation_id: str | None = None):
         # Log error
         print(f"Plan execution failed: {e}")
     finally:
-        db.close()
+        if not db_session.is_test_session(db):
+            db.close()

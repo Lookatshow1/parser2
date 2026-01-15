@@ -72,6 +72,12 @@ def list_recommendations(
     total = q.count()
     items = q.order_by(desc(OrgRecommendation.created_at)).limit(limit).offset(offset).all()
 
+    # If there are no recommendations for the period, compute once on demand.
+    if total == 0:
+        compute_recommendations_for_org(db, org.id, date_from, date_to, [connection_id] if connection_id else None)
+        total = q.count()
+        items = q.order_by(desc(OrgRecommendation.created_at)).limit(limit).offset(offset).all()
+
     # Enrich with subject names
     # Collect subject_ids for campaigns
     camp_ids = [i.subject_id for i in items if i.subject_type == "campaign" and i.subject_id]

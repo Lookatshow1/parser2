@@ -10,9 +10,6 @@ from __future__ import annotations
 from alembic import op
 import sqlalchemy as sa
 
-from app.security.credentials_crypto import encryption_enabled, encrypt_credentials, is_encrypted
-
-
 # revision identifiers, used by Alembic.
 revision = "0016_encrypt_existing_credentials"
 down_revision = "0015_org_invites_send_tracking"
@@ -21,6 +18,7 @@ depends_on = None
 
 
 def encrypt_existing_credentials(bind) -> int:
+    from app.security.credentials_crypto import encryption_enabled, encrypt_credentials, is_encrypted
     if not encryption_enabled():
         print("CREDENTIALS_ENC_KEYS not set; skipping credentials encryption.")
         return 0

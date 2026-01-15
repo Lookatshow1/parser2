@@ -2,14 +2,17 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
-from app.api.deps import get_current_org
-from app.db.models import Organization, Connection, AdCampaign, AdAdGroup, AdAd, OrgUtmSettings
+from app.api.deps import get_current_org, get_current_user
+from app.db.models import Organization, Connection, AdCampaign, AdAdGroup, AdAd, OrgUtmSettings, OrgUtmRule, User
 from app.db.session import get_db
 from app.api.schemas import (
     AdCampaignOut, AdAdGroupOut, AdAdOut,
-    UtmSettingsOut, UtmSettingsUpdate, UtmBuildRequest, UtmBuildResponse
+    UtmSettingsOut, UtmSettingsUpdate, UtmBuildRequest, UtmBuildResponse,
+    UtmRuleOut, UtmRuleCreate, UtmRuleUpdate, UtmStatusOut
 )
 from urllib.parse import urlencode, urlparse, parse_qsl, urlunparse
+from app.services.utm_reconcile_service import reconcile_ads_utm_for_connection, get_utm_status_for_connection
+from app.services.audit import log_org_event
 
 router = APIRouter(tags=["catalog"])
 
@@ -177,3 +180,139 @@ def build_utm_link(
     ))
 
     return {"final_url": final_url}
+
+
+@router.get("/settings/utm/rules", response_model=list[UtmRuleOut])
+def list_utm_rules(
+    org: Organization = Depends(get_current_org),
+    db: Session = Depends(get_db),
+):
+    return (
+        db.query(OrgUtmRule)
+        .filter(OrgUtmRule.organization_id == org.id)
+        .order_by(OrgUtmRule.id.asc())
+        .all()
+    )
+
+
+@router.post("/settings/utm/rules", response_model=UtmRuleOut)
+def create_utm_rule(
+    item: UtmRuleCreate,
+    org: Organization = Depends(get_current_org),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    rule = OrgUtmRule(
+        organization_id=org.id,
+        is_enabled=item.is_enabled if item.is_enabled is not None else True,
+        match_platform=item.match_platform,
+        match_connection_id=item.match_connection_id,
+        match_campaign_contains=item.match_campaign_contains,
+        match_ad_group_contains=item.match_ad_group_contains,
+        match_ad_contains=item.match_ad_contains,
+        template_json=item.template_json or {},
+    )
+    db.add(rule)
+    db.commit()
+    db.refresh(rule)
+    log_org_event(
+        db,
+        organization_id=org.id,
+        actor_user_id=user.id,
+        action="utm_rule_changed",
+        subject_type="utm_rule",
+        subject_id=rule.id,
+        meta={"changed_fields": ["created"]},
+    )
+    return rule
+
+
+@router.patch("/settings/utm/rules/{rule_id}", response_model=UtmRuleOut)
+def update_utm_rule(
+    rule_id: int,
+    item: UtmRuleUpdate,
+    org: Organization = Depends(get_current_org),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    rule = (
+        db.query(OrgUtmRule)
+        .filter(OrgUtmRule.id == rule_id, OrgUtmRule.organization_id == org.id)
+        .first()
+    )
+    if not rule:
+        raise HTTPException(status_code=404, detail="Правило не найдено")
+
+    changed: list[str] = []
+    for field in [
+        "is_enabled",
+        "match_platform",
+        "match_connection_id",
+        "match_campaign_contains",
+        "match_ad_group_contains",
+        "match_ad_contains",
+        "template_json",
+    ]:
+        value = getattr(item, field)
+        if value is not None:
+            setattr(rule, field, value)
+            changed.append(field)
+
+    db.commit()
+    db.refresh(rule)
+    if changed:
+        log_org_event(
+            db,
+            organization_id=org.id,
+            actor_user_id=user.id,
+            action="utm_rule_changed",
+            subject_type="utm_rule",
+            subject_id=rule.id,
+            meta={"changed_fields": changed},
+        )
+    return rule
+
+
+@router.post("/connections/{connection_id}/utm/reconcile")
+def reconcile_connection_utm(
+    connection_id: int,
+    org: Organization = Depends(get_current_org),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    conn = db.query(Connection).filter(Connection.id == connection_id, Connection.organization_id == org.id).first()
+    if not conn:
+        raise HTTPException(status_code=404, detail="Подключение не найдено")
+
+    log_org_event(
+        db,
+        organization_id=org.id,
+        actor_user_id=user.id,
+        action="utm_reconcile_started",
+        subject_type="connection",
+        subject_id=conn.id,
+        meta={},
+    )
+    counts = reconcile_ads_utm_for_connection(db, conn)
+    log_org_event(
+        db,
+        organization_id=org.id,
+        actor_user_id=user.id,
+        action="utm_reconcile_finished",
+        subject_type="connection",
+        subject_id=conn.id,
+        meta={"counts": counts},
+    )
+    return {"status": "ok", "counts": counts}
+
+
+@router.get("/connections/{connection_id}/utm/status", response_model=UtmStatusOut)
+def get_connection_utm_status(
+    connection_id: int,
+    org: Organization = Depends(get_current_org),
+    db: Session = Depends(get_db),
+):
+    conn = db.query(Connection).filter(Connection.id == connection_id, Connection.organization_id == org.id).first()
+    if not conn:
+        raise HTTPException(status_code=404, detail="Подключение не найдено")
+    return get_utm_status_for_connection(db, connection_id)

@@ -122,12 +122,18 @@ class ExperimentService:
             session.commit()
 
     def report(self, session: Session, experiment_id: int) -> dict:
+        from app.services.metrics_service import get_experiment_report_metrics
+        
         experiment = session.get(Experiment, experiment_id)
         if experiment is None:
             raise ValueError("Experiment not found")
         rounds = session.scalars(
             select(ExperimentRound).where(ExperimentRound.experiment_id == experiment_id).order_by(ExperimentRound.round_index)
         ).all()
+        
+        # Get metrics for report
+        metrics = get_experiment_report_metrics(session, experiment_id)
+        
         return {
             "experiment_id": experiment.id,
             "status": experiment.status.value,
@@ -135,11 +141,12 @@ class ExperimentService:
                 {
                     "round_index": round_item.round_index,
                     "budget_plan": round_item.budget_plan,
-                    "started_at": round_item.started_at,
-                    "ended_at": round_item.ended_at,
+                    "started_at": round_item.started_at.isoformat() if round_item.started_at else None,
+                    "ended_at": round_item.ended_at.isoformat() if round_item.ended_at else None,
                 }
                 for round_item in rounds
             ],
+            "metrics": metrics,
         }
 
     def _create_round(self, session: Session, experiment: Experiment, round_index: int) -> ExperimentRound:

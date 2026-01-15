@@ -24,10 +24,13 @@ from app.api.sync_runs import router as sync_runs_router
 from app.api.me import router as me_router
 from app.api.builder import router as builder_router
 from app.api.catalog import router as catalog_router
+from app.api.automation import router as automation_router
 from app.api.campaigns import campaigns_router, ad_groups_router, ads_router
 from app.api.recommendations import router as recommendations_router
 from app.api.change_plans import router as change_plans_router
 from app.api.studio import router as studio_router
+from app.api.platforms import router as platforms_router
+from app.api.settings import router as settings_router
 from app.api.schemas import ApiCapabilitiesResponse, ApiVersionResponse, HealthResponse, YandexSyncMetricsRequest
 from app.core.config import get_settings
 from app.core.logging import configure_logging
@@ -79,6 +82,9 @@ def create_app() -> FastAPI:
     api_router.include_router(recommendations_router)
     api_router.include_router(change_plans_router)
     api_router.include_router(studio_router)
+    api_router.include_router(automation_router)
+    api_router.include_router(platforms_router)
+    api_router.include_router(settings_router)
 
     @api_router.get("/version", response_model=ApiVersionResponse)
     def api_version():

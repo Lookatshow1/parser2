@@ -3,9 +3,10 @@ from sqlalchemy.orm import Session
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy import func, select, desc, and_
 from app.db.models import (
-    Connection, MetricSnapshot, AdCampaign, OrgRecommendation, Platform
+    Connection, MetricSnapshot, AdCampaign, OrgRecommendation, Platform, User
 )
 from app.services.audit import log_org_event
+from app.security.credentials_crypto import maybe_decrypt
 
 def compute_recommendations_for_org(
     db: Session,
@@ -27,8 +28,9 @@ def compute_recommendations_for_org(
     updated_count = 0
 
     for conn in connections:
+        credentials = maybe_decrypt(conn.credentials_json or {})
         # 1. MOCK_CONNECTION
-        if conn.credentials_json.get("mock"):
+        if isinstance(credentials, dict) and credentials.get("mock"):
             c, u = _upsert_reco(
                 db, org_id, conn.id, "connection", conn.id,
                 "MOCK_CONNECTION", "info",
@@ -247,13 +249,13 @@ def resolve_recommendation(db: Session, org_id: int, reco_id: int, user_id: int)
     if reco.resolved_at:
         return True # Already resolved
 
+    actor_id = user_id if user_id and db.get(User, user_id) else None
     reco.resolved_at = func.now()
-    reco.resolved_by_user_id = user_id
-
+    reco.resolved_by_user_id = actor_id
     log_org_event(
         db,
         organization_id=org_id,
-        actor_user_id=user_id,
+        actor_user_id=actor_id,
         action="recommendation_resolved",
         subject_type="recommendation",
         subject_id=reco.id,

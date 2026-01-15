@@ -5,6 +5,7 @@ from sqlalchemy import func, text, or_
 from app.db.models import Connection, Experiment, ExperimentCampaign, MetricSnapshot, Platform, CampaignPlan
 from app.services.connector_service import get_connector
 from app.services.ad_catalog_service import refresh_catalog_for_connection
+from app.services.utm_reconcile_service import reconcile_ads_utm_for_connection
 
 
 def _metric_needs_update(stmt):
@@ -271,6 +272,7 @@ def sync_connection_metrics(
     # Refresh catalog
     catalog_stats = refresh_catalog_for_connection(db, connection_id)
     stats["catalog"] = catalog_stats
+    stats["utm_reconcile"] = reconcile_ads_utm_for_connection(db, connection)
 
     stats["date_from"] = date_from.isoformat()
     stats["date_to"] = date_to.isoformat()
