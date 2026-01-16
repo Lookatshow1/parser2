@@ -82,43 +82,45 @@ export default function DraftsPage() {
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {drafts.map((draft) => (
-                        <Card key={draft.id} className="glass-card border-white/5 hover:border-accent/30 transition-colors">
-                            <CardHeader>
-                                <div className="flex justify-between items-start">
-                                    <CardTitle className="text-white truncate pr-2">{draft.name}</CardTitle>
-                                    <span className="text-xs bg-accent/20 text-accent px-2 py-1 rounded-full uppercase tracking-wider font-semibold">
-                                        {draft.platform}
-                                    </span>
-                                </div>
-                                <CardDescription className="text-gray-400">
-                                    {new Date(draft.created_at).toLocaleDateString()}
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="flex justify-between text-sm text-gray-300 mb-2">
-                                    <span>Ad Groups</span>
-                                    <span className="text-white">{draft.ad_groups?.length || 0}</span>
-                                </div>
-                                <div className="flex justify-between text-sm text-gray-300">
-                                    <span>Status</span>
-                                    <span className="capitalize">{draft.status}</span>
-                                </div>
-                            </CardContent>
-                            <CardFooter className="gap-2">
-                                <Button variant="ghost" size="sm" className="w-full text-red-400 hover:text-red-300 hover:bg-red-900/20" onClick={() => handleDelete(draft.id)}>
-                                    <Trash2 className="w-4 h-4" />
-                                </Button>
-                                <Button
-                                    className="w-full bg-white/5 hover:bg-white/10 text-white border border-white/10"
-                                    onClick={() => handlePublish(draft.id)}
-                                    disabled={draft.status === 'published'}
-                                >
-                                    {draft.status === 'published' ? 'Published' : 'Publish to Yandex'} <ArrowRight className="ml-2 w-4 h-4" />
-                                </Button>
-
-                            </CardFooter>
-                        </Card>
+                        <Link key={draft.id} href={`/drafts/${draft.id}`}>
+                            <Card className="glass-card border-white/5 hover:border-accent/30 transition-colors h-full">
+                                <CardHeader>
+                                    <div className="flex justify-between items-start">
+                                        <CardTitle className="text-white truncate pr-2">{draft.name}</CardTitle>
+                                        <span className="text-xs bg-accent/20 text-accent px-2 py-1 rounded-full uppercase tracking-wider font-semibold">
+                                            {draft.platform}
+                                        </span>
+                                    </div>
+                                    <CardDescription className="text-gray-400">
+                                        {new Date(draft.created_at).toLocaleDateString()}
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="flex justify-between text-sm text-gray-300 mb-2">
+                                        <span>Ad Groups</span>
+                                        <span className="text-white">{draft.ad_groups?.length || 0}</span>
+                                    </div>
+                                    <div className="flex justify-between text-sm text-gray-300">
+                                        <span>Status</span>
+                                        <span className="capitalize">{draft.status}</span>
+                                    </div>
+                                </CardContent>
+                                <CardFooter className="gap-2">
+                                    <Button variant="ghost" size="sm" className="w-full text-red-400 hover:text-red-300 hover:bg-red-900/20" onClick={(e) => { e.preventDefault(); handleDelete(draft.id); }}>
+                                        <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                    <Button
+                                        className="w-full bg-white/5 hover:bg-white/10 text-white border border-white/10"
+                                        onClick={(e) => { e.preventDefault(); handlePublish(draft.id); }}
+                                        disabled={draft.status === 'published'}
+                                    >
+                                        {draft.status === 'published' ? 'Published' : 'Publish'} <ArrowRight className="ml-2 w-4 h-4" />
+                                    </Button>
+                                </CardFooter>
+                            </Card>
+                        </Link>
                     ))}
+
                 </div>
             )}
         </div>

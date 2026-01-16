@@ -1,9 +1,8 @@
 from sqlalchemy.orm import Session
 from app.db.models_magic import MagicRun
 from app.db.models_drafts import DraftCampaign, DraftAdGroup, DraftAd
-# Use absolute imports or ensure these exist. I assume models_magic was created earlier.
 from app.core.ai.interfaces import TextProvider
-from app.core.ai.mock_provider import MockTextProvider
+from app.core.ai.openai_provider import get_text_provider
 import logging
 
 logger = logging.getLogger(__name__)
@@ -11,7 +10,8 @@ logger = logging.getLogger(__name__)
 class MagicService:
     def __init__(self, db: Session, ai_provider: TextProvider = None):
         self.db = db
-        self.ai = ai_provider or MockTextProvider()
+        self.ai = ai_provider or get_text_provider()
+
 
     async def create_magic_run(self, org_id: int, user_id: int, input_data: dict) -> MagicRun:
         run = MagicRun(

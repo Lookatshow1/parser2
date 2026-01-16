@@ -1,6 +1,5 @@
 from sqlalchemy.orm import Session
 from app.db.models_billing import BillingAccount, BillingTransaction, BillingDocument
-from app.db.models import Organization
 import uuid
 from datetime import datetime
 
@@ -14,7 +13,8 @@ class BillingService:
             account = BillingAccount(
                 organization_id=org_id,
                 balance=0.0,
-                status="active"
+                reserved_balance=0.0,
+                currency="RUB"
             )
             self.db.add(account)
             self.db.commit()
@@ -24,34 +24,33 @@ class BillingService:
     def process_topup(self, org_id: int, amount: float, description: str = "Manual Topup"):
         account = self.get_or_create_account(org_id)
         
-        # Create Transaction
+        # Create Transaction with correct model fields
         tx = BillingTransaction(
-            account_id=account.id,
-            type="credit",
+            organization_id=org_id,
+            type="topup",
             amount=amount,
-            status="success",
-            description=description,
-            reference_id=str(uuid.uuid4())
+            status="succeeded",
+            provider="mock",
+            external_id=str(uuid.uuid4()),
+            meta_json={"description": description}
         )
         self.db.add(tx)
         
         # Update Balance
         account.balance += amount
-        account.updated_at = datetime.utcnow()
         self.db.commit()
         
         return account
 
     def generate_invoice(self, org_id: int, amount: float) -> BillingDocument:
-        account = self.get_or_create_account(org_id)
+        self.get_or_create_account(org_id)
         
         doc = BillingDocument(
-            account_id=account.id,
+            organization_id=org_id,
             type="invoice",
-            status="pending",
-            document_number=f"INV-{int(datetime.utcnow().timestamp())}",
-            amount=amount,
-            url=f"https://mock-docs.example.com/inv-{org_id}-{int(amount)}.pdf" # Mock URL
+            status="draft",
+            number=f"INV-{int(datetime.utcnow().timestamp())}",
+            meta_json={"amount": amount, "url": f"https://mock-docs.example.com/inv-{org_id}-{int(amount)}.pdf"}
         )
         self.db.add(doc)
         self.db.commit()

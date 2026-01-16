@@ -1,33 +1,54 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BillingApi, BillingAccount } from "@/lib/api";
+import { BillingApi, BillingAccount, BillingTransaction } from "@/lib/api";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CreditCard, Download, Plus } from "lucide-react";
+import { CreditCard, Plus, ArrowUpRight, ArrowDownLeft, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+
 
 export default function BillingPage() {
     const [account, setAccount] = useState<BillingAccount | null>(null);
+    const [transactions, setTransactions] = useState<BillingTransaction[]>([]);
     const [amount, setAmount] = useState("1000");
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        loadBalance();
+        loadData();
     }, []);
 
-    const loadBalance = async () => {
+    const loadData = async () => {
+        setLoading(true);
         try {
-            const acc = await BillingApi.getBalance();
+            const [acc, txs] = await Promise.all([
+                BillingApi.getBalance(),
+                BillingApi.getTransactions()
+            ]);
             setAccount(acc);
+            setTransactions(txs);
         } catch (e) { console.error(e); }
+        finally { setLoading(false); }
     };
 
     const handleTopUp = async () => {
         try {
-            await BillingApi.topTop(Number(amount));
-            loadBalance();
-            alert("Top-up successful!");
-        } catch (e) { alert("Error processing payment"); }
+            await BillingApi.topUp(Number(amount));
+            toast.success(`₽${Number(amount).toLocaleString('ru-RU')} added to your balance`);
+            loadData();
+        } catch (e) { toast.error("Error processing payment"); }
+    };
+
+
+    const formatDate = (dateStr: string) => {
+        return new Date(dateStr).toLocaleDateString('ru-RU', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
     };
 
     return (
@@ -43,7 +64,7 @@ export default function BillingPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-4xl font-bold text-white">
-                            {account ? `$${account.balance.toFixed(2)}` : "Loading..."}
+                            {account ? `₽${Number(account.balance).toLocaleString('ru-RU')}` : "Loading..."}
                         </div>
                         <p className="text-xs text-gray-400 mt-1">
                             Available for ad spend
@@ -75,13 +96,43 @@ export default function BillingPage() {
                 </Card>
             </div>
 
+            {/* Transactions */}
             <div className="mt-12">
-                <h2 className="text-xl font-bold mb-4">Recent Invoices</h2>
+                <h2 className="text-xl font-bold mb-4">Transaction History</h2>
                 <Card className="glass-card border-white/5">
                     <CardContent className="p-0">
-                        <div className="p-4 text-center text-gray-500">
-                            No invoices found.
-                        </div>
+                        {loading ? (
+                            <div className="p-8 flex justify-center">
+                                <Loader2 className="w-6 h-6 text-accent animate-spin" />
+                            </div>
+                        ) : transactions.length === 0 ? (
+                            <div className="p-8 text-center text-gray-500">
+                                No transactions yet.
+                            </div>
+                        ) : (
+                            <div className="divide-y divide-white/5">
+                                {transactions.map((tx) => (
+                                    <div key={tx.id} className="p-4 flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${tx.type === 'topup' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+                                                }`}>
+                                                {tx.type === 'topup' ?
+                                                    <ArrowDownLeft className="h-4 w-4" /> :
+                                                    <ArrowUpRight className="h-4 w-4" />
+                                                }
+                                            </div>
+                                            <div>
+                                                <div className="font-medium text-white capitalize">{tx.type}</div>
+                                                <div className="text-xs text-gray-500">{formatDate(tx.created_at)}</div>
+                                            </div>
+                                        </div>
+                                        <div className={`font-semibold ${tx.type === 'topup' ? 'text-green-400' : 'text-red-400'}`}>
+                                            {tx.type === 'topup' ? '+' : '-'}₽{Number(tx.amount).toLocaleString('ru-RU')}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
             </div>

@@ -1402,6 +1402,10 @@ export const DraftsApi = {
   get: (id: number) => request<DraftCampaign>(`/drafts/${id}`),
   delete: (id: number) => request<void>(`/drafts/${id}`, { method: 'DELETE' }),
   publish: (id: number) => request<{ ok: boolean; external_id: string }>(`/drafts/${id}/publish`, { method: 'POST' }),
+  updateGroup: (groupId: number, data: { name?: string }) =>
+    request<{ ok: boolean }>(`/drafts/groups/${groupId}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  updateAd: (adId: number, data: { title?: string; text?: string; landing_url?: string }) =>
+    request<{ ok: boolean }>(`/drafts/ads/${adId}`, { method: 'PATCH', body: JSON.stringify(data) }),
 };
 
 
@@ -1415,9 +1419,22 @@ export type BillingAccount = {
 
 export const BillingApi = {
   getBalance: () => request<BillingAccount>('/billing/balance'),
-  topTop: (amount: number) => request<BillingAccount>('/billing/topup', { method: 'POST', body: JSON.stringify({ amount }) }),
+  topUp: (amount: number) => request<BillingAccount>('/billing/topup', { method: 'POST', body: JSON.stringify({ amount }) }),
+  getTransactions: () => request<BillingTransaction[]>('/billing/transactions'),
   invoice: (amount: number) => request<{ url: string }>('/billing/invoice', { method: 'POST', body: JSON.stringify({ amount }) }),
+  generateInvoice: (amount: number) => request<{ id: number; number: string; html: string }>('/billing/invoice', { method: 'POST', body: JSON.stringify({ amount }) }),
+  getInvoiceHtml: (invoiceNumber: string) => `${API_BASE_URL}/billing/invoice/${invoiceNumber}/html`,
 };
+
+
+export type BillingTransaction = {
+  id: number;
+  type: string;
+  amount: number;
+  status: string;
+  created_at: string;
+};
+
 
 
 

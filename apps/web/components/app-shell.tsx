@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Activity, BarChart3, ChevronDown, Cog, CreditCard, LayoutDashboard, Megaphone, Sparkles, Users, LogOut, UserCircle2, FileText } from "lucide-react";
+import { Activity, BarChart3, ChevronDown, Cog, CreditCard, LayoutDashboard, Megaphone, Sparkles, Users, LogOut, UserCircle2, FileText, Menu, X } from "lucide-react";
+
 import { getActiveOrg, getMe, listOrgs, switchOrg } from "../lib/api";
 import { clearOrgId, clearRefreshToken, clearToken, getOrgId, getToken, setOrgId } from "../lib/session";
 import { STR } from "../lib/strings";
@@ -16,6 +17,7 @@ const navItems = [
   { href: "/dashboard", label: STR.nav.dashboard, icon: LayoutDashboard },
   { href: "/magic", label: "Magic Create", icon: Sparkles },
   { href: "/drafts", label: "Draft Campaigns", icon: FileText },
+  { href: "/import", label: "Import", icon: Activity },
   { href: "/connections", label: STR.nav.connections, icon: Activity },
   { href: "/campaigns", label: STR.nav.campaigns, icon: Megaphone },
   { href: "/metrics", label: STR.nav.metrics, icon: BarChart3 },
@@ -23,9 +25,10 @@ const navItems = [
   { href: "/recommendations", label: STR.nav.recommendations, icon: Activity },
   { href: "/orgs/members", label: STR.nav.members, icon: Users },
   { href: "/orgs/audit", label: STR.nav.audit, icon: Activity },
-  { href: "/balance", label: STR.nav.balance, icon: CreditCard },
+  { href: "/billing", label: "Billing", icon: CreditCard },
   { href: "/settings", label: STR.nav.settings, icon: Cog },
 ];
+
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -36,8 +39,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [loadingOrgs, setLoadingOrgs] = useState(false);
   const [isDemo, setIsDemo] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const canShowShell = useMemo(() => Boolean(token), [token]);
+
 
   useEffect(() => {
     if (!token) {
@@ -90,7 +95,39 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-bg">
+      {/* Mobile Sidebar Overlay */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setMobileMenuOpen(false)} />
+          <aside className="absolute left-0 top-0 h-full w-64 bg-panel border-r border-border px-4 py-6 animate-slide-in">
+            <div className="flex justify-between items-center mb-8">
+              <div className="text-lg font-semibold text-text">{STR.appName}</div>
+              <button onClick={() => setMobileMenuOpen(false)} className="p-1 text-muted hover:text-text">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <nav className="flex flex-col gap-1 text-sm">
+              {navItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={cn(
+                    "flex items-center gap-2 rounded-md px-3 py-3 text-muted transition-colors hover:bg-panel-strong hover:text-text",
+                    pathname === item.href && "bg-panel-strong text-text"
+                  )}
+                >
+                  <item.icon className="h-5 w-5" />
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
+          </aside>
+        </div>
+      )}
+
       <div className="mx-auto flex min-h-screen max-w-7xl">
+        {/* Desktop Sidebar */}
         <aside className="hidden w-64 flex-col border-r border-border bg-panel px-4 py-6 lg:flex">
           <div className="mb-8 text-lg font-semibold text-text">{STR.appName}</div>
           <nav className="flex flex-col gap-1 text-sm">
@@ -110,12 +147,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </nav>
         </aside>
         <div className="flex flex-1 flex-col">
-          <header className="flex flex-wrap items-center justify-between gap-4 border-b border-border bg-panel px-6 py-4">
+          <header className="flex flex-wrap items-center justify-between gap-4 border-b border-border bg-panel px-4 py-4 lg:px-6">
             <div className="flex items-center gap-3">
+              {/* Mobile hamburger */}
+              <button
+                onClick={() => setMobileMenuOpen(true)}
+                className="p-2 text-muted hover:text-text lg:hidden"
+              >
+                <Menu className="h-5 w-5" />
+              </button>
               <Link href="/" className="text-lg font-semibold text-text lg:hidden">
                 {STR.appName}
               </Link>
               {canShowShell && (
+
                 <div className="flex items-center gap-2">
                   <span className="text-xs uppercase text-muted">{STR.labels.activeOrg}</span>
                   <select

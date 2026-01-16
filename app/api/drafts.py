@@ -57,3 +57,54 @@ async def publish_draft(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+
+# --- Ad Group & Ad Editing ---
+
+from pydantic import BaseModel
+from typing import Optional
+
+class AdGroupUpdate(BaseModel):
+    name: Optional[str] = None
+
+class AdUpdate(BaseModel):
+    title: Optional[str] = None
+    text: Optional[str] = None
+    landing_url: Optional[str] = None
+
+@router.patch("/groups/{group_id}")
+def update_ad_group(
+    group_id: int,
+    payload: AdGroupUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    group = db.query(DraftAdGroup).filter(DraftAdGroup.id == group_id).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="Ad group not found")
+    
+    if payload.name is not None:
+        group.name = payload.name
+    
+    db.commit()
+    return {"ok": True, "id": group.id, "name": group.name}
+
+@router.patch("/ads/{ad_id}")
+def update_ad(
+    ad_id: int,
+    payload: AdUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    ad = db.query(DraftAd).filter(DraftAd.id == ad_id).first()
+    if not ad:
+        raise HTTPException(status_code=404, detail="Ad not found")
+    
+    if payload.title is not None:
+        ad.title = payload.title
+    if payload.text is not None:
+        ad.text = payload.text
+    if payload.landing_url is not None:
+        ad.landing_url = payload.landing_url
+    
+    db.commit()
+    return {"ok": True, "id": ad.id, "title": ad.title, "text": ad.text}
