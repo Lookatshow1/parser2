@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Activity, BarChart3, ChevronDown, Cog, CreditCard, LayoutDashboard, Megaphone, Sparkles, Users, LogOut, UserCircle2 } from "lucide-react";
+import { Activity, BarChart3, ChevronDown, Cog, CreditCard, LayoutDashboard, Megaphone, Sparkles, Users, LogOut, UserCircle2, FileText } from "lucide-react";
 import { getActiveOrg, getMe, listOrgs, switchOrg } from "../lib/api";
 import { clearOrgId, clearRefreshToken, clearToken, getOrgId, getToken, setOrgId } from "../lib/session";
 import { STR } from "../lib/strings";
@@ -14,6 +14,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 
 const navItems = [
   { href: "/dashboard", label: STR.nav.dashboard, icon: LayoutDashboard },
+  { href: "/magic", label: "Magic Create", icon: Sparkles },
+  { href: "/drafts", label: "Draft Campaigns", icon: FileText },
   { href: "/connections", label: STR.nav.connections, icon: Activity },
   { href: "/campaigns", label: STR.nav.campaigns, icon: Megaphone },
   { href: "/metrics", label: STR.nav.metrics, icon: BarChart3 },

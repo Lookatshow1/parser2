@@ -259,3 +259,23 @@ curl -X POST http://localhost:8000/api/events/purchase \\
     }
   }'
 ```
+
+## Magic & Billing Features (New)
+
+### Magic Campaign Wizard
+AI-powered campaign generation located at `/magic`.
+- Input: Landing URL + Description.
+- Output: Generated Campaign, Ad Groups, Ads.
+- Status Check: Polling mechanism via `MagicRun` status.
+
+### Drafts Management
+Manage generated campaigns at `/drafts`.
+- View Drafts: List of all AI-generated campaigns.
+- Publish: Push campaigns to platforms (e.g., Yandex, mocked).
+- Automatic UTM: Appends `utm_source`, `utm_campaign`, `utm_content` on publish.
+
+### Billing & Finance
+Internal ledger system at `/billing`.
+- top-up: Add funds to organization balance (Mock).
+- invoice: Generate PDF invoices for accounting.
+

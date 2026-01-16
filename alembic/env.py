@@ -14,6 +14,9 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from app.db.base import Base
 from app.db import models  # noqa: F401
+from app.db import models_magic  # noqa: F401
+from app.db import models_drafts  # noqa: F401
+from app.db import models_billing  # noqa: F401
 
 config = context.config
 

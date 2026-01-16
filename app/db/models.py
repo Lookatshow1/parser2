@@ -1064,3 +1064,26 @@ class ChangePlanItem(Base):
     __table_args__ = (
         Index("idx_change_plan_items_plan_status", "plan_id", "status"),
     )
+
+
+class AdCreative(Base):
+    __tablename__ = "ad_creatives"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    experiment_id: Mapped[int] = mapped_column(ForeignKey("experiments.id", ondelete="CASCADE"), nullable=False)
+    platform: Mapped[Platform] = mapped_column(Enum(Platform, name="platform_enum"), nullable=False)
+    creative_external_id: Mapped[str] = mapped_column(String, nullable=False)
+    ad_external_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    name: Mapped[str | None] = mapped_column(String, nullable=True)
+    preview_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    payload_json: Mapped[dict | None] = mapped_column(JSONType, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        UniqueConstraint("organization_id", "experiment_id", "platform", "creative_external_id", name="uq_ad_creatives"),
+    )
+

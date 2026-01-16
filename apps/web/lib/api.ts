@@ -62,10 +62,10 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     if (response.status === 401 && typeof window !== "undefined") {
       // Only redirect if not already on login page to avoid loops
       if (!window.location.pathname.startsWith("/login")) {
-          clearToken();
-          clearRefreshToken();
-          clearOrgId();
-          window.location.href = "/login";
+        clearToken();
+        clearRefreshToken();
+        clearOrgId();
+        window.location.href = "/login";
       }
       throw new Error("Требуется авторизация");
     }
@@ -1348,3 +1348,76 @@ export async function dashboardUnifiedTimeseries(payload: {
   }
   return request<UnifiedDashboardResponse>(`/dashboard/unified-timeseries?${params.toString()}`);
 }
+
+// --- Magic API ---
+
+export type MagicRun = {
+  id: number;
+  organization_id: number;
+  status: 'pending' | 'running' | 'success' | 'failed';
+  input_json: any;
+  result_json: any;
+  error?: string;
+  created_at: string;
+};
+
+export const MagicApi = {
+  createRun: (data: { landing_url: string; description?: string }) =>
+    request<MagicRun>('/magic/runs', { method: 'POST', body: JSON.stringify(data) }),
+
+  getRun: (id: number) =>
+    request<MagicRun>(`/magic/runs/${id}`),
+};
+
+// --- Drafts API ---
+
+export type DraftAd = {
+  id: number;
+  ad_group_id: number;
+  title?: string;
+  text?: string;
+  landing_url?: string;
+  payload_json?: any;
+};
+
+export type DraftAdGroup = {
+  id: number;
+  campaign_id: number;
+  name: string;
+  ads: DraftAd[];
+};
+
+export type DraftCampaign = {
+  id: number;
+  name: string;
+  platform: string;
+  status: string;
+  magic_run_id?: number;
+  ad_groups: DraftAdGroup[];
+  created_at: string;
+};
+
+export const DraftsApi = {
+  list: () => request<DraftCampaign[]>('/drafts/'),
+  get: (id: number) => request<DraftCampaign>(`/drafts/${id}`),
+  delete: (id: number) => request<void>(`/drafts/${id}`, { method: 'DELETE' }),
+  publish: (id: number) => request<{ ok: boolean; external_id: string }>(`/drafts/${id}/publish`, { method: 'POST' }),
+};
+
+
+// --- Billing API ---
+
+export type BillingAccount = {
+  id: number;
+  balance: number;
+  status: string;
+};
+
+export const BillingApi = {
+  getBalance: () => request<BillingAccount>('/billing/balance'),
+  topTop: (amount: number) => request<BillingAccount>('/billing/topup', { method: 'POST', body: JSON.stringify({ amount }) }),
+  invoice: (amount: number) => request<{ url: string }>('/billing/invoice', { method: 'POST', body: JSON.stringify({ amount }) }),
+};
+
+
+

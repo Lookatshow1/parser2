@@ -2,70 +2,77 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  color-scheme: dark;
-  --bg: 222 47% 9%;
-  --panel: 222 45% 13%;
-  --panel-strong: 222 43% 16%;
-  --border: 220 20% 24%;
-  --text: 210 40% 96%;
-  --muted: 215 16% 65%;
-  --accent: 217 91% 60%;
-  --accent-2: 168 76% 40%;
-  --danger: 0 72% 51%;
-  --success: 142 71% 45%;
-  --shadow-soft: 0 20px 50px rgba(0, 0, 0, 0.25);
-  --shadow-card: 0 12px 32px rgba(0, 0, 0, 0.28);
+@layer base {
+  :root {
+    color-scheme: dark;
+    /* Premium Dark Theme - "Midnight & Neon" */
+    --bg: 224 71% 4%;     /* Very dark blue-black */
+    --panel: 222 47% 11%; /* Slightly lighter panel */
+    --panel-strong: 217 33% 17%;
+    
+    --border: 217 33% 17%;
+    --text: 210 40% 98%;
+    --muted: 215 20% 65%;
+    
+    /* Brand Colors - "Electronic Blue & Magic Purple" */
+    --accent: 250 100% 70%; /* Soft Purple */
+    --accent-glow: 250 100% 70%; 
+    --accent-2: 190 100% 50%; /* Cyan/Teal */
+    
+    --danger: 0 84% 60%;
+    --success: 142 70% 50%;
+    
+    --radius: 0.75rem;
+    
+    --shadow-soft: 0 20px 50px rgba(0, 0, 0, 0.5);
+    --shadow-card: 0 12px 32px rgba(0, 0, 0, 0.4);
+    
+    /* Magic Gradients */
+    --gradient-magic: linear-gradient(135deg, hsl(250 100% 70%), hsl(320 100% 60%));
+    --gradient-dark: linear-gradient(180deg, rgba(20,20,30,0) 0%, rgba(20,20,30,0.8) 100%);
+  }
+
+  body {
+    @apply bg-bg text-text antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    background-image: 
+        radial-gradient(circle at 15% 50%, rgba(76, 29, 149, 0.08), transparent 25%),
+        radial-gradient(circle at 85% 30%, rgba(6, 182, 212, 0.08), transparent 25%);
+    min-height: 100vh;
+  }
+  
+  /* Smooth Scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-border rounded-full hover:bg-muted/50 transition-colors;
+  }
 }
 
-[data-theme="light"] {
-  color-scheme: light;
-  --bg: 0 0% 98%;
-  --panel: 0 0% 100%;
-  --panel-strong: 210 40% 96%;
-  --border: 220 13% 85%;
-  --text: 222 47% 11%;
-  --muted: 215 16% 45%;
-  --accent: 217 91% 55%;
-  --accent-2: 168 66% 35%;
-  --danger: 0 72% 45%;
-  --success: 142 71% 40%;
-  --shadow-soft: 0 16px 30px rgba(15, 23, 42, 0.12);
-  --shadow-card: 0 10px 24px rgba(15, 23, 42, 0.12);
-}
-
-body {
-  margin: 0;
-  font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  background: hsl(var(--bg));
-  color: hsl(var(--text));
-  -webkit-font-smoothing: antialiased;
-}
-
-* {
-  border-color: hsl(var(--border));
-}
-
-a {
-  color: hsl(var(--text));
-  text-decoration: none;
-}
-
-::selection {
-  background: hsl(var(--accent));
-  color: #fff;
-}
-
-.scrollbar-muted::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-.scrollbar-muted::-webkit-scrollbar-thumb {
-  background: hsl(var(--border));
-  border-radius: 9999px;
-}
-
-.scrollbar-muted::-webkit-scrollbar-track {
-  background: hsl(var(--bg));
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  
+  .glass {
+    @apply bg-panel/60 backdrop-blur-xl border border-white/5;
+  }
+  
+  .glass-card {
+    @apply bg-panel/40 backdrop-blur-lg border border-white/5 shadow-card hover:bg-panel/50 transition-all duration-300;
+  }
+  
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+  
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
 }
