@@ -223,40 +223,37 @@ export default function SettingsPage() {
         <CardContent>
           <div className="space-y-4">
             <div className="text-sm text-muted mb-4">
-              Для генерации рекламных кампаний используется искусственный интеллект.
-              Настройте провайдера AI для работы Magic Create.
+              Выберите модель для генерации рекламных кампаний с Magic Create.
             </div>
 
             <div className="space-y-2">
-              <Label>Провайдер</Label>
+              <Label>Модель генерации</Label>
               <select className="w-full rounded-md border border-border bg-panel-strong px-3 py-2 text-sm text-text">
-                <option value="mock">Демо (без API ключа)</option>
-                <option value="openai">OpenAI (GPT-4)</option>
-                <option value="anthropic">Anthropic (Claude)</option>
+                <optgroup label="OpenAI">
+                  <option value="gpt-4.1">GPT-4.1 (Flagship)</option>
+                  <option value="gpt-4.1-mini">GPT-4.1 Mini (Быстрая)</option>
+                  <option value="gpt-4.1-nano">GPT-4.1 Nano (Лёгкая)</option>
+                  <option value="o4-mini">o4-mini (Reasoning)</option>
+                </optgroup>
+                <optgroup label="Anthropic">
+                  <option value="claude-sonnet-4">Claude Sonnet 4 (Рекомендуемая)</option>
+                  <option value="claude-opus-4">Claude Opus 4 (Мощная)</option>
+                  <option value="claude-3.5-haiku">Claude 3.5 Haiku (Быстрая)</option>
+                </optgroup>
+                <optgroup label="Демо">
+                  <option value="mock">Демо-режим (без API)</option>
+                </optgroup>
               </select>
               <p className="text-xs text-muted">
-                В демо-режиме используются предзаполненные шаблоны. Для реальной генерации укажите API ключ.
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label>OpenAI API Key</Label>
-              <Input
-                type="password"
-                placeholder="sk-..."
-                className="font-mono"
-              />
-              <p className="text-xs text-muted">
-                Задайте переменную окружения OPENAI_API_KEY на сервере для использования OpenAI.
+                Модель влияет на качество и скорость генерации. Рекомендуем Claude Sonnet 4 или GPT-4.1.
               </p>
             </div>
 
             <div className="p-3 bg-accent/10 border border-accent/20 rounded-lg">
-              <div className="text-sm font-medium text-accent mb-1">Быстрый старт</div>
+              <div className="text-sm font-medium text-accent mb-1">💡 Совет</div>
               <div className="text-xs text-muted">
-                1. Получите API ключ на <a href="https://platform.openai.com" target="_blank" className="text-accent hover:underline">platform.openai.com</a><br />
-                2. Установите переменную окружения: <code className="bg-black/30 px-1 rounded">OPENAI_API_KEY=sk-xxx</code><br />
-                3. Перезапустите сервер
+                Для креативов высокого качества используйте GPT-4.1 или Claude Opus 4.
+                Для быстрых тестов подойдёт GPT-4.1 Mini или Claude Haiku.
               </div>
             </div>
           </div>

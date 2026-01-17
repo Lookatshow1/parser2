@@ -35,6 +35,7 @@ from app.api.magic import router as magic_router
 from app.api.drafts import router as drafts_router
 from app.api.billing import router as billing_router
 from app.api.abtests import router as abtests_router
+from app.api.admin import router as admin_router
 
 
 
@@ -97,6 +98,7 @@ def create_app() -> FastAPI:
     api_router.include_router(drafts_router)
     api_router.include_router(billing_router)
     api_router.include_router(abtests_router)
+    api_router.include_router(admin_router)
 
 
 

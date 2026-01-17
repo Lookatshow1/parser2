@@ -20,16 +20,19 @@ class OpenAIProvider(TextProvider):
         if not self.api_key:
             logger.warning("OPENAI_API_KEY not set - OpenAI provider will not work")
     
-    async def generate_text(self, prompt: str, json_schema: dict = None) -> dict | str:
+    async def generate_text(self, prompt: str, system_prompt: str = None, json_schema: dict = None) -> dict | str:
         if not self.api_key:
             raise ValueError("OPENAI_API_KEY not configured")
         
         import httpx
         
+        system_msg = system_prompt or "You are an expert advertising copywriter. Generate creative, engaging ad campaigns in JSON format."
+        
         messages = [
-            {"role": "system", "content": "You are an expert advertising copywriter. Generate creative, engaging ad campaigns in JSON format."},
+            {"role": "system", "content": system_msg},
             {"role": "user", "content": prompt}
         ]
+
         
         request_body = {
             "model": self.model,

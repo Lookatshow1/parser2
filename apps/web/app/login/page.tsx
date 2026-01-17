@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { toast } from "sonner";
+import { Sparkles, ArrowLeft, Loader2 } from "lucide-react";
 import { demoSeed, loginUser } from "../../lib/api";
 import { STR } from "../../lib/strings";
 import { setRefreshToken, setToken } from "../../lib/session";
@@ -17,7 +19,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const [demoLoading, setDemoLoading] = useState(false);
 
   useEffect(() => {
@@ -28,13 +30,14 @@ export default function LoginPage() {
 
   const handleLogin = async () => {
     setError(null);
-    setNotice(null);
+    setLoading(true);
+
     try {
       const token = await loginUser({ email, password });
       setToken(token.access_token);
       setRefreshToken(token.refresh_token);
-      setNotice(STR.messages.loginSuccess);
       toast.success(STR.messages.loginSuccess);
+
       if (inviteToken) {
         router.push(`/invite/${encodeURIComponent(inviteToken)}`);
         return;
@@ -44,13 +47,15 @@ export default function LoginPage() {
       const message = (err as Error).message;
       setError(message);
       toast.error(message);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleDemo = async () => {
     setError(null);
-    setNotice(null);
     setDemoLoading(true);
+
     try {
       const demo = await demoSeed();
       if (demo.demo_user_email) {
@@ -59,7 +64,6 @@ export default function LoginPage() {
       if (demo.demo_password) {
         setPassword(demo.demo_password);
       }
-      setNotice(STR.messages.demoReady);
       toast.success(STR.messages.demoReady);
     } catch (err) {
       const message = (err as Error).message;
@@ -71,45 +75,105 @@ export default function LoginPage() {
   };
 
   return (
-    <Card className="mx-auto max-w-md">
-      <CardHeader>
-        <CardTitle>{STR.nav.login}</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-          {error && <div className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">{error}</div>}
-          {notice && <div className="rounded-md border border-success/40 bg-success/10 px-3 py-2 text-sm text-success">{notice}</div>}
-        <div className="space-y-2">
-          <Label htmlFor="login-email">{STR.labels.email}</Label>
-          <Input
-            id="login-email"
-            type="email"
-            placeholder="почта@example.com"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="login-password">{STR.labels.password}</Label>
-          <Input
-            id="login-password"
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-          />
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button onClick={handleLogin}>{STR.actions.login}</Button>
-          <Button
-            variant="secondary"
-            onClick={() => router.push(inviteToken ? `/signup?invite=${encodeURIComponent(inviteToken)}` : "/signup")}
-          >
-            {STR.actions.signup}
-          </Button>
-          <Button variant="secondary" onClick={handleDemo} disabled={demoLoading}>
-            {STR.actions.demoAccess}
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="min-h-screen bg-gradient-to-br from-[#0a0a0f] via-[#0f0f1a] to-[#1a0a20] flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        {/* Back Link */}
+        <Link href="/" className="inline-flex items-center text-gray-400 hover:text-white mb-6">
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          На главную
+        </Link>
+
+        <Card className="bg-white/5 border-white/10 backdrop-blur-xl">
+          <CardHeader className="text-center">
+            <div className="w-16 h-16 rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-600 flex items-center justify-center mx-auto mb-4">
+              <Sparkles className="h-8 w-8 text-white" />
+            </div>
+            <CardTitle className="text-2xl text-white">{STR.nav.login}</CardTitle>
+          </CardHeader>
+
+          <CardContent className="space-y-4">
+            {error && (
+              <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+                {error}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="login-email" className="text-gray-300">{STR.labels.email}</Label>
+              <Input
+                id="login-email"
+                type="email"
+                placeholder="почта@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="bg-black/30 border-white/10 text-white placeholder:text-gray-500"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="login-password" className="text-gray-300">{STR.labels.password}</Label>
+              <Input
+                id="login-password"
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="bg-black/30 border-white/10 text-white placeholder:text-gray-500"
+              />
+            </div>
+
+            <Button
+              onClick={handleLogin}
+              disabled={loading}
+              className="w-full bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Входим...
+                </>
+              ) : (
+                STR.actions.login
+              )}
+            </Button>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-white/10"></div>
+              </div>
+              <div className="relative flex justify-center text-xs">
+                <span className="bg-[#0f0f1a] px-2 text-gray-500">или</span>
+              </div>
+            </div>
+
+            <Button
+              variant="outline"
+              onClick={handleDemo}
+              disabled={demoLoading}
+              className="w-full border-white/10 text-gray-300 hover:bg-white/5"
+            >
+              {demoLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Подготовка...
+                </>
+              ) : (
+                STR.actions.demoAccess
+              )}
+            </Button>
+
+            <div className="text-center text-sm text-gray-400">
+              Нет аккаунта?{" "}
+              <Link
+                href={inviteToken ? `/signup?invite=${encodeURIComponent(inviteToken)}` : "/signup"}
+                className="text-violet-400 hover:text-violet-300"
+              >
+                Зарегистрироваться
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   );
 }

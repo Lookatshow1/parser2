@@ -41,7 +41,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [isDemo, setIsDemo] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const canShowShell = useMemo(() => Boolean(token), [token]);
+  // Check if current page is a public page that should bypass the shell
+  const publicPages = ["/", "/login", "/signup", "/adminskaya-panel/login"];
+  const isPublicPage = publicPages.includes(pathname) || pathname.startsWith("/adminskaya-panel");
+
+  const canShowShell = useMemo(() => Boolean(token) && !isPublicPage, [token, isPublicPage]);
+
+  // If it's a public page, render children directly without shell
+  if (isPublicPage) {
+    return <>{children}</>;
+  }
 
 
   useEffect(() => {
