@@ -3,6 +3,7 @@ import { IBM_Plex_Sans } from "next/font/google";
 import { Toaster } from "sonner";
 import { AppShell } from "../components/app-shell";
 import { ThemeProvider } from "../components/theme-provider";
+import { CommandPalette } from "../components/command-palette";
 import { cn } from "../lib/utils";
 
 export const metadata = {
@@ -23,6 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={cn("font-sans bg-bg text-text", ibm.variable)}>
         <ThemeProvider>
           <AppShell>{children}</AppShell>
+          <CommandPalette />
         </ThemeProvider>
         <Toaster richColors theme="dark" position="top-right" />
       </body>

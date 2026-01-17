@@ -230,15 +230,17 @@ export default function SettingsPage() {
               <Label>Модель генерации</Label>
               <select className="w-full rounded-md border border-border bg-panel-strong px-3 py-2 text-sm text-text">
                 <optgroup label="OpenAI">
-                  <option value="gpt-4.1">GPT-4.1 (Flagship)</option>
-                  <option value="gpt-4.1-mini">GPT-4.1 Mini (Быстрая)</option>
-                  <option value="gpt-4.1-nano">GPT-4.1 Nano (Лёгкая)</option>
-                  <option value="o4-mini">o4-mini (Reasoning)</option>
+                  <option value="chatgpt-5.2">ChatGPT 5.2 (Flagship)</option>
+                  <option value="chatgpt-5.2-mini">ChatGPT 5.2 Mini (Быстрая)</option>
+                  <option value="o3">o3 (Reasoning)</option>
                 </optgroup>
                 <optgroup label="Anthropic">
-                  <option value="claude-sonnet-4">Claude Sonnet 4 (Рекомендуемая)</option>
-                  <option value="claude-opus-4">Claude Opus 4 (Мощная)</option>
-                  <option value="claude-3.5-haiku">Claude 3.5 Haiku (Быстрая)</option>
+                  <option value="claude-opus-4.5">Claude Opus 4.5 (Мощная)</option>
+                  <option value="claude-sonnet-4.5">Claude Sonnet 4.5 (Рекомендуемая)</option>
+                </optgroup>
+                <optgroup label="Google">
+                  <option value="gemini-3-pro">Gemini 3 Pro (Мультимодальная)</option>
+                  <option value="gemini-3-flash">Gemini 3 Flash (Быстрая)</option>
                 </optgroup>
                 <optgroup label="Демо">
                   <option value="mock">Демо-режим (без API)</option>
