@@ -24,7 +24,7 @@ const navItems = [
   { href: "/campaigns", label: STR.nav.campaigns, icon: Megaphone },
   { href: "/connections", label: STR.nav.connections, icon: Cog },
   { href: "/autopilot", label: STR.nav.autopilot, icon: Sparkles },
-  { href: "/billing", label: "Биллинг", icon: CreditCard },
+  { href: "/billing", label: "Оплата", icon: CreditCard },
   { href: "/settings", label: STR.nav.settings, icon: Cog },
 ];
 

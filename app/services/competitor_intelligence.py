@@ -12,7 +12,14 @@ from datetime import datetime
 import httpx
 import re
 import logging
-from bs4 import BeautifulSoup
+
+# Optional BeautifulSoup import
+try:
+    from bs4 import BeautifulSoup
+    HAS_BS4 = True
+except ImportError:
+    HAS_BS4 = False
+    BeautifulSoup = None
 
 from app.core.ai.openai_provider import get_text_provider
 
@@ -127,79 +134,115 @@ class CompetitorIntelligence:
     
     async def _scan_website(self, url: str) -> CompetitorProfile:
         """Scan competitor website for business info."""
+        from urllib.parse import urlparse
+        domain = urlparse(url).netloc
+        
         try:
             response = await self._client.get(url)
-            soup = BeautifulSoup(response.text, "html.parser")
+            html = response.text
             
-            # Extract basic info
-            title = soup.title.string if soup.title else ""
+            if HAS_BS4:
+                soup = BeautifulSoup(html, "html.parser")
+                
+                # Extract basic info
+                title = soup.title.string if soup.title else ""
+                
+                meta_desc = soup.find("meta", {"name": "description"})
+                description = meta_desc.get("content", "") if meta_desc else ""
+                
+                # Extract products/services
+                products = []
+                for el in soup.find_all(["h2", "h3"], limit=20):
+                    text = el.get_text(strip=True)
+                    if len(text) < 100 and len(text) > 3:
+                        products.append(text)
+                
+                # Find trust signals
+                trust_signals = []
+                trust_keywords = ["лет на рынке", "клиентов", "гарантия", "сертификат", "лицензия"]
+                for p in soup.find_all("p"):
+                    text = p.get_text(strip=True).lower()
+                    for kw in trust_keywords:
+                        if kw in text:
+                            trust_signals.append(p.get_text(strip=True)[:200])
+                            break
+            else:
+                # Fallback: regex
+                title_match = re.search(r'<title[^>]*>(.*?)</title>', html, re.I | re.S)
+                title = title_match.group(1).strip() if title_match else ""
+                
+                desc_match = re.search(r'<meta[^>]*name=["\']description["\'][^>]*content=["\'](.*?)["\']', html, re.I)
+                description = desc_match.group(1) if desc_match else ""
+                
+                headings = re.findall(r'<h[2-3][^>]*>(.*?)</h[2-3]>', html, re.I | re.S)
+                products = [re.sub(r'<[^>]+>', '', h).strip()[:100] for h in headings if 3 < len(re.sub(r'<[^>]+>', '', h).strip()) < 100]
+                
+                trust_signals = []
             
-            meta_desc = soup.find("meta", {"name": "description"})
-            description = meta_desc.get("content", "") if meta_desc else ""
-            
-            # Find company name (various patterns)
+            # Find company name
             name = title.split("|")[0].split("-")[0].strip() if title else None
-            
-            # Extract products/services
-            products = []
-            for el in soup.find_all(["h2", "h3"], limit=20):
-                text = el.get_text(strip=True)
-                if len(text) < 100 and len(text) > 3:
-                    products.append(text)
-            
-            # Find trust signals
-            trust_signals = []
-            trust_keywords = ["лет на рынке", "клиентов", "гарантия", "сертификат", "лицензия"]
-            for p in soup.find_all("p"):
-                text = p.get_text(strip=True).lower()
-                for kw in trust_keywords:
-                    if kw in text:
-                        trust_signals.append(p.get_text(strip=True)[:200])
-                        break
-            
-            # Extract domain
-            from urllib.parse import urlparse
-            domain = urlparse(url).netloc
             
             return CompetitorProfile(
                 domain=domain,
                 name=name,
                 description=description[:500] if description else None,
                 products=products[:10],
-                trust_signals=trust_signals[:5],
+                trust_signals=trust_signals[:5] if HAS_BS4 else [],
             )
         except Exception as e:
             logger.exception(f"Error scanning {url}: {e}")
-            return CompetitorProfile(domain=url)
+            return CompetitorProfile(domain=domain)
     
     async def _extract_seo_keywords(self, url: str) -> List[str]:
         """Extract SEO keywords from competitor site."""
         try:
             response = await self._client.get(url)
-            soup = BeautifulSoup(response.text, "html.parser")
-            
+            html = response.text
             keywords = set()
             
-            # Meta keywords
-            meta_kw = soup.find("meta", {"name": "keywords"})
-            if meta_kw:
-                for kw in meta_kw.get("content", "").split(","):
-                    kw = kw.strip()
-                    if kw:
-                        keywords.add(kw)
-            
-            # H1-H3 headings
-            for tag in ["h1", "h2", "h3"]:
-                for el in soup.find_all(tag):
-                    text = el.get_text(strip=True)
+            if HAS_BS4:
+                soup = BeautifulSoup(html, "html.parser")
+                
+                # Meta keywords
+                meta_kw = soup.find("meta", {"name": "keywords"})
+                if meta_kw:
+                    for kw in meta_kw.get("content", "").split(","):
+                        kw = kw.strip()
+                        if kw:
+                            keywords.add(kw)
+                
+                # H1-H3 headings
+                for tag in ["h1", "h2", "h3"]:
+                    for el in soup.find_all(tag):
+                        text = el.get_text(strip=True)
+                        if len(text) < 50:
+                            keywords.add(text)
+                
+                # Title words
+                if soup.title and soup.title.string:
+                    for word in soup.title.string.split():
+                        if len(word) > 3:
+                            keywords.add(word)
+            else:
+                # Fallback: regex
+                kw_match = re.search(r'<meta[^>]*name=["\']keywords["\'][^>]*content=["\'](.*?)["\']', html, re.I)
+                if kw_match:
+                    for kw in kw_match.group(1).split(","):
+                        kw = kw.strip()
+                        if kw:
+                            keywords.add(kw)
+                
+                headings = re.findall(r'<h[1-3][^>]*>(.*?)</h[1-3]>', html, re.I | re.S)
+                for h in headings:
+                    text = re.sub(r'<[^>]+>', '', h).strip()
                     if len(text) < 50:
                         keywords.add(text)
-            
-            # Title words
-            if soup.title:
-                for word in soup.title.string.split():
-                    if len(word) > 3:
-                        keywords.add(word)
+                
+                title_match = re.search(r'<title[^>]*>(.*?)</title>', html, re.I | re.S)
+                if title_match:
+                    for word in title_match.group(1).split():
+                        if len(word) > 3:
+                            keywords.add(word)
             
             return list(keywords)[:30]
         except Exception as e:

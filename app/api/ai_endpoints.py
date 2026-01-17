@@ -1,7 +1,7 @@
 """
 Optimization API Endpoints.
 
-Smart auto-optimization, competitor analysis, creative studio APIs.
+Smart auto-optimization, competitor analysis, creative studio, cascade generation APIs.
 """
 from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, Depends, HTTPException
@@ -14,6 +14,8 @@ from app.db.models import User
 from app.services.smart_optimizer import SmartOptimizer, PerformanceMetrics
 from app.services.competitor_intelligence import CompetitorIntelligence
 from app.services.creative_studio import CreativeStudio
+from app.services.cascade_pipeline import CascadeImagePipeline
+from app.services.utm_builder import UTMBuilder
 
 router = APIRouter(prefix="/ai", tags=["AI"])
 
@@ -310,3 +312,115 @@ async def generate_image_prompts(
         return {"prompts": prompts}
     finally:
         await studio.close()
+
+
+# =============================================================================
+# CASCADE GENERATION ENDPOINTS
+# =============================================================================
+
+class CascadeRequest(BaseModel):
+    landing_url: str
+    platform: str = "yandex"
+    description: Optional[str] = None
+    generate_images: bool = True
+    image_count: int = 3
+
+
+@router.post("/cascade/generate")
+async def cascade_generate(
+    payload: CascadeRequest,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Cascade generation: scan → text → image prompts → DALL-E.
+    
+    Full pipeline that scans a landing page, generates ad texts,
+    creates image prompts, and generates images with DALL-E.
+    """
+    pipeline = CascadeImagePipeline()
+    
+    try:
+        result = await pipeline.generate(
+            landing_url=payload.landing_url,
+            platform=payload.platform,
+            description=payload.description,
+            generate_images=payload.generate_images,
+            image_count=min(payload.image_count, 5),
+        )
+        
+        return {
+            "business_name": result.business_name,
+            "business_type": result.business_type,
+            "landing_url": result.landing_url,
+            "platform": result.platform,
+            "creatives": [
+                {
+                    "title": c.title,
+                    "text": c.text,
+                    "approach": c.approach,
+                    "image_prompt": c.image_prompt,
+                    "image_url": c.image_url,
+                }
+                for c in result.creatives
+            ],
+            "creatives_count": len(result.creatives),
+            "images_generated": sum(1 for c in result.creatives if c.image_url),
+            "generated_at": result.generated_at.isoformat(),
+        }
+    finally:
+        await pipeline.close()
+
+
+# =============================================================================
+# UTM BUILDER ENDPOINTS
+# =============================================================================
+
+class UTMRequest(BaseModel):
+    base_url: str
+    utm_source: str
+    utm_medium: str
+    utm_campaign: str
+    utm_term: Optional[str] = None
+    utm_content: Optional[str] = None
+
+
+class UTMPlatformRequest(BaseModel):
+    base_url: str
+    platform: str
+    campaign_name: str
+    ad_id: Optional[str] = None
+    keyword: Optional[str] = None
+
+
+@router.post("/utm/build")
+async def build_utm_url(
+    payload: UTMRequest,
+    current_user: User = Depends(get_current_user),
+):
+    """Build URL with UTM parameters."""
+    url = UTMBuilder.build_url(
+        base_url=payload.base_url,
+        utm_source=payload.utm_source,
+        utm_medium=payload.utm_medium,
+        utm_campaign=payload.utm_campaign,
+        utm_term=payload.utm_term,
+        utm_content=payload.utm_content,
+    )
+    return {"url": url}
+
+
+@router.post("/utm/platform")
+async def build_platform_utm(
+    payload: UTMPlatformRequest,
+    current_user: User = Depends(get_current_user),
+):
+    """Build URL using platform-specific template."""
+    url = UTMBuilder.from_platform(
+        base_url=payload.base_url,
+        platform=payload.platform,
+        campaign_name=payload.campaign_name,
+        ad_id=payload.ad_id,
+        keyword=payload.keyword,
+    )
+    return {"url": url, "platform": payload.platform}
+

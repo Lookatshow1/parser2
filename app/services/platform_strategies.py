@@ -11,8 +11,15 @@ from abc import ABC, abstractmethod
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 import httpx
-from bs4 import BeautifulSoup
 import re
+
+# Optional BeautifulSoup import with fallback
+try:
+    from bs4 import BeautifulSoup
+    HAS_BS4 = True
+except ImportError:
+    HAS_BS4 = False
+    BeautifulSoup = None
 
 
 @dataclass
@@ -98,44 +105,74 @@ class YandexDirectStrategy(PlatformStrategy):
         """Scan a single page."""
         try:
             response = await client.get(url, follow_redirects=True)
-            soup = BeautifulSoup(response.text, "html.parser")
+            html = response.text
             
-            # Extract title
-            title = soup.title.string if soup.title else ""
-            
-            # Extract meta description
-            meta_desc = soup.find("meta", {"name": "description"})
-            description = meta_desc.get("content", "") if meta_desc else ""
-            
-            # Extract meta keywords
-            meta_keywords = soup.find("meta", {"name": "keywords"})
-            keywords_raw = meta_keywords.get("content", "") if meta_keywords else ""
-            keywords = [k.strip() for k in keywords_raw.split(",") if k.strip()]
-            
-            # Extract headings
-            headings = []
-            for tag in ["h1", "h2", "h3"]:
-                for h in soup.find_all(tag):
-                    text = h.get_text(strip=True)
-                    if text and len(text) < 200:
-                        headings.append(text)
-            
-            # Extract content snippets
-            content_snippets = []
-            for p in soup.find_all("p"):
-                text = p.get_text(strip=True)
-                if len(text) > 50 and len(text) < 500:
-                    content_snippets.append(text)
-            
-            # Extract images
-            images = []
-            for img in soup.find_all("img"):
-                src = img.get("src", "")
-                if src and not src.startswith("data:"):
-                    images.append(src)
-            
-            # Try to extract products (e-commerce)
-            products = self._extract_products(soup)
+            # Use BeautifulSoup if available, otherwise regex
+            if HAS_BS4:
+                soup = BeautifulSoup(html, "html.parser")
+                
+                # Extract title
+                title = soup.title.string if soup.title else ""
+                
+                # Extract meta description
+                meta_desc = soup.find("meta", {"name": "description"})
+                description = meta_desc.get("content", "") if meta_desc else ""
+                
+                # Extract meta keywords
+                meta_keywords = soup.find("meta", {"name": "keywords"})
+                keywords_raw = meta_keywords.get("content", "") if meta_keywords else ""
+                keywords = [k.strip() for k in keywords_raw.split(",") if k.strip()]
+                
+                # Extract headings
+                headings = []
+                for tag in ["h1", "h2", "h3"]:
+                    for h in soup.find_all(tag):
+                        text = h.get_text(strip=True)
+                        if text and len(text) < 200:
+                            headings.append(text)
+                
+                # Extract content snippets
+                content_snippets = []
+                for p in soup.find_all("p"):
+                    text = p.get_text(strip=True)
+                    if len(text) > 50 and len(text) < 500:
+                        content_snippets.append(text)
+                
+                # Extract images
+                images = []
+                for img in soup.find_all("img"):
+                    src = img.get("src", "")
+                    if src and not src.startswith("data:"):
+                        images.append(src)
+                
+                # Try to extract products (e-commerce)
+                products = self._extract_products(soup)
+            else:
+                # Fallback: regex-based extraction
+                title_match = re.search(r'<title[^>]*>(.*?)</title>', html, re.I | re.S)
+                title = title_match.group(1).strip() if title_match else ""
+                
+                desc_match = re.search(r'<meta[^>]*name=["\']description["\'][^>]*content=["\'](.*?)["\']', html, re.I)
+                description = desc_match.group(1) if desc_match else ""
+                
+                kw_match = re.search(r'<meta[^>]*name=["\']keywords["\'][^>]*content=["\'](.*?)["\']', html, re.I)
+                keywords_raw = kw_match.group(1) if kw_match else ""
+                keywords = [k.strip() for k in keywords_raw.split(",") if k.strip()]
+                
+                headings = re.findall(r'<h[1-3][^>]*>(.*?)</h[1-3]>', html, re.I | re.S)
+                headings = [re.sub(r'<[^>]+>', '', h).strip()[:200] for h in headings if h.strip()]
+                
+                content_snippets = re.findall(r'<p[^>]*>(.*?)</p>', html, re.I | re.S)
+                content_snippets = [
+                    re.sub(r'<[^>]+>', '', p).strip()
+                    for p in content_snippets
+                    if 50 < len(re.sub(r'<[^>]+>', '', p).strip()) < 500
+                ]
+                
+                images = re.findall(r'<img[^>]*src=["\']([^"\']+)["\']', html, re.I)
+                images = [i for i in images if not i.startswith("data:")]
+                
+                products = []
             
             return ScannedPage(
                 url=url,

@@ -7,8 +7,20 @@ import { CommandPalette } from "../components/command-palette";
 import { cn } from "../lib/utils";
 
 export const metadata = {
-  title: "Рекламный кабинет",
-  description: "Панель управления рекламой"
+  title: "Effecto — AI-рекламный кабинет",
+  description: "Умная платформа для создания и управления рекламой с помощью AI",
+  icons: {
+    icon: "/favicon.png",
+    shortcut: "/favicon.png",
+    apple: "/favicon.png",
+  },
+  openGraph: {
+    title: "Effecto — AI-рекламный кабинет",
+    description: "Умная платформа для создания и управления рекламой с помощью AI",
+    siteName: "Effecto",
+    locale: "ru_RU",
+    type: "website",
+  },
 };
 
 const ibm = IBM_Plex_Sans({

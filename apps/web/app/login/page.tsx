@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Sparkles, ArrowLeft, Loader2 } from "lucide-react";
-import { demoSeed, loginUser } from "../../lib/api";
+import { loginUser } from "../../lib/api";
 import { STR } from "../../lib/strings";
 import { setRefreshToken, setToken } from "../../lib/session";
 import { Button } from "../../components/ui/button";
@@ -20,7 +20,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [demoLoading, setDemoLoading] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -49,28 +48,6 @@ export default function LoginPage() {
       toast.error(message);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleDemo = async () => {
-    setError(null);
-    setDemoLoading(true);
-
-    try {
-      const demo = await demoSeed();
-      if (demo.demo_user_email) {
-        setEmail(demo.demo_user_email);
-      }
-      if (demo.demo_password) {
-        setPassword(demo.demo_password);
-      }
-      toast.success(STR.messages.demoReady);
-    } catch (err) {
-      const message = (err as Error).message;
-      setError(message);
-      toast.error(message);
-    } finally {
-      setDemoLoading(false);
     }
   };
 
@@ -134,31 +111,6 @@ export default function LoginPage() {
                 </>
               ) : (
                 STR.actions.login
-              )}
-            </Button>
-
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-white/10"></div>
-              </div>
-              <div className="relative flex justify-center text-xs">
-                <span className="bg-[#0f0f1a] px-2 text-gray-500">или</span>
-              </div>
-            </div>
-
-            <Button
-              variant="outline"
-              onClick={handleDemo}
-              disabled={demoLoading}
-              className="w-full border-white/10 text-gray-300 hover:bg-white/5"
-            >
-              {demoLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Подготовка...
-                </>
-              ) : (
-                STR.actions.demoAccess
               )}
             </Button>
 
