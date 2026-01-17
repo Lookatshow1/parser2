@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { ArrowLeft, Save, Send, Loader2, ChevronDown, ChevronRight, Edit2, X, Check } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { STR } from "@/lib/strings";
 
 type EditingAd = { id: number; title: string; text: string } | null;
 
@@ -54,14 +55,14 @@ export default function DraftDetailPage() {
 
     const handlePublish = async () => {
         if (!draft) return;
-        if (!confirm("Publish this campaign?")) return;
+        if (!confirm("Опубликовать эту кампанию на платформе?")) return;
         setPublishing(true);
         try {
             await DraftsApi.publish(draft.id);
-            toast.success("Campaign published successfully!");
+            toast.success(STR.drafts.publishSuccess);
             loadDraft();
         } catch (e) {
-            toast.error("Failed to publish campaign");
+            toast.error(STR.drafts.publishError);
         } finally {
             setPublishing(false);
         }
@@ -80,10 +81,10 @@ export default function DraftDetailPage() {
         try {
             await DraftsApi.updateAd(editingAd.id, { title: editingAd.title, text: editingAd.text });
             setEditingAd(null);
-            toast.success("Ad saved successfully");
+            toast.success(STR.drafts.saveSuccess);
             loadDraft();
         } catch (e) {
-            toast.error("Failed to save ad");
+            toast.error(STR.drafts.saveError);
         } finally {
             setSaving(false);
         }
@@ -101,9 +102,9 @@ export default function DraftDetailPage() {
     if (!draft) {
         return (
             <div className="min-h-screen pt-24 pb-12 px-4 container mx-auto text-white">
-                <h1 className="text-3xl font-bold mb-4">Draft Not Found</h1>
+                <h1 className="text-3xl font-bold mb-4">Черновик не найден</h1>
                 <Link href="/drafts">
-                    <Button variant="outline"><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button>
+                    <Button variant="outline"><ArrowLeft className="mr-2 h-4 w-4" /> Назад</Button>
                 </Link>
             </div>
         );
@@ -114,26 +115,26 @@ export default function DraftDetailPage() {
             <div className="flex justify-between items-start mb-8">
                 <div>
                     <Link href="/drafts" className="text-gray-400 hover:text-white text-sm flex items-center mb-2">
-                        <ArrowLeft className="mr-1 h-3 w-3" /> Back
+                        <ArrowLeft className="mr-1 h-3 w-3" /> Назад к черновикам
                     </Link>
                     <h1 className="text-3xl font-bold">{draft.name}</h1>
                     <div className="flex items-center gap-3 mt-2">
                         <span className="text-xs bg-accent/20 text-accent px-2 py-1 rounded-full uppercase">{draft.platform}</span>
                         <span className={`text-xs px-2 py-1 rounded-full uppercase ${draft.status === 'published' ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'}`}>
-                            {draft.status}
+                            {draft.status === 'published' ? 'Опубликовано' : draft.status === 'draft' ? 'Черновик' : draft.status}
                         </span>
                     </div>
                 </div>
                 <Button onClick={handlePublish} disabled={publishing || draft.status === 'published'} className="bg-accent hover:bg-accent/80">
                     {publishing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                    {draft.status === 'published' ? 'Published' : 'Publish'}
+                    {draft.status === 'published' ? STR.drafts.published : STR.drafts.publish}
                 </Button>
             </div>
 
             <div className="space-y-4">
                 {draft.ad_groups?.length === 0 && (
                     <div className="text-center py-12 border border-dashed border-white/10 rounded-xl">
-                        <p className="text-gray-500">No ad groups in this campaign.</p>
+                        <p className="text-gray-500">Нет групп объявлений в этой кампании.</p>
                     </div>
                 )}
 
@@ -145,7 +146,7 @@ export default function DraftDetailPage() {
                                     {expandedGroups.has(group.id) ? <ChevronDown className="h-4 w-4 text-gray-400" /> : <ChevronRight className="h-4 w-4 text-gray-400" />}
                                     <CardTitle className="text-white">{group.name}</CardTitle>
                                 </div>
-                                <span className="text-xs text-gray-500">{group.ads?.length || 0} ads</span>
+                                <span className="text-xs text-gray-500">{group.ads?.length || 0} объявлений</span>
                             </div>
                         </CardHeader>
 
@@ -158,13 +159,13 @@ export default function DraftDetailPage() {
                                                 <Input
                                                     value={editingAd.title}
                                                     onChange={(e) => setEditingAd({ ...editingAd, title: e.target.value })}
-                                                    placeholder="Title"
+                                                    placeholder="Заголовок"
                                                     className="bg-black/30 border-white/10 text-white"
                                                 />
                                                 <Input
                                                     value={editingAd.text}
                                                     onChange={(e) => setEditingAd({ ...editingAd, text: e.target.value })}
-                                                    placeholder="Description"
+                                                    placeholder="Описание"
                                                     className="bg-black/30 border-white/10 text-white"
                                                 />
                                                 <div className="flex gap-2">
@@ -177,12 +178,12 @@ export default function DraftDetailPage() {
                                         ) : (
                                             <>
                                                 <div className="flex justify-between items-start mb-2">
-                                                    <h4 className="font-medium text-white">{ad.title || "Untitled Ad"}</h4>
+                                                    <h4 className="font-medium text-white">{ad.title || "Без заголовка"}</h4>
                                                     <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white" onClick={() => startEditAd(ad)}>
                                                         <Edit2 className="h-3 w-3" />
                                                     </Button>
                                                 </div>
-                                                <p className="text-sm text-gray-400 mb-2">{ad.text || "No description"}</p>
+                                                <p className="text-sm text-gray-400 mb-2">{ad.text || "Нет описания"}</p>
                                                 {ad.landing_url && (
                                                     <a href={ad.landing_url} target="_blank" rel="noopener noreferrer" className="text-xs text-accent hover:underline">
                                                         {ad.landing_url}
@@ -193,7 +194,7 @@ export default function DraftDetailPage() {
                                     </div>
                                 ))}
                                 {(!group.ads || group.ads.length === 0) && (
-                                    <p className="text-sm text-gray-500 text-center py-4">No ads in this group.</p>
+                                    <p className="text-sm text-gray-500 text-center py-4">Нет объявлений в этой группе.</p>
                                 )}
                             </CardContent>
                         )}

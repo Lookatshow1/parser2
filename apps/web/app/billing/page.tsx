@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CreditCard, Plus, ArrowUpRight, ArrowDownLeft, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { STR } from "@/lib/strings";
 
 
 export default function BillingPage() {
@@ -35,9 +36,9 @@ export default function BillingPage() {
     const handleTopUp = async () => {
         try {
             await BillingApi.topUp(Number(amount));
-            toast.success(`₽${Number(amount).toLocaleString('ru-RU')} added to your balance`);
+            toast.success(`₽${Number(amount).toLocaleString('ru-RU')} ${STR.billing.topUpSuccess.toLowerCase()}`);
             loadData();
-        } catch (e) { toast.error("Error processing payment"); }
+        } catch (e) { toast.error(STR.billing.topUpError); }
     };
 
 
@@ -53,21 +54,21 @@ export default function BillingPage() {
 
     return (
         <div className="min-h-screen pt-24 pb-12 px-4 container mx-auto text-white">
-            <h1 className="text-3xl font-bold mb-8">Billing & Finance</h1>
+            <h1 className="text-3xl font-bold mb-8">{STR.billing.title}</h1>
 
             <div className="grid gap-6 md:grid-cols-2">
                 {/* Balance Card */}
                 <Card className="glass-card bg-gradient-to-br from-panel to-panel-strong border-white/5">
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium text-gray-400">Current Balance</CardTitle>
+                        <CardTitle className="text-sm font-medium text-gray-400">{STR.billing.balance}</CardTitle>
                         <CreditCard className="h-4 w-4 text-accent" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-4xl font-bold text-white">
-                            {account ? `₽${Number(account.balance).toLocaleString('ru-RU')}` : "Loading..."}
+                            {account ? `₽${Number(account.balance).toLocaleString('ru-RU')}` : STR.messages.loading}
                         </div>
                         <p className="text-xs text-gray-400 mt-1">
-                            Available for ad spend
+                            {STR.billing.balanceHint}
                         </p>
                     </CardContent>
                 </Card>
@@ -75,7 +76,7 @@ export default function BillingPage() {
                 {/* Top Up Card */}
                 <Card className="glass-card border-white/5">
                     <CardHeader>
-                        <CardTitle>Add Funds</CardTitle>
+                        <CardTitle>{STR.billing.addFunds}</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="flex gap-2">
@@ -86,11 +87,11 @@ export default function BillingPage() {
                                 className="bg-black/20 border-white/10 text-white"
                             />
                             <Button onClick={handleTopUp} className="bg-accent hover:bg-accent/80">
-                                <Plus className="mr-2 h-4 w-4" /> Top Up
+                                <Plus className="mr-2 h-4 w-4" /> {STR.billing.topUp}
                             </Button>
                         </div>
                         <p className="text-xs text-gray-500">
-                            Mock payment gateway. Funds are added instantly.
+                            {STR.billing.addFundsHint}
                         </p>
                     </CardContent>
                 </Card>
@@ -98,7 +99,7 @@ export default function BillingPage() {
 
             {/* Transactions */}
             <div className="mt-12">
-                <h2 className="text-xl font-bold mb-4">Transaction History</h2>
+                <h2 className="text-xl font-bold mb-4">{STR.billing.transactions}</h2>
                 <Card className="glass-card border-white/5">
                     <CardContent className="p-0">
                         {loading ? (
@@ -107,7 +108,7 @@ export default function BillingPage() {
                             </div>
                         ) : transactions.length === 0 ? (
                             <div className="p-8 text-center text-gray-500">
-                                No transactions yet.
+                                {STR.billing.noTransactions}
                             </div>
                         ) : (
                             <div className="divide-y divide-white/5">
@@ -122,7 +123,9 @@ export default function BillingPage() {
                                                 }
                                             </div>
                                             <div>
-                                                <div className="font-medium text-white capitalize">{tx.type}</div>
+                                                <div className="font-medium text-white capitalize">
+                                                    {tx.type === 'topup' ? 'Пополнение' : tx.type === 'spend' ? 'Списание' : tx.type}
+                                                </div>
                                                 <div className="text-xs text-gray-500">{formatDate(tx.created_at)}</div>
                                             </div>
                                         </div>

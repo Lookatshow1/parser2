@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { registerUserWithInvite } from "../../lib/api";
 import { STR } from "../../lib/strings";
- 
+
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
@@ -31,16 +31,26 @@ export default function SignupPage() {
     setError(null);
     setNotice(null);
     try {
-      await registerUserWithInvite({ email, password, invite_token: inviteToken || undefined });
-      setNotice(STR.messages.accountCreated);
+      const result = await registerUserWithInvite({ email, password, invite_token: inviteToken || undefined });
       toast.success(STR.messages.signupSuccess);
-      router.push(inviteToken ? `/login?invite=${encodeURIComponent(inviteToken)}` : "/login");
+
+      // Auto-login after registration and redirect to Magic
+      const { loginUser } = await import("../../lib/api");
+      const { setToken, setRefreshToken } = await import("../../lib/session");
+
+      const tokens = await loginUser({ email, password });
+      setToken(tokens.access_token);
+      setRefreshToken(tokens.refresh_token);
+
+      // New users go to Magic to create their first campaign
+      router.push("/magic");
     } catch (err) {
       const message = (err as Error).message;
       setError(message);
       toast.error(message);
     }
   };
+
 
   return (
     <Card className="mx-auto max-w-md">

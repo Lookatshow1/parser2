@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion"; // Assuming framer-motion is installed or I'll use simple CSS
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label";
 import { MagicApi, MagicRun } from "@/lib/api";
 import { Loader2, Sparkles, ArrowRight, CheckCircle2, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { STR } from "@/lib/strings";
+import Link from "next/link";
 
 // --- Sub-components ---
 
@@ -32,20 +34,20 @@ function StepInput({ onStart, isLoading }: { onStart: (url: string) => void; isL
                         <Sparkles className="w-8 h-8 text-accent animate-pulse" />
                     </div>
                     <CardTitle className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-accent to-accent-2">
-                        Magic Campaign
+                        {STR.magic.title}
                     </CardTitle>
                     <CardDescription className="text-gray-300">
-                        Enter your landing page, and let AI generate a complete ad campaign for you.
+                        {STR.magic.subtitle}
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div className="space-y-2">
-                            <Label>Landing Page URL</Label>
+                            <Label>{STR.magic.inputLabel}</Label>
                             <Input
                                 value={url}
                                 onChange={(e) => setUrl(e.target.value)}
-                                placeholder="https://example.com"
+                                placeholder={STR.magic.inputPlaceholder}
                                 className="bg-black/20 border-white/10 text-white placeholder:text-gray-500 h-12"
                             />
                         </div>
@@ -55,9 +57,9 @@ function StepInput({ onStart, isLoading }: { onStart: (url: string) => void; isL
                             disabled={isLoading}
                         >
                             {isLoading ? (
-                                <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Analyzing...</>
+                                <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> {STR.magic.analyzing}</>
                             ) : (
-                                <>Generate Magic <ArrowRight className="ml-2 h-5 w-5" /></>
+                                <>{STR.magic.generateButton} <ArrowRight className="ml-2 h-5 w-5" /></>
                             )}
                         </Button>
                     </form>
@@ -76,15 +78,15 @@ function StepProcessing() {
                     <Sparkles className="w-16 h-16 text-accent" />
                 </div>
             </div>
-            <h3 className="mt-8 text-2xl font-bold text-white">Designing your Campaign...</h3>
-            <p className="mt-2 text-gray-400">Analyzing landing page • Selecting keywords • Writing copy</p>
+            <h3 className="mt-8 text-2xl font-bold text-white">{STR.magic.processing}</h3>
+            <p className="mt-2 text-gray-400">{STR.magic.processingHint}</p>
         </div>
     );
 }
 
 function StepSuccess({ run, onReset }: { run: MagicRun; onReset: () => void }) {
     const result = run.result_json || {};
-    const campaignName = result.campaign_name || "New Campaign";
+    const campaignName = result.campaign_name || "Новая кампания";
     const groupCount = result.ad_groups?.length || 0;
 
     return (
@@ -98,9 +100,9 @@ function StepSuccess({ run, onReset }: { run: MagicRun; onReset: () => void }) {
                     <div className="mx-auto bg-green-500/20 p-3 rounded-full w-fit mb-4">
                         <CheckCircle2 className="w-8 h-8 text-green-400" />
                     </div>
-                    <CardTitle className="text-2xl text-white">Transformation Complete!</CardTitle>
+                    <CardTitle className="text-2xl text-white">{STR.magic.successTitle}</CardTitle>
                     <CardDescription className="text-gray-300">
-                        Your campaign has been generated and saved as a draft.
+                        {STR.magic.successDesc}
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -108,11 +110,11 @@ function StepSuccess({ run, onReset }: { run: MagicRun; onReset: () => void }) {
                         <h4 className="text-lg font-semibold text-accent mb-2">{campaignName}</h4>
                         <div className="grid grid-cols-2 gap-4 text-sm text-gray-300">
                             <div className="flex flex-col">
-                                <span className="text-gray-500 mb-1">Ad Groups</span>
+                                <span className="text-gray-500 mb-1">{STR.magic.adGroups}</span>
                                 <span className="text-white text-lg font-medium">{groupCount}</span>
                             </div>
                             <div className="flex flex-col">
-                                <span className="text-gray-500 mb-1">Status</span>
+                                <span className="text-gray-500 mb-1">{STR.drafts.status}</span>
                                 <span className="text-white text-lg font-medium capitalize">{run.status}</span>
                             </div>
                         </div>
@@ -120,11 +122,13 @@ function StepSuccess({ run, onReset }: { run: MagicRun; onReset: () => void }) {
 
                     <div className="flex gap-4">
                         <Button variant="outline" className="flex-1 border-white/10 text-white hover:bg-white/5" onClick={onReset}>
-                            Create Another
+                            {STR.magic.createAnother}
                         </Button>
-                        <Button className="flex-1 bg-accent hover:bg-accent/90">
-                            View Drafts <ArrowRight className="ml-2 w-4 h-4" />
-                        </Button>
+                        <Link href="/drafts" className="flex-1">
+                            <Button className="w-full bg-accent hover:bg-accent/90">
+                                {STR.magic.viewDrafts} <ArrowRight className="ml-2 w-4 h-4" />
+                            </Button>
+                        </Link>
                     </div>
                 </CardContent>
             </Card>
@@ -140,12 +144,12 @@ function StepError({ error, onReset }: { error: string; onReset: () => void }) {
                     <div className="mx-auto bg-red-500/20 p-3 rounded-full w-fit mb-4">
                         <AlertCircle className="w-8 h-8 text-red-400" />
                     </div>
-                    <CardTitle className="text-red-400">Generation Failed</CardTitle>
+                    <CardTitle className="text-red-400">{STR.magic.errorTitle}</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <p className="text-red-200 mb-6">{error}</p>
                     <Button onClick={onReset} variant="outline" className="border-red-500/30 text-red-300 hover:bg-red-500/10">
-                        Try Again
+                        {STR.magic.tryAgain}
                     </Button>
                 </CardContent>
             </Card>
@@ -175,17 +179,17 @@ export function MagicWizard() {
                         setStep('success');
                         clearInterval(interval);
                     } else if (updated.status === 'failed') {
-                        setError(updated.error || "Unknown error");
+                        setError(updated.error || "Неизвестная ошибка");
                         setStep('error');
                         clearInterval(interval);
                     }
                 } catch (e) {
                     console.error("Polling error", e);
                 }
-            }, 1000); // Poll every second for mock speed
+            }, 1000);
 
         } catch (e: any) {
-            setError(e.message);
+            setError(e.message || "Ошибка при создании кампании");
             setStep('error');
         }
     };

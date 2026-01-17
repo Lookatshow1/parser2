@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Activity, BarChart3, ChevronDown, Cog, CreditCard, LayoutDashboard, Megaphone, Sparkles, Users, LogOut, UserCircle2, FileText, Menu, X } from "lucide-react";
+import { Activity, BarChart3, ChevronDown, Cog, CreditCard, LayoutDashboard, Megaphone, Sparkles, Users, LogOut, UserCircle2, FileText, Menu, X, TrendingUp } from "lucide-react";
+
 
 import { getActiveOrg, getMe, listOrgs, switchOrg } from "../lib/api";
 import { clearOrgId, clearRefreshToken, clearToken, getOrgId, getToken, setOrgId } from "../lib/session";
@@ -15,19 +16,18 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 
 const navItems = [
   { href: "/dashboard", label: STR.nav.dashboard, icon: LayoutDashboard },
+  { href: "/analytics", label: "Аналитика", icon: BarChart3 },
   { href: "/magic", label: "Magic Create", icon: Sparkles },
-  { href: "/drafts", label: "Draft Campaigns", icon: FileText },
-  { href: "/import", label: "Import", icon: Activity },
-  { href: "/connections", label: STR.nav.connections, icon: Activity },
+  { href: "/drafts", label: "Черновики", icon: FileText },
+  { href: "/ab-tests", label: "A/B Тесты", icon: Activity },
+  { href: "/budget-optimizer", label: "Оптимизатор", icon: TrendingUp },
   { href: "/campaigns", label: STR.nav.campaigns, icon: Megaphone },
-  { href: "/metrics", label: STR.nav.metrics, icon: BarChart3 },
+  { href: "/connections", label: STR.nav.connections, icon: Cog },
   { href: "/autopilot", label: STR.nav.autopilot, icon: Sparkles },
-  { href: "/recommendations", label: STR.nav.recommendations, icon: Activity },
-  { href: "/orgs/members", label: STR.nav.members, icon: Users },
-  { href: "/orgs/audit", label: STR.nav.audit, icon: Activity },
-  { href: "/billing", label: "Billing", icon: CreditCard },
+  { href: "/billing", label: "Биллинг", icon: CreditCard },
   { href: "/settings", label: STR.nav.settings, icon: Cog },
 ];
+
 
 
 export function AppShell({ children }: { children: React.ReactNode }) {

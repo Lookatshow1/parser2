@@ -214,6 +214,55 @@ export default function SettingsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* AI Settings Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle>ИИ-настройки</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="text-sm text-muted mb-4">
+              Для генерации рекламных кампаний используется искусственный интеллект.
+              Настройте провайдера AI для работы Magic Create.
+            </div>
+
+            <div className="space-y-2">
+              <Label>Провайдер</Label>
+              <select className="w-full rounded-md border border-border bg-panel-strong px-3 py-2 text-sm text-text">
+                <option value="mock">Демо (без API ключа)</option>
+                <option value="openai">OpenAI (GPT-4)</option>
+                <option value="anthropic">Anthropic (Claude)</option>
+              </select>
+              <p className="text-xs text-muted">
+                В демо-режиме используются предзаполненные шаблоны. Для реальной генерации укажите API ключ.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>OpenAI API Key</Label>
+              <Input
+                type="password"
+                placeholder="sk-..."
+                className="font-mono"
+              />
+              <p className="text-xs text-muted">
+                Задайте переменную окружения OPENAI_API_KEY на сервере для использования OpenAI.
+              </p>
+            </div>
+
+            <div className="p-3 bg-accent/10 border border-accent/20 rounded-lg">
+              <div className="text-sm font-medium text-accent mb-1">Быстрый старт</div>
+              <div className="text-xs text-muted">
+                1. Получите API ключ на <a href="https://platform.openai.com" target="_blank" className="text-accent hover:underline">platform.openai.com</a><br />
+                2. Установите переменную окружения: <code className="bg-black/30 px-1 rounded">OPENAI_API_KEY=sk-xxx</code><br />
+                3. Перезапустите сервер
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>{STR.nav.settings}</CardTitle>

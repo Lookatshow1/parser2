@@ -6,11 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Download, CheckCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { STR } from "@/lib/strings";
 
 // Mock connections - in real app, fetch from API
 const MOCK_CONNECTIONS = [
-    { id: 1, name: "Yandex Direct - Main", platform: "yandex" },
-    { id: 2, name: "Yandex Direct - Demo", platform: "yandex" },
+    { id: 1, name: "Яндекс Директ - Основной", platform: "yandex" },
+    { id: 2, name: "Яндекс Директ - Демо", platform: "yandex" },
 ];
 
 export default function ImportPage() {
@@ -22,7 +23,7 @@ export default function ImportPage() {
 
     const handleImport = async () => {
         if (!selectedConnection) {
-            alert("Please select a connection");
+            alert("Выберите подключение");
             return;
         }
 
@@ -37,7 +38,7 @@ export default function ImportPage() {
             setImportedCount(2);
             setSuccess(true);
         } catch (e) {
-            alert("Import failed");
+            alert("Ошибка импорта");
         } finally {
             setImporting(false);
         }
@@ -49,20 +50,20 @@ export default function ImportPage() {
 
     return (
         <div className="min-h-screen pt-24 pb-12 px-4 container mx-auto text-white">
-            <h1 className="text-3xl font-bold mb-2">Import Campaigns</h1>
-            <p className="text-gray-400 mb-8">Import existing campaigns from your ad platforms as drafts.</p>
+            <h1 className="text-3xl font-bold mb-2">{STR.import.title}</h1>
+            <p className="text-gray-400 mb-8">{STR.import.subtitle}</p>
 
             <div className="max-w-xl">
                 <Card className="glass-card border-white/5">
                     <CardHeader>
-                        <CardTitle>Select Connection</CardTitle>
+                        <CardTitle>{STR.import.selectConnection}</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-6">
                         <div>
-                            <label className="text-sm text-gray-400 mb-2 block">Ad Platform Connection</label>
+                            <label className="text-sm text-gray-400 mb-2 block">{STR.import.connectionLabel}</label>
                             <Select value={selectedConnection} onValueChange={setSelectedConnection}>
                                 <SelectTrigger className="bg-black/30 border-white/10 text-white">
-                                    <SelectValue placeholder="Choose a connection..." />
+                                    <SelectValue placeholder={STR.import.connectionPlaceholder} />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {MOCK_CONNECTIONS.map(conn => (
@@ -77,10 +78,10 @@ export default function ImportPage() {
                         {success ? (
                             <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-lg text-center">
                                 <CheckCircle className="w-10 h-10 text-green-400 mx-auto mb-3" />
-                                <p className="text-green-400 font-medium">Import Successful!</p>
-                                <p className="text-sm text-gray-400 mt-1">{importedCount} campaigns imported as drafts</p>
+                                <p className="text-green-400 font-medium">{STR.import.successTitle}</p>
+                                <p className="text-sm text-gray-400 mt-1">{importedCount} {STR.import.successDesc}</p>
                                 <Button onClick={goToDrafts} className="mt-4 bg-accent hover:bg-accent/80">
-                                    View Drafts
+                                    {STR.import.viewDrafts}
                                 </Button>
                             </div>
                         ) : (
@@ -92,19 +93,19 @@ export default function ImportPage() {
                                 {importing ? (
                                     <>
                                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        Importing...
+                                        {STR.import.importing}
                                     </>
                                 ) : (
                                     <>
                                         <Download className="mr-2 h-4 w-4" />
-                                        Import Campaigns
+                                        {STR.import.importButton}
                                     </>
                                 )}
                             </Button>
                         )}
 
                         <p className="text-xs text-gray-500">
-                            This will fetch all active campaigns from the selected platform and create draft copies for review.
+                            {STR.import.hint}
                         </p>
                     </CardContent>
                 </Card>

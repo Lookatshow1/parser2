@@ -4,9 +4,10 @@ import { useEffect, useState } from "react";
 import { DraftsApi, DraftCampaign } from "@/lib/api";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge"; // Assuming this exists or I'll use simple span
-import { Loader2, Trash2, Send, FileText, ArrowRight } from "lucide-react";
+import { Loader2, Trash2, FileText, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { toast } from "sonner";
+import { STR } from "@/lib/strings";
 
 export default function DraftsPage() {
     const [drafts, setDrafts] = useState<DraftCampaign[]>([]);
@@ -29,39 +30,35 @@ export default function DraftsPage() {
     };
 
     const handleDelete = async (id: number) => {
-        if (!confirm("Delete this draft?")) return;
+        if (!confirm(STR.drafts.deleteConfirm)) return;
         try {
             await DraftsApi.delete(id);
             loadDrafts();
         } catch (e) {
-            alert("Failed to delete");
+            console.error(e);
         }
     };
 
     const handlePublish = async (id: number) => {
-        if (!confirm("Publish this campaign to Yandex?")) return;
-        setLoading(true);
         try {
             await DraftsApi.publish(id);
-            alert("Campaign published successfully!");
+            toast.success(STR.drafts.publishSuccess);
             loadDrafts();
         } catch (e) {
-            alert("Failed to publish");
-            setLoading(false);
+            toast.error(STR.drafts.publishError);
         }
     };
 
     return (
-
-        <div className="min-h-screen pt-24 pb-12 px-4 container mx-auto">
-            <div className="flex justify-between items-center mb-10">
+        <div className="min-h-screen pt-24 pb-12 px-4 container mx-auto text-white">
+            <div className="flex justify-between items-center mb-8">
                 <div>
-                    <h1 className="text-3xl font-bold text-white mb-2">Draft Campaigns</h1>
-                    <p className="text-gray-400">Manage and publish your AI-generated campaigns.</p>
+                    <h1 className="text-3xl font-bold">{STR.drafts.title}</h1>
+                    <p className="text-gray-400 mt-1">{STR.drafts.subtitle}</p>
                 </div>
                 <Link href="/magic">
-                    <Button className="bg-accent hover:bg-accent/90">
-                        <span className="mr-2">+</span> New Magic Run
+                    <Button className="bg-accent hover:bg-accent/80">
+                        {STR.drafts.newMagicRun}
                     </Button>
                 </Link>
             </div>
@@ -71,12 +68,12 @@ export default function DraftsPage() {
                     <Loader2 className="w-10 h-10 text-accent animate-spin" />
                 </div>
             ) : drafts.length === 0 ? (
-                <div className="text-center py-20 border border-dashed border-white/10 rounded-2xl">
-                    <FileText className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-                    <h3 className="text-xl font-medium text-white mb-2">No drafts yet</h3>
-                    <p className="text-gray-500 mb-6">Create your first campaign using our Magic Wizard.</p>
+                <div className="text-center py-20 border border-dashed border-white/10 rounded-xl">
+                    <FileText className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                    <h3 className="text-xl font-semibold text-gray-400">{STR.drafts.empty}</h3>
+                    <p className="text-gray-500 mt-2 mb-4">{STR.drafts.emptyHint}</p>
                     <Link href="/magic">
-                        <Button variant="outline">Go to Wizard</Button>
+                        <Button className="bg-accent hover:bg-accent/80">{STR.drafts.goToWizard}</Button>
                     </Link>
                 </div>
             ) : (
@@ -92,16 +89,16 @@ export default function DraftsPage() {
                                         </span>
                                     </div>
                                     <CardDescription className="text-gray-400">
-                                        {new Date(draft.created_at).toLocaleDateString()}
+                                        {new Date(draft.created_at).toLocaleDateString('ru-RU')}
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent>
                                     <div className="flex justify-between text-sm text-gray-300 mb-2">
-                                        <span>Ad Groups</span>
+                                        <span>{STR.magic.adGroups}</span>
                                         <span className="text-white">{draft.ad_groups?.length || 0}</span>
                                     </div>
                                     <div className="flex justify-between text-sm text-gray-300">
-                                        <span>Status</span>
+                                        <span>{STR.drafts.status}</span>
                                         <span className="capitalize">{draft.status}</span>
                                     </div>
                                 </CardContent>
@@ -114,7 +111,7 @@ export default function DraftsPage() {
                                         onClick={(e) => { e.preventDefault(); handlePublish(draft.id); }}
                                         disabled={draft.status === 'published'}
                                     >
-                                        {draft.status === 'published' ? 'Published' : 'Publish'} <ArrowRight className="ml-2 w-4 h-4" />
+                                        {draft.status === 'published' ? STR.drafts.published : STR.drafts.publish} <ArrowRight className="ml-2 w-4 h-4" />
                                     </Button>
                                 </CardFooter>
                             </Card>

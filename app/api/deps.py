@@ -117,3 +117,14 @@ def get_current_membership(
 ) -> Membership:
     _org_id, membership = _resolve_org_membership(user, db, x_org_id)
     return membership
+
+
+def get_current_org_id(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    x_org_id: int | None = Header(default=None, alias="X-Org-Id"),
+) -> int:
+    """Return just the organization ID for the current user."""
+    org_id, _membership = _resolve_org_membership(user, db, x_org_id)
+    return org_id
+
