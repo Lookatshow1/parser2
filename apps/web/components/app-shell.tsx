@@ -10,7 +10,7 @@ import {
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
-import { getToken, clearToken, clearRefreshToken, getOrgId, setOrgId, clearOrgId } from "../lib/auth";
+import { getToken, clearToken, clearRefreshToken, getOrgId, setOrgId, clearOrgId } from "../lib/session";
 import { getMe, listOrgs, getActiveOrg, switchOrg } from "../lib/api";
 import { STR } from "../lib/strings";
 

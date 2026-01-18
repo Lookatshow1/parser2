@@ -454,6 +454,7 @@ export type ChangePlanOut = {
   date_to?: string | null;
   created_at: string;
   applied_at?: string | null;
+  error?: string | null;
   items: ChangePlanItemOut[];
 };
 
@@ -1423,7 +1424,7 @@ export const BillingApi = {
   getTransactions: () => request<BillingTransaction[]>('/billing/transactions'),
   invoice: (amount: number) => request<{ url: string }>('/billing/invoice', { method: 'POST', body: JSON.stringify({ amount }) }),
   generateInvoice: (amount: number) => request<{ id: number; number: string; html: string }>('/billing/invoice', { method: 'POST', body: JSON.stringify({ amount }) }),
-  getInvoiceHtml: (invoiceNumber: string) => `${API_BASE_URL}/billing/invoice/${invoiceNumber}/html`,
+  getInvoiceHtml: (invoiceNumber: string) => `${apiBase}/billing/invoice/${invoiceNumber}/html`,
 };
 
 

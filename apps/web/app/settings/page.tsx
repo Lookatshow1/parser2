@@ -94,8 +94,8 @@ export default function SettingsPage() {
         legal_address: profile.legal_address || null,
         email_for_docs: profile.email_for_docs || null,
         phone: profile.phone || null,
-        timezone: profile.timezone || null,
-        currency: profile.currency || null,
+        timezone: profile.timezone || undefined,
+        currency: profile.currency || undefined,
       });
       toast.success(STR.messages.orgProfileSaved);
     } catch (error) {

@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import Link from "next/link";
 import { Sparkles, ArrowLeft, Rocket, Loader2 } from "lucide-react";
-import { registerUserWithInvite, api } from "../../lib/api";
+import { registerUserWithInvite } from "../../lib/api";
 import { STR } from "../../lib/strings";
 
 import { Button } from "../../components/ui/button";
