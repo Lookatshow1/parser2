@@ -133,7 +133,8 @@ export default function CampaignDetailPage() {
   };
 
   const boardGroups = useMemo(() => {
-    const statusMap: Record<string, typeof tree.ad_groups> = {
+    type AdGroupArray = typeof tree extends null ? never : NonNullable<typeof tree>['ad_groups'];
+    const statusMap: Record<string, AdGroupArray> = {
       draft: [],
       active: [],
       paused: [],

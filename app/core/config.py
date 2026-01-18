@@ -115,6 +115,34 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("DEMO_FORCE_PASSWORD"),
     )
 
+    # AI Keys
+    openai_api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("OPENAI_API_KEY"),
+    )
+    anthropic_api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("ANTHROPIC_API_KEY"),
+    )
+
+    # Integrations
+    telegram_bot_token: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("TELEGRAM_BOT_TOKEN"),
+    )
+    telegram_admin_chat_id: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("TELEGRAM_ADMIN_CHAT_ID"),
+    )
+    yandex_metrica_client_id: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("YANDEX_METRICA_CLIENT_ID"),
+    )
+    yandex_metrica_client_secret: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("YANDEX_METRICA_CLIENT_SECRET"),
+    )
+
 
 @lru_cache
 def get_settings() -> Settings:
