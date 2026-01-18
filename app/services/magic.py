@@ -14,6 +14,7 @@ from app.db.models_magic import MagicRun
 from app.db.models_drafts import DraftCampaign, DraftAdGroup, DraftAd
 from app.core.ai.interfaces import TextProvider, ImageProvider
 from app.core.ai.openai_provider import get_text_provider
+from app.core.ai.dalle_provider import DalleProvider, get_dalle_provider
 from app.core.ai.mock_provider import MockImageProvider
 
 logger = logging.getLogger(__name__)
@@ -33,7 +34,8 @@ TEXT_SYSTEM_PROMPT = """Ты — эксперт по контекстной ре
 - Пиши на русском языке
 - Без кавычек в начале и конце"""
 
-TEXT_USER_PROMPT = """Проанализируй информацию о бизнесе и создай 10 уникальных рекламных объявлений.
+TEXT_USER_PROMPT = """Проанализируй информацию о бизнесе и создай 9 уникальных рекламных объявлений.
+Для каждой ключевой темы создай 3 A/B варианта с разными подходами.
 
 ИНФОРМАЦИЯ О БИЗНЕСЕ:
 {business_info}
@@ -46,12 +48,19 @@ TEXT_USER_PROMPT = """Проанализируй информацию о биз�
     {{
       "title": "Заголовок до 35 символов",
       "text": "Текст до 81 символа с призывом",
-      "approach": "скидка|срочность|уникальность|доверие|выгода"
+      "approach": "emotional|rational|usp",
+      "variant_group": "A|B|C",
+      "theme": "основная тема объявления"
     }}
   ]
 }}
 
-Создай ровно 10 объявлений с разными подходами."""
+Подходы:
+- emotional: эмоциональный, вызывающий чувства
+- rational: рациональный, с фактами и цифрами  
+- usp: уникальное торговое предложение
+
+Создай 9 объявлений: 3 темы × 3 варианта (A, B, C) с разными подходами."""
 
 IMAGE_PROMPT_TEMPLATE = """Создай рекламный баннер для {business_type}:
 - Тема: {theme}
@@ -120,7 +129,15 @@ class MagicService:
     def __init__(self, db: Session, text_provider: TextProvider = None, image_provider: ImageProvider = None):
         self.db = db
         self.text_ai = text_provider or get_text_provider()
-        self.image_ai = image_provider or MockImageProvider()
+        # Use DALL-E if API key available, otherwise mock
+        if image_provider:
+            self.image_ai = image_provider
+        else:
+            import os
+            if os.getenv("OPENAI_API_KEY"):
+                self.image_ai = get_dalle_provider()
+            else:
+                self.image_ai = MockImageProvider()
     
     async def create_magic_run(self, org_id: int, user_id: int, input_data: dict) -> MagicRun:
         """Create a new magic run record."""

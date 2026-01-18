@@ -27,9 +27,35 @@ import { Label } from "../../components/ui/label";
 import { Skeleton } from "../../components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
 
-const platforms = ["yandex", "stub", "ozon", "vk"];
+const platforms = ["yandex", "vk", "ozon"];
+
+const platformInfo: Record<string, {
+  name: string;
+  method: "oauth" | "apikey";
+  description: string;
+  fields: string[];
+}> = {
+  yandex: {
+    name: "Яндекс Директ",
+    method: "oauth",
+    description: "Авторизация через OAuth. Нажмите кнопку и войдите в аккаунт Яндекса.",
+    fields: [],
+  },
+  vk: {
+    name: "VK Реклама",
+    method: "oauth",
+    description: "Авторизация через VK ID. Подключите ваш рекламный кабинет VK.",
+    fields: [],
+  },
+  ozon: {
+    name: "Ozon Performance",
+    method: "apikey",
+    description: "Введите API-ключи из личного кабинета Ozon Seller.",
+    fields: ["client_id", "client_secret"],
+  },
+};
+
 const credentialsTemplates: Record<string, string> = {
-  stub: "{}",
   yandex: JSON.stringify({ mock: true }),
   ozon: JSON.stringify({ client_id: "", client_secret: "" }),
   vk: JSON.stringify({ access_token: "", version: "5.131", account_id: "" }),
@@ -307,23 +333,42 @@ export default function ConnectionsPage() {
               >
                 {platforms.map((item) => (
                   <option key={item} value={item}>
-                    {item}
+                    {platformInfo[item]?.name || item}
                   </option>
                 ))}
               </select>
+              {platformInfo[platform] && (
+                <p className="text-xs text-muted">{platformInfo[platform].description}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Название</Label>
               <Input value={name} onChange={(event) => setName(event.target.value)} placeholder="Мой кабинет" />
             </div>
-            <div className="space-y-2">
-              <Label>{STR.labels.credentials}</Label>
-              <textarea
-                value={credentialsJson}
-                onChange={(event) => setCredentialsJson(event.target.value)}
-                className="h-10 w-full rounded-md border border-border bg-panel-strong px-3 py-2 text-sm text-text"
-              />
-            </div>
+            {platformInfo[platform]?.method === "oauth" ? (
+              <div className="space-y-2">
+                <Label>Авторизация</Label>
+                <Button
+                  variant="secondary"
+                  className="w-full"
+                  onClick={() => {
+                    toast.info(`OAuth для ${platformInfo[platform].name} будет добавлен в следующем релизе`);
+                  }}
+                >
+                  Войти через {platform === "yandex" ? "Яндекс" : "VK"}
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label>{STR.labels.credentials}</Label>
+                <textarea
+                  value={credentialsJson}
+                  onChange={(event) => setCredentialsJson(event.target.value)}
+                  className="h-20 w-full rounded-md border border-border bg-panel-strong px-3 py-2 text-sm text-text font-mono"
+                  placeholder='{"client_id": "...", "client_secret": "..."}'
+                />
+              </div>
+            )}
           </div>
 
           <div className="grid gap-3 md:grid-cols-3">

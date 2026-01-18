@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Activity, BarChart3, ChevronDown, Cog, CreditCard, LayoutDashboard, Megaphone, Sparkles, Users, LogOut, UserCircle2, FileText, Menu, X, TrendingUp } from "lucide-react";
+import { Activity, BarChart3, ChevronDown, Cog, CreditCard, Megaphone, Sparkles, Users, LogOut, UserCircle2, Menu, X } from "lucide-react";
 
 
 import { getActiveOrg, getMe, listOrgs, switchOrg } from "../lib/api";
@@ -15,15 +15,13 @@ import { Button } from "./ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
 
 const navItems = [
-  { href: "/dashboard", label: STR.nav.dashboard, icon: LayoutDashboard },
   { href: "/analytics", label: "Аналитика", icon: BarChart3 },
-  { href: "/magic", label: "Magic Create", icon: Sparkles },
-  { href: "/drafts", label: "Черновики", icon: FileText },
-  { href: "/ab-tests", label: "A/B Тесты", icon: Activity },
-  { href: "/budget-optimizer", label: "Оптимизатор", icon: TrendingUp },
+  { href: "/magic", label: "Магия", icon: Sparkles },
+  { href: "/ads-manager", label: "Управление", icon: Megaphone },
   { href: "/campaigns", label: STR.nav.campaigns, icon: Megaphone },
+  { href: "/competitors", label: "Конкуренты", icon: Activity },
+  { href: "/metrica", label: "Метрика", icon: Activity },
   { href: "/connections", label: STR.nav.connections, icon: Cog },
-  { href: "/autopilot", label: STR.nav.autopilot, icon: Sparkles },
   { href: "/billing", label: "Оплата", icon: CreditCard },
   { href: "/settings", label: STR.nav.settings, icon: Cog },
 ];
@@ -33,28 +31,30 @@ const navItems = [
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const token = getToken();
+
+  // All state hooks at the top
+  const [mounted, setMounted] = useState(false);
+  const [token, setToken] = useState<string | null>(null);
   const [orgs, setOrgs] = useState<Array<{ id: number; name: string }>>([]);
-  const [activeOrgId, setActiveOrgId] = useState<string | null>(getOrgId());
+  const [activeOrgId, setActiveOrgId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [loadingOrgs, setLoadingOrgs] = useState(false);
   const [isDemo, setIsDemo] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Check if current page is a public page that should bypass the shell
+  // Check if current page is a public page
   const publicPages = ["/", "/login", "/signup", "/adminskaya-panel/login"];
   const isPublicPage = publicPages.includes(pathname) || pathname.startsWith("/adminskaya-panel");
 
-  const canShowShell = useMemo(() => Boolean(token) && !isPublicPage, [token, isPublicPage]);
-
-  // If it's a public page, render children directly without shell
-  if (isPublicPage) {
-    return <>{children}</>;
-  }
-
+  // ALL useEffects MUST be before any conditional returns
+  useEffect(() => {
+    setMounted(true);
+    setToken(getToken());
+    setActiveOrgId(getOrgId());
+  }, []);
 
   useEffect(() => {
-    if (!token) {
+    if (!mounted || !token) {
       setUserEmail(null);
       return;
     }
@@ -76,12 +76,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       }
     };
     load();
-  }, [token]);
+  }, [mounted, token]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     setIsDemo(window.location.hostname === "localhost");
   }, []);
+
+  const canShowShell = useMemo(() => Boolean(token) && !isPublicPage, [token, isPublicPage]);
 
   const handleOrgSwitch = async (value: string) => {
     try {
@@ -101,6 +103,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     clearOrgId();
     router.push("/login");
   };
+
+  // Conditional returns AFTER all hooks
+  if (isPublicPage) {
+    return <>{children}</>;
+  }
+
+  // Show loading state before hydration
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-bg flex items-center justify-center">
+        <div className="animate-pulse text-muted text-sm">Загрузка...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-bg">

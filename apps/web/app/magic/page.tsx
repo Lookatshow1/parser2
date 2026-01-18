@@ -8,10 +8,10 @@ export default function MagicPage() {
             <div className="container relative z-10 mx-auto px-4">
                 <div className="text-center mb-12">
                     <h1 className="text-4xl md:text-6xl font-bold bg-clip-text text-transparent bg-gradient-to-br from-white to-gray-400 mb-4 tracking-tight">
-                        Ads Magic
+                        Магия рекламы
                     </h1>
                     <p className="text-lg text-gray-400 max-w-2xl mx-auto">
-                        Transform your landing page into a high-performing ad campaign in seconds using our advanced AI engine.
+                        Превратите ваш сайт в эффективную рекламную кампанию за секунды с помощью AI-движка
                     </p>
                 </div>
 

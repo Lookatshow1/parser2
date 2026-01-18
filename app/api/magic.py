@@ -143,3 +143,81 @@ def get_magic_run(
     if not run:
         raise HTTPException(status_code=404, detail="Magic Run not found")
     return run
+
+
+# =============================================================================
+# SSE STREAMING ENDPOINT
+# =============================================================================
+
+from fastapi.responses import StreamingResponse
+import asyncio
+import json as json_module
+
+@router.post("/generate-stream")
+async def generate_stream(
+    payload: PublicGenerateRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    SSE endpoint для стриминга прогресса генерации.
+    Отправляет события: step, progress, result, error
+    """
+    async def event_generator():
+        service = MagicService(db)
+        
+        try:
+            # Step 1: Analyzing
+            yield f"data: {json_module.dumps({'type': 'step', 'step': 1, 'message': 'Анализируем сайт...'})}\n\n"
+            await asyncio.sleep(0.5)
+            
+            # Scrape the landing page
+            from app.services.magic import scrape_landing_page
+            business_info = payload.description or ""
+            if payload.landing_url:
+                scraped = await scrape_landing_page(payload.landing_url)
+                business_info = f"{scraped}\n\n{payload.description}" if payload.description else scraped
+            
+            yield f"data: {json_module.dumps({'type': 'progress', 'percent': 20})}\n\n"
+            
+            # Step 2: Generating texts
+            yield f"data: {json_module.dumps({'type': 'step', 'step': 2, 'message': 'Генерируем тексты объявлений...'})}\n\n"
+            
+            ads_result = await service._generate_ad_texts(business_info or "Универсальный бизнес")
+            
+            yield f"data: {json_module.dumps({'type': 'progress', 'percent': 60})}\n\n"
+            
+            # Step 3: Generating images
+            yield f"data: {json_module.dumps({'type': 'step', 'step': 3, 'message': 'Создаём изображения...'})}\n\n"
+            
+            images_result = await service._generate_images(
+                ads_result.get("business_type", "бизнес"),
+                ads_result.get("ads", [])
+            )
+            
+            yield f"data: {json_module.dumps({'type': 'progress', 'percent': 90})}\n\n"
+            
+            # Step 4: Done
+            yield f"data: {json_module.dumps({'type': 'step', 'step': 4, 'message': 'Готово!'})}\n\n"
+            
+            result = {
+                "business_name": ads_result.get("business_name", "Бизнес"),
+                "business_type": ads_result.get("business_type", "услуги"),
+                "ads": ads_result.get("ads", []),
+                "images": images_result
+            }
+            
+            yield f"data: {json_module.dumps({'type': 'result', 'data': result})}\n\n"
+            yield f"data: {json_module.dumps({'type': 'done'})}\n\n"
+            
+        except Exception as e:
+            yield f"data: {json_module.dumps({'type': 'error', 'message': str(e)})}\n\n"
+    
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
