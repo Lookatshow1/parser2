@@ -71,6 +71,13 @@ class SystemSettings(BaseModel):
     ai_model: str = "gpt-4o-mini"
     ai_temperature: float = 0.7
     registration_enabled: bool = True
+    # New integrations
+    telegram_bot_token: Optional[str] = None
+    telegram_admin_chat_id: Optional[str] = None
+    yandex_metrica_client_id: Optional[str] = None
+    yandex_metrica_client_secret: Optional[str] = None
+    # Integration status
+    integrations_status: Optional[dict] = None
 
 
 # =============================================================================
@@ -250,7 +257,12 @@ _system_settings = {
     "anthropic_api_key": os.getenv("ANTHROPIC_API_KEY", ""),
     "ai_model": "gpt-4o-mini",
     "ai_temperature": 0.7,
-    "registration_enabled": True
+    "registration_enabled": True,
+    # New integrations
+    "telegram_bot_token": os.getenv("TELEGRAM_BOT_TOKEN", ""),
+    "telegram_admin_chat_id": os.getenv("TELEGRAM_ADMIN_CHAT_ID", ""),
+    "yandex_metrica_client_id": os.getenv("YANDEX_METRICA_CLIENT_ID", ""),
+    "yandex_metrica_client_secret": os.getenv("YANDEX_METRICA_CLIENT_SECRET", ""),
 }
 
 
@@ -259,10 +271,27 @@ async def get_settings(_: bool = Depends(verify_admin_token)):
     """Get system settings."""
     # Mask API keys
     settings = _system_settings.copy()
-    if settings["openai_api_key"]:
-        settings["openai_api_key"] = settings["openai_api_key"][:8] + "..." + settings["openai_api_key"][-4:]
-    if settings["anthropic_api_key"]:
-        settings["anthropic_api_key"] = settings["anthropic_api_key"][:8] + "..." + settings["anthropic_api_key"][-4:]
+    
+    def mask_key(key: str) -> str:
+        if not key or len(key) < 12:
+            return ""
+        return key[:8] + "..." + key[-4:]
+    
+    if settings.get("openai_api_key"):
+        settings["openai_api_key"] = mask_key(settings["openai_api_key"])
+    if settings.get("anthropic_api_key"):
+        settings["anthropic_api_key"] = mask_key(settings["anthropic_api_key"])
+    if settings.get("telegram_bot_token"):
+        settings["telegram_bot_token"] = mask_key(settings["telegram_bot_token"])
+    if settings.get("yandex_metrica_client_secret"):
+        settings["yandex_metrica_client_secret"] = mask_key(settings["yandex_metrica_client_secret"])
+    
+    # Build integration status
+    settings["integrations_status"] = {
+        "openai": bool(_system_settings.get("openai_api_key")),
+        "telegram": bool(_system_settings.get("telegram_bot_token")),
+        "yandex_metrica": bool(_system_settings.get("yandex_metrica_client_id")),
+    }
     
     return SystemSettings(**settings)
 
@@ -273,13 +302,21 @@ async def update_settings(
     _: bool = Depends(verify_admin_token)
 ):
     """Update system settings."""
-    if payload.openai_api_key and not payload.openai_api_key.endswith("..."):
-        _system_settings["openai_api_key"] = payload.openai_api_key
-        os.environ["OPENAI_API_KEY"] = payload.openai_api_key
+    def update_key(field: str, env_var: str):
+        val = getattr(payload, field, None)
+        if val and not val.endswith("..."):
+            _system_settings[field] = val
+            os.environ[env_var] = val
     
-    if payload.anthropic_api_key and not payload.anthropic_api_key.endswith("..."):
-        _system_settings["anthropic_api_key"] = payload.anthropic_api_key
-        os.environ["ANTHROPIC_API_KEY"] = payload.anthropic_api_key
+    update_key("openai_api_key", "OPENAI_API_KEY")
+    update_key("anthropic_api_key", "ANTHROPIC_API_KEY")
+    update_key("telegram_bot_token", "TELEGRAM_BOT_TOKEN")
+    update_key("yandex_metrica_client_id", "YANDEX_METRICA_CLIENT_ID")
+    update_key("yandex_metrica_client_secret", "YANDEX_METRICA_CLIENT_SECRET")
+    
+    if payload.telegram_admin_chat_id:
+        _system_settings["telegram_admin_chat_id"] = payload.telegram_admin_chat_id
+        os.environ["TELEGRAM_ADMIN_CHAT_ID"] = payload.telegram_admin_chat_id
     
     _system_settings["ai_model"] = payload.ai_model
     _system_settings["ai_temperature"] = payload.ai_temperature

@@ -38,6 +38,8 @@ from app.api.abtests import router as abtests_router
 from app.api.admin import router as admin_router
 from app.api.ai_endpoints import router as ai_router
 from app.api.metrica import router as metrica_router
+from app.api.telegram import router as telegram_router
+from app.api.templates import router as templates_router
 
 
 
@@ -103,6 +105,8 @@ def create_app() -> FastAPI:
     api_router.include_router(admin_router)
     api_router.include_router(ai_router)
     api_router.include_router(metrica_router)
+    api_router.include_router(telegram_router)
+    api_router.include_router(templates_router)
 
 
 
