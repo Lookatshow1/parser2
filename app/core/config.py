@@ -143,6 +143,16 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("YANDEX_METRICA_CLIENT_SECRET"),
     )
 
+    # YooKassa Payments
+    yookassa_shop_id: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("YOOKASSA_SHOP_ID"),
+    )
+    yookassa_secret_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("YOOKASSA_SECRET_KEY"),
+    )
+
 
 @lru_cache
 def get_settings() -> Settings:

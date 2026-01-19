@@ -40,6 +40,7 @@ from app.api.ai_endpoints import router as ai_router
 from app.api.metrica import router as metrica_router
 from app.api.telegram import router as telegram_router
 from app.api.templates import router as templates_router
+from app.api.payments import router as payments_router
 
 
 
@@ -107,6 +108,7 @@ def create_app() -> FastAPI:
     api_router.include_router(metrica_router)
     api_router.include_router(telegram_router)
     api_router.include_router(templates_router)
+    api_router.include_router(payments_router)
 
 
 

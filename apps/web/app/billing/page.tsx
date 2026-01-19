@@ -90,6 +90,42 @@ export default function BillingPage() {
                                 <Plus className="mr-2 h-4 w-4" /> {STR.billing.topUp}
                             </Button>
                         </div>
+
+                        {/* YooKassa Payment Button */}
+                        <div className="pt-3 border-t border-white/10">
+                            <Button
+                                variant="outline"
+                                className="w-full border-success/50 text-success hover:bg-success/10"
+                                onClick={async () => {
+                                    try {
+                                        const token = localStorage.getItem("ads_access_token");
+                                        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/payments/create`, {
+                                            method: "POST",
+                                            headers: {
+                                                "Content-Type": "application/json",
+                                                "Authorization": `Bearer ${token}`
+                                            },
+                                            body: JSON.stringify({ amount: Number(amount) })
+                                        });
+                                        const data = await res.json();
+
+                                        if (data.confirmation_url) {
+                                            window.location.href = data.confirmation_url;
+                                        } else if (data.demo_mode) {
+                                            toast.info("YooKassa не настроен. Используйте демо-пополнение.");
+                                        } else if (data.error) {
+                                            toast.error(data.error);
+                                        }
+                                    } catch (e) {
+                                        toast.error("Ошибка создания платежа");
+                                    }
+                                }}
+                            >
+                                <CreditCard className="mr-2 h-4 w-4" />
+                                Оплатить картой (YooKassa)
+                            </Button>
+                        </div>
+
                         <p className="text-xs text-gray-500">
                             {STR.billing.addFundsHint}
                         </p>
