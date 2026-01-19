@@ -15,11 +15,12 @@ import { getMe, listOrgs, getActiveOrg, switchOrg } from "../lib/api";
 import { STR } from "../lib/strings";
 
 const navItems = [
-  { href: "/analytics", label: "Аналитика", icon: BarChart3 },
+  { href: "/dashboard", label: "Дашборд", icon: BarChart3 },
   { href: "/magic", label: "Магия", icon: Sparkles },
-  { href: "/ads-manager", label: "Управление", icon: Megaphone },
   { href: "/campaigns", label: STR.nav.campaigns, icon: Megaphone },
   { href: "/templates", label: "Шаблоны", icon: Sparkles },
+  { href: "/analytics", label: "Аналитика", icon: Activity },
+  { href: "/ads-manager", label: "Управление", icon: Megaphone },
   { href: "/competitors", label: "Конкуренты", icon: Activity },
   { href: "/metrica", label: "Метрика", icon: Activity },
   { href: "/notifications", label: "Уведомления", icon: Activity },

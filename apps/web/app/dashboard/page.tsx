@@ -1,0 +1,397 @@
+"use client";
+
+import { useState, useEffect, useMemo } from "react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/ui/page-header";
+import {
+    TrendingUp, TrendingDown, DollarSign, MousePointer, Eye, Target,
+    ArrowUpRight, Loader2, Calendar, RefreshCw, Sparkles, AlertCircle
+} from "lucide-react";
+import Link from "next/link";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+interface KpiSummary {
+    impressions: number;
+    clicks: number;
+    conversions: number;
+    spend: number;
+    ctr: number | null;
+    cpc: number | null;
+    cpa: number | null;
+}
+
+interface DailyMetric {
+    date: string;
+    impressions: number;
+    clicks: number;
+    spend: number;
+    conversions: number;
+}
+
+interface TopCampaign {
+    id: number;
+    name: string;
+    platform: string;
+    spend: number;
+    clicks: number;
+    ctr: number;
+    conversions: number;
+}
+
+// Metric card with trend
+function MetricCard({
+    title,
+    value,
+    change,
+    icon: Icon,
+    format = "number",
+    prefix = "",
+    suffix = ""
+}: {
+    title: string;
+    value: number | null;
+    change?: number;
+    icon: any;
+    format?: "number" | "currency" | "percent";
+    prefix?: string;
+    suffix?: string;
+}) {
+    const formatValue = (v: number | null) => {
+        if (v === null) return "—";
+        if (format === "currency") return `${prefix}${v.toLocaleString("ru-RU")}${suffix}`;
+        if (format === "percent") return `${v.toFixed(2)}%`;
+        return `${prefix}${v.toLocaleString("ru-RU")}${suffix}`;
+    };
+
+    const isPositive = change !== undefined && change >= 0;
+
+    return (
+        <Card className="relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-accent/5 rounded-bl-full" />
+            <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted flex items-center gap-2">
+                    <Icon className="h-4 w-4" />
+                    {title}
+                </CardTitle>
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold text-text">{formatValue(value)}</div>
+                {change !== undefined && (
+                    <div className={`flex items-center gap-1 text-sm mt-1 ${isPositive ? "text-success" : "text-danger"}`}>
+                        {isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                        <span>{isPositive ? "+" : ""}{change.toFixed(1)}%</span>
+                        <span className="text-muted">vs прошлый период</span>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
+
+// Simple sparkline chart
+function SparklineChart({ data, color = "#8b5cf6" }: { data: number[]; color?: string }) {
+    if (!data.length) return null;
+
+    const max = Math.max(...data);
+    const min = Math.min(...data);
+    const range = max - min || 1;
+
+    const points = data.map((v, i) => {
+        const x = (i / (data.length - 1)) * 100;
+        const y = 100 - ((v - min) / range) * 80;
+        return `${x},${y}`;
+    }).join(" ");
+
+    return (
+        <svg className="w-full h-16" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <polyline
+                fill="none"
+                stroke={color}
+                strokeWidth="2"
+                points={points}
+            />
+            <linearGradient id="gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor={color} stopOpacity="0.3" />
+                <stop offset="100%" stopColor={color} stopOpacity="0" />
+            </linearGradient>
+            <polygon
+                fill="url(#gradient)"
+                points={`0,100 ${points} 100,100`}
+            />
+        </svg>
+    );
+}
+
+export default function DashboardPage() {
+    const [loading, setLoading] = useState(true);
+    const [period, setPeriod] = useState<"7d" | "30d">("7d");
+    const [summary, setSummary] = useState<KpiSummary | null>(null);
+    const [dailyData, setDailyData] = useState<DailyMetric[]>([]);
+    const [topCampaigns, setTopCampaigns] = useState<TopCampaign[]>([]);
+    const [hasConnections, setHasConnections] = useState(true);
+
+    useEffect(() => {
+        loadDashboard();
+    }, [period]);
+
+    const loadDashboard = async () => {
+        setLoading(true);
+        try {
+            const days = period === "7d" ? 7 : 30;
+            const dateTo = new Date();
+            const dateFrom = new Date();
+            dateFrom.setDate(dateFrom.getDate() - days);
+
+            const params = new URLSearchParams({
+                date_from: dateFrom.toISOString().split("T")[0],
+                date_to: dateTo.toISOString().split("T")[0],
+            });
+
+            // Load KPI summary
+            const summaryRes = await fetch(`${API_BASE}/api/dashboard/kpi-summary?${params}`, {
+                headers: { Authorization: `Bearer ${localStorage.getItem("ads_access_token")}` }
+            });
+
+            if (summaryRes.ok) {
+                setSummary(await summaryRes.json());
+            }
+
+            // Load timeseries
+            const timeseriesRes = await fetch(`${API_BASE}/api/dashboard/kpi-timeseries?${params}&mode=absolute`, {
+                headers: { Authorization: `Bearer ${localStorage.getItem("ads_access_token")}` }
+            });
+
+            if (timeseriesRes.ok) {
+                const ts = await timeseriesRes.json();
+                setDailyData(ts.items || []);
+            }
+
+            // Check connections
+            const connRes = await fetch(`${API_BASE}/api/connections`, {
+                headers: { Authorization: `Bearer ${localStorage.getItem("ads_access_token")}` }
+            });
+
+            if (connRes.ok) {
+                const conns = await connRes.json();
+                setHasConnections(conns.items?.length > 0);
+            }
+
+        } catch (err) {
+            console.error("Dashboard load error:", err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const spendData = useMemo(() => dailyData.map(d => d.spend), [dailyData]);
+    const clicksData = useMemo(() => dailyData.map(d => d.clicks), [dailyData]);
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center min-h-[400px]">
+                <Loader2 className="h-8 w-8 animate-spin text-accent" />
+            </div>
+        );
+    }
+
+    // Onboarding state
+    if (!hasConnections) {
+        return (
+            <div className="space-y-6">
+                <PageHeader title="Добро пожаловать в Effecto!" />
+
+                <Card className="border-accent/30 bg-accent/5">
+                    <CardContent className="py-12 text-center">
+                        <Sparkles className="h-16 w-16 text-accent mx-auto mb-6" />
+                        <h2 className="text-2xl font-bold text-text mb-4">
+                            Начните с подключения рекламного кабинета
+                        </h2>
+                        <p className="text-muted max-w-md mx-auto mb-8">
+                            Подключите Яндекс.Директ, чтобы увидеть статистику,
+                            получать рекомендации и автоматизировать управление рекламой.
+                        </p>
+                        <Button size="lg" asChild>
+                            <Link href="/connections">
+                                <ArrowUpRight className="mr-2 h-5 w-5" />
+                                Подключить Яндекс.Директ
+                            </Link>
+                        </Button>
+                    </CardContent>
+                </Card>
+
+                {/* Quick actions */}
+                <div className="grid md:grid-cols-3 gap-4">
+                    <Card className="hover:border-accent/50 transition-colors cursor-pointer" onClick={() => window.location.href = "/magic"}>
+                        <CardContent className="py-6 text-center">
+                            <Sparkles className="h-8 w-8 text-accent mx-auto mb-3" />
+                            <h3 className="font-medium text-text">Magic AI</h3>
+                            <p className="text-sm text-muted mt-1">Сгенерировать объявления</p>
+                        </CardContent>
+                    </Card>
+                    <Card className="hover:border-accent/50 transition-colors cursor-pointer" onClick={() => window.location.href = "/templates"}>
+                        <CardContent className="py-6 text-center">
+                            <Target className="h-8 w-8 text-accent mx-auto mb-3" />
+                            <h3 className="font-medium text-text">Шаблоны</h3>
+                            <p className="text-sm text-muted mt-1">Готовые кампании по нишам</p>
+                        </CardContent>
+                    </Card>
+                    <Card className="hover:border-accent/50 transition-colors cursor-pointer" onClick={() => window.location.href = "/billing"}>
+                        <CardContent className="py-6 text-center">
+                            <DollarSign className="h-8 w-8 text-accent mx-auto mb-3" />
+                            <h3 className="font-medium text-text">Баланс</h3>
+                            <p className="text-sm text-muted mt-1">Пополнить счёт</p>
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-6">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+                <PageHeader title="Дашборд" subtitle="Сводка по всем кампаниям" />
+                <div className="flex items-center gap-2">
+                    <div className="flex bg-panel-strong rounded-lg p-1">
+                        <button
+                            onClick={() => setPeriod("7d")}
+                            className={`px-3 py-1.5 text-sm rounded-md transition-colors ${period === "7d" ? "bg-accent text-white" : "text-muted hover:text-text"
+                                }`}
+                        >
+                            7 дней
+                        </button>
+                        <button
+                            onClick={() => setPeriod("30d")}
+                            className={`px-3 py-1.5 text-sm rounded-md transition-colors ${period === "30d" ? "bg-accent text-white" : "text-muted hover:text-text"
+                                }`}
+                        >
+                            30 дней
+                        </button>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={loadDashboard}>
+                        <RefreshCw className="h-4 w-4" />
+                    </Button>
+                </div>
+            </div>
+
+            {/* KPI Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <MetricCard
+                    title="Расходы"
+                    value={summary?.spend ?? 0}
+                    icon={DollarSign}
+                    format="currency"
+                    suffix=" ₽"
+                />
+                <MetricCard
+                    title="Показы"
+                    value={summary?.impressions ?? 0}
+                    icon={Eye}
+                />
+                <MetricCard
+                    title="Клики"
+                    value={summary?.clicks ?? 0}
+                    icon={MousePointer}
+                />
+                <MetricCard
+                    title="CTR"
+                    value={summary?.ctr ?? null}
+                    icon={TrendingUp}
+                    format="percent"
+                />
+            </div>
+
+            {/* Charts Row */}
+            <div className="grid md:grid-cols-2 gap-4">
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-sm">Расходы за период</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        {spendData.length > 0 ? (
+                            <SparklineChart data={spendData} color="#8b5cf6" />
+                        ) : (
+                            <div className="h-16 flex items-center justify-center text-muted text-sm">
+                                Нет данных
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-sm">Клики за период</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        {clicksData.length > 0 ? (
+                            <SparklineChart data={clicksData} color="#06b6d4" />
+                        ) : (
+                            <div className="h-16 flex items-center justify-center text-muted text-sm">
+                                Нет данных
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="grid md:grid-cols-4 gap-4">
+                <Card className="hover:border-accent/50 transition-colors">
+                    <Link href="/magic" className="block">
+                        <CardContent className="py-4 flex items-center gap-3">
+                            <div className="p-2 bg-accent/10 rounded-lg">
+                                <Sparkles className="h-5 w-5 text-accent" />
+                            </div>
+                            <div>
+                                <div className="font-medium text-text">Магия AI</div>
+                                <div className="text-xs text-muted">Создать объявления</div>
+                            </div>
+                        </CardContent>
+                    </Link>
+                </Card>
+                <Card className="hover:border-accent/50 transition-colors">
+                    <Link href="/campaigns" className="block">
+                        <CardContent className="py-4 flex items-center gap-3">
+                            <div className="p-2 bg-accent/10 rounded-lg">
+                                <Target className="h-5 w-5 text-accent" />
+                            </div>
+                            <div>
+                                <div className="font-medium text-text">Кампании</div>
+                                <div className="text-xs text-muted">Управление</div>
+                            </div>
+                        </CardContent>
+                    </Link>
+                </Card>
+                <Card className="hover:border-accent/50 transition-colors">
+                    <Link href="/recommendations" className="block">
+                        <CardContent className="py-4 flex items-center gap-3">
+                            <div className="p-2 bg-accent/10 rounded-lg">
+                                <AlertCircle className="h-5 w-5 text-accent" />
+                            </div>
+                            <div>
+                                <div className="font-medium text-text">Рекомендации</div>
+                                <div className="text-xs text-muted">AI-советы</div>
+                            </div>
+                        </CardContent>
+                    </Link>
+                </Card>
+                <Card className="hover:border-accent/50 transition-colors">
+                    <Link href="/analytics" className="block">
+                        <CardContent className="py-4 flex items-center gap-3">
+                            <div className="p-2 bg-accent/10 rounded-lg">
+                                <TrendingUp className="h-5 w-5 text-accent" />
+                            </div>
+                            <div>
+                                <div className="font-medium text-text">Аналитика</div>
+                                <div className="text-xs text-muted">Подробные отчёты</div>
+                            </div>
+                        </CardContent>
+                    </Link>
+                </Card>
+            </div>
+        </div>
+    );
+}
