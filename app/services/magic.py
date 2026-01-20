@@ -75,48 +75,107 @@ IMAGE_PROMPT_TEMPLATE = """Создай рекламный баннер для {
 # WEB SCRAPER (для анализа URL)
 # =============================================================================
 
+# =============================================================================
+# WEB SCRAPER (с глубоким анализом)
+# =============================================================================
+
+from bs4 import BeautifulSoup
+from urllib.parse import urljoin, urlparse
+
 async def scrape_landing_page(url: str) -> str:
-    """Извлекает текст с лендинга для анализа."""
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get(url, follow_redirects=True)
-            response.raise_for_status()
+    """
+    Глубокий анализ сайта: главная + 2 внутренние страницы.
+    Использует BeautifulSoup для качественного извлечения текста.
+    """
+    max_pages = 3
+    visited_urls = set()
+    collected_content = []
+    
+    # Очередь для обхода: (url, depth)
+    queue = [(url, 0)]
+    
+    domain = urlparse(url).netloc
+    base_url = url
+    
+    logger.info(f"Starting deep scrape for: {url}")
+    
+    async with httpx.AsyncClient(timeout=15.0, follow_redirects=True, headers={"User-Agent": "Mozilla/5.0 (compatible; AI-Ad-Generator/1.0)"}) as client:
+        while queue and len(visited_urls) < max_pages:
+            current_url, depth = queue.pop(0)
             
-            html = response.text
+            if current_url in visited_urls:
+                continue
+                
+            visited_urls.add(current_url)
             
-            # Простое извлечение текста (без BeautifulSoup для минимизации зависимостей)
-            # Удаляем скрипты и стили
-            html = re.sub(r'<script[^>]*>.*?</script>', '', html, flags=re.DOTALL | re.IGNORECASE)
-            html = re.sub(r'<style[^>]*>.*?</style>', '', html, flags=re.DOTALL | re.IGNORECASE)
-            
-            # Извлекаем title
-            title_match = re.search(r'<title[^>]*>(.*?)</title>', html, re.IGNORECASE | re.DOTALL)
-            title = title_match.group(1).strip() if title_match else ""
-            
-            # Извлекаем meta description
-            desc_match = re.search(r'<meta[^>]*name=["\']description["\'][^>]*content=["\'](.*?)["\']', html, re.IGNORECASE)
-            description = desc_match.group(1).strip() if desc_match else ""
-            
-            # Извлекаем h1, h2, h3
-            headings = re.findall(r'<h[1-3][^>]*>(.*?)</h[1-3]>', html, re.IGNORECASE | re.DOTALL)
-            headings_text = " ".join([re.sub(r'<[^>]+>', '', h).strip() for h in headings[:5]])
-            
-            # Извлекаем параграфы
-            paragraphs = re.findall(r'<p[^>]*>(.*?)</p>', html, re.IGNORECASE | re.DOTALL)
-            paragraphs_text = " ".join([re.sub(r'<[^>]+>', '', p).strip() for p in paragraphs[:10]])
-            
-            result = f"""
-URL: {url}
-Заголовок: {title}
-Описание: {description}
-Заголовки страницы: {headings_text}
-Контент: {paragraphs_text[:500]}
-"""
-            return result.strip()
-            
-    except Exception as e:
-        logger.warning(f"Failed to scrape {url}: {e}")
-        return f"URL: {url} (не удалось загрузить страницу)"
+            try:
+                response = await client.get(current_url)
+                response.raise_for_status()
+                html = response.text
+                
+                soup = BeautifulSoup(html, 'html.parser')
+                
+                # Удаляем мусор
+                for script in soup(["script", "style", "nav", "footer", "iframe", "noscript"]):
+                    script.extract()
+                
+                # Извлекаем мета-данные (только с главной)
+                if depth == 0:
+                    title = soup.title.string.strip() if soup.title and soup.title.string else ""
+                    desc_tag = soup.find('meta', attrs={'name': 'description'}) or soup.find('meta', attrs={'property': 'og:description'})
+                    description = desc_tag.get('content', '').strip() if desc_tag else ""
+                    
+                    collected_content.append(f"ГЛАВНАЯ СТРАНИЦА:\nЗаголовок: {title}\nОписание: {description}\n")
+                
+                # Извлекаем основной текст
+                # Приоритет контентным тегам
+                text_blocks = []
+                for tag in ['h1', 'h2', 'h3', 'p', 'li', 'article', 'section']:
+                    for el in soup.find_all(tag):
+                        text = el.get_text(strip=True)
+                        if text and len(text) > 20: # Игнорируем совсем короткие фразы
+                            text_blocks.append(text)
+                
+                # Уникализируем и объединяем
+                page_text = "\n".join(list(dict.fromkeys(text_blocks))[:30]) # Берём топ-30 уникальных блоков
+                collected_content.append(f"--- Контент со страницы {current_url} ---\n{page_text[:1500]}\n")
+                
+                # Ищем внутренние ссылки (только на глубине 0)
+                if depth == 0:
+                    links = []
+                    for a in soup.find_all('a', href=True):
+                        href = a['href']
+                        full_url = urljoin(current_url, href)
+                        parsed = urlparse(full_url)
+                        
+                        # Фильтруем ссылки: только тот же домен, не файлы, не якоря
+                        if parsed.netloc == domain and full_url not in visited_urls:
+                            if any(ext in parsed.path.lower() for ext in ['.pdf', '.jpg', '.png', '.zip', '.css', '.js']):
+                                continue
+                            if '#' in href:
+                                continue
+                                
+                            # Приоритет полезным страницам
+                            score = 0
+                            if any(w in full_url.lower() for w in ['about', 'company', 'uslugi', 'service', 'price', 'contact', 'о-нас', 'цены', 'услуги']):
+                                score = 10
+                            
+                            links.append((score, full_url))
+                    
+                    # Сортируем по важности и добавляем топ-3 в очередь
+                    links.sort(key=lambda x: x[0], reverse=True)
+                    for _, link in links[:max_pages-1]:
+                        if link not in [q[0] for q in queue]:
+                            queue.append((link, depth + 1))
+                            
+            except Exception as e:
+                logger.warning(f"Error scraping {current_url}: {e}")
+                
+    result = "\n".join(collected_content)
+    if not result:
+        return f"Не удалось извлечь данные с {url}"
+        
+    return result[:8000] # Ограничиваем общий объем текста
 
 
 # =============================================================================
