@@ -70,7 +70,6 @@ services:
     volumes:
       - .:/app
     environment:
-      DATABASE_URL: postgresql+psycopg2://postgres:postgres@db:5432/ads
       REDIS_URL: redis://redis:6379/0
       SECRET_KEY: dev_secret
       JWT_ALG: HS256
@@ -99,7 +98,6 @@ services:
     volumes:
       - .:/app
     environment:
-      DATABASE_URL: postgresql+psycopg2://postgres:postgres@db:5432/ads
       REDIS_URL: redis://redis:6379/0
       SECRET_KEY: dev_secret
       JWT_ALG: HS256
