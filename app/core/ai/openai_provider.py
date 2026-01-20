@@ -85,14 +85,21 @@ class OpenAIProvider(TextProvider):
 def get_text_provider() -> TextProvider:
     """
     Factory function to get the appropriate text provider.
-    Uses OpenAI if API key is configured, otherwise falls back to mock.
+    Priority: GigaChat > OpenAI > Mock
+    GigaChat is preferred because it works without VPN in Russia.
     """
-    api_key = os.getenv("OPENAI_API_KEY")
+    gigachat_key = os.getenv("GIGACHAT_AUTH_KEY")
+    openai_key = os.getenv("OPENAI_API_KEY")
     
-    if api_key:
-        logger.info("Using OpenAI provider")
-        return OpenAIProvider(api_key=api_key)
+    if gigachat_key:
+        logger.info("Using GigaChat provider (primary)")
+        from app.core.ai.gigachat_provider import GigaChatProvider
+        return GigaChatProvider(auth_key=gigachat_key)
+    elif openai_key:
+        logger.info("Using OpenAI provider (fallback)")
+        return OpenAIProvider(api_key=openai_key)
     else:
-        logger.info("OPENAI_API_KEY not set, using mock provider")
+        logger.info("No AI API keys set, using mock provider")
         from app.core.ai.mock_provider import MockTextProvider
         return MockTextProvider()
+

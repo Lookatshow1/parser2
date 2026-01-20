@@ -2,7 +2,7 @@
 AI Provider Configuration
 
 This module provides configuration for AI providers.
-Set OPENAI_API_KEY or ANTHROPIC_API_KEY environment variables to enable.
+Priority: GIGACHAT > OPENAI > ANTHROPIC > MOCK
 """
 import os
 from enum import Enum
@@ -14,13 +14,16 @@ class AIProviderType(str, Enum):
     MOCK = "mock"
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
+    GIGACHAT = "gigachat"
 
 
 class AIConfig(BaseModel):
     provider: AIProviderType = AIProviderType.MOCK
     openai_api_key: Optional[str] = None
     anthropic_api_key: Optional[str] = None
-    model: str = "gpt-4o-mini"
+    gigachat_auth_key: Optional[str] = None
+    gigachat_scope: Optional[str] = None
+    model: str = "GigaChat"
     temperature: float = 0.7
     max_tokens: int = 2000
 
@@ -29,22 +32,35 @@ def get_ai_config() -> AIConfig:
     """
     Get AI configuration from environment variables.
     Automatically detects available providers.
+    Priority: GIGACHAT > OPENAI > ANTHROPIC > MOCK
     """
     openai_key = os.getenv("OPENAI_API_KEY")
     anthropic_key = os.getenv("ANTHROPIC_API_KEY")
+    gigachat_key = os.getenv("GIGACHAT_AUTH_KEY")
+    gigachat_scope = os.getenv("GIGACHAT_SCOPE", "GIGACHAT_API_PERS")
     
     # Auto-detect provider based on available keys
+    # Priority: GigaChat (works in Russia) > OpenAI > Anthropic > Mock
     provider = AIProviderType.MOCK
-    if openai_key:
+    model = "mock"
+    
+    if gigachat_key:
+        provider = AIProviderType.GIGACHAT
+        model = os.getenv("AI_MODEL", "GigaChat")
+    elif openai_key:
         provider = AIProviderType.OPENAI
+        model = os.getenv("AI_MODEL", "gpt-4o-mini")
     elif anthropic_key:
         provider = AIProviderType.ANTHROPIC
+        model = os.getenv("AI_MODEL", "claude-3-haiku-20240307")
     
     return AIConfig(
         provider=provider,
         openai_api_key=openai_key,
         anthropic_api_key=anthropic_key,
-        model=os.getenv("AI_MODEL", "gpt-4o-mini"),
+        gigachat_auth_key=gigachat_key,
+        gigachat_scope=gigachat_scope,
+        model=model,
         temperature=float(os.getenv("AI_TEMPERATURE", "0.7")),
         max_tokens=int(os.getenv("AI_MAX_TOKENS", "2000"))
     )
