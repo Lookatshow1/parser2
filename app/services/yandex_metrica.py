@@ -6,26 +6,30 @@ for conversion tracking and cross-analytics.
 
 API Docs: https://yandex.ru/dev/metrika/doc/api2/concept/about
 """
-import os
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Optional, List, Dict, Any
 from dataclasses import dataclass
 import httpx
+
+from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
 
 # =============================================================================
-# CONFIGURATION
+# CONFIGURATION (from Settings)
 # =============================================================================
 
-YANDEX_METRICA_CLIENT_ID = os.getenv("YANDEX_METRICA_CLIENT_ID", "")
-YANDEX_METRICA_CLIENT_SECRET = os.getenv("YANDEX_METRICA_CLIENT_SECRET", "")
-YANDEX_METRICA_REDIRECT_URI = os.getenv(
-    "YANDEX_METRICA_REDIRECT_URI", 
-    "https://oauth.yandex.com/verification_code"
-)
+def _get_yandex_config():
+    """Get Yandex credentials from Settings."""
+    settings = get_settings()
+    return {
+        "client_id": settings.yandex_client_id or "",
+        "client_secret": settings.yandex_client_secret or "",
+        "redirect_uri": settings.yandex_redirect_uri,
+    }
+
 
 # OAuth URLs
 OAUTH_AUTHORIZE_URL = "https://oauth.yandex.ru/authorize"
@@ -34,8 +38,8 @@ OAUTH_TOKEN_URL = "https://oauth.yandex.ru/token"
 # Metrica API base
 METRICA_API_BASE = "https://api-metrica.yandex.net"
 
-# Required scopes for Metrica
-METRICA_SCOPES = "metrika:read"  # metrika:write for creating goals
+# Required scopes for Metrica + Direct
+YANDEX_SCOPES = "metrika:read direct:read"  # Read access to both
 
 
 # =============================================================================
@@ -90,30 +94,31 @@ class YandexMetricaService:
     def __init__(
         self, 
         access_token: Optional[str] = None,
-        client_id: str = YANDEX_METRICA_CLIENT_ID,
-        client_secret: str = YANDEX_METRICA_CLIENT_SECRET,
+        client_id: Optional[str] = None,
+        client_secret: Optional[str] = None,
     ):
+        config = _get_yandex_config()
         self.access_token = access_token
-        self.client_id = client_id
-        self.client_secret = client_secret
+        self.client_id = client_id or config["client_id"]
+        self.client_secret = client_secret or config["client_secret"]
+        self.redirect_uri = config["redirect_uri"]
         self._client = httpx.AsyncClient(timeout=30.0)
     
     # -------------------------------------------------------------------------
     # OAuth Methods
     # -------------------------------------------------------------------------
     
-    def get_authorization_url(self, state: str = "") -> str:
+    def get_authorization_url(self, state: str = "", scope: str = None) -> str:
         """
-        Generate OAuth authorization URL for Metrica.
+        Generate OAuth authorization URL for Yandex (Metrica + Direct).
         
         User should be redirected here to grant access.
-        Returns URL with metrika:read scope.
         """
         params = {
             "response_type": "code",
             "client_id": self.client_id,
-            "redirect_uri": YANDEX_METRICA_REDIRECT_URI,
-            "scope": METRICA_SCOPES,
+            "redirect_uri": self.redirect_uri,
+            "scope": scope or YANDEX_SCOPES,
         }
         if state:
             params["state"] = state

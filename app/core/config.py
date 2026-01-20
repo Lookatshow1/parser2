@@ -142,14 +142,21 @@ class Settings(BaseSettings):
         default=None,
         validation_alias=AliasChoices("TELEGRAM_ADMIN_CHAT_ID"),
     )
-    yandex_metrica_client_id: str | None = Field(
+    
+    # Yandex API (Direct + Metrica unified)
+    yandex_client_id: str | None = Field(
         default=None,
-        validation_alias=AliasChoices("YANDEX_METRICA_CLIENT_ID"),
+        validation_alias=AliasChoices("YANDEX_CLIENT_ID", "YANDEX_METRICA_CLIENT_ID"),
     )
-    yandex_metrica_client_secret: str | None = Field(
+    yandex_client_secret: str | None = Field(
         default=None,
-        validation_alias=AliasChoices("YANDEX_METRICA_CLIENT_SECRET"),
+        validation_alias=AliasChoices("YANDEX_CLIENT_SECRET", "YANDEX_METRICA_CLIENT_SECRET"),
     )
+    yandex_redirect_uri: str = Field(
+        default="https://oauth.yandex.ru/verification_code",
+        validation_alias=AliasChoices("YANDEX_REDIRECT_URI"),
+    )
+
 
     # YooKassa Payments
     yookassa_shop_id: str | None = Field(
