@@ -124,6 +124,14 @@ class Settings(BaseSettings):
         default=None,
         validation_alias=AliasChoices("ANTHROPIC_API_KEY"),
     )
+    gigachat_auth_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("GIGACHAT_AUTH_KEY"),
+    )
+    gigachat_scope: str = Field(
+        default="GIGACHAT_API_PERS",
+        validation_alias=AliasChoices("GIGACHAT_SCOPE"),
+    )
 
     # Integrations
     telegram_bot_token: str | None = Field(
