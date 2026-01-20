@@ -98,11 +98,22 @@ function AnimatedCounter({ value, suffix = "" }: { value: number; suffix?: strin
   return <span>{count.toLocaleString('ru-RU')}{suffix}</span>;
 }
 
+// SSE Types
+interface StreamEvent {
+  type: "step" | "progress" | "result" | "error" | "done";
+  step?: number;
+  message?: string;
+  percent?: number;
+  data?: GeneratedCreatives;
+}
+
 export default function LandingPage() {
   const router = useRouter();
   const [landingUrl, setLandingUrl] = useState("");
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState("AI анализирует бизнес...");
+  const [loadingPercent, setLoadingPercent] = useState(0);
   const [creatives, setCreatives] = useState<GeneratedCreatives | null>(null);
   const [showInput, setShowInput] = useState<"url" | "text">("url");
   const [activeTestimonial, setActiveTestimonial] = useState(0);
@@ -114,20 +125,73 @@ export default function LandingPage() {
     }
 
     setLoading(true);
+    setLoadingMessage("Подключаемся к AI...");
+    setLoadingPercent(0);
+    setCreatives(null);
+
     try {
-      const result = await generateCreatives(landingUrl, description);
-      setCreatives(result);
+      const response = await fetch("/api/magic/generate-stream", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ landing_url: landingUrl || null, description: description || null })
+      });
 
-      localStorage.setItem("pending_creatives", JSON.stringify({
-        creatives: result,
-        landing_url: landingUrl
-      }));
+      if (!response.ok) throw new Error("Ошибка подключения к генератору");
+      if (!response.body) throw new Error("Stream not supported");
 
-      toast.success("🎉 Креативы готовы!");
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n\n");
+        buffer = lines.pop() || ""; // Keep incomplete line
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              handleStreamEvent(data);
+            } catch (e) {
+              console.error("Parse error", e);
+            }
+          }
+        }
+      }
     } catch (error) {
+      console.error(error);
       toast.error("Произошла ошибка. Попробуйте ещё раз.");
-    } finally {
       setLoading(false);
+    }
+  };
+
+  const handleStreamEvent = (event: any) => {
+    switch (event.type) {
+      case "step":
+        setLoadingMessage(event.message || "Обработка...");
+        break;
+      case "progress":
+        setLoadingPercent(event.percent || 0);
+        break;
+      case "result":
+        setCreatives(event.data);
+        localStorage.setItem("pending_creatives", JSON.stringify({
+          creatives: event.data,
+          landing_url: landingUrl
+        }));
+        toast.success("🎉 Креативы готовы!");
+        break;
+      case "done":
+        setLoading(false);
+        break;
+      case "error":
+        toast.error(event.message || "Ошибка генерации");
+        setLoading(false);
+        break;
     }
   };
 
@@ -291,7 +355,7 @@ export default function LandingPage() {
                     {loading ? (
                       <>
                         <Loader2 className="mr-3 h-5 w-5 animate-spin" />
-                        AI анализирует бизнес...
+                        {loadingMessage}
                       </>
                     ) : (
                       <>
@@ -560,7 +624,7 @@ export default function LandingPage() {
                   ].map((log, idx) => (
                     <div key={idx} className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
                       <div className={`w-2 h-2 rounded-full mt-2 ${log.status === 'success' ? 'bg-green-500' :
-                          log.status === 'warning' ? 'bg-amber-500' : 'bg-blue-500'
+                        log.status === 'warning' ? 'bg-amber-500' : 'bg-blue-500'
                         }`} />
                       <div className="flex-1">
                         <div className="text-white text-sm font-medium">{log.action}</div>
@@ -640,8 +704,8 @@ export default function LandingPage() {
               <div
                 key={idx}
                 className={`relative rounded-2xl p-8 ${plan.popular
-                    ? 'bg-gradient-to-b from-violet-600/20 to-fuchsia-600/20 border-2 border-violet-500/50'
-                    : 'bg-white/5 border border-white/10'
+                  ? 'bg-gradient-to-b from-violet-600/20 to-fuchsia-600/20 border-2 border-violet-500/50'
+                  : 'bg-white/5 border border-white/10'
                   }`}
               >
                 {plan.popular && (
@@ -667,8 +731,8 @@ export default function LandingPage() {
 
                 <Button
                   className={`w-full ${plan.popular
-                      ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500'
-                      : 'bg-white/10 hover:bg-white/20'
+                    ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500'
+                    : 'bg-white/10 hover:bg-white/20'
                     }`}
                   onClick={() => router.push("/signup")}
                 >
