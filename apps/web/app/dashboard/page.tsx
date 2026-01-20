@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
 import {
     TrendingUp, TrendingDown, DollarSign, MousePointer, Eye, Target,
-    ArrowUpRight, Loader2, Calendar, RefreshCw, Sparkles, AlertCircle
+    ArrowUpRight, Loader2, Calendar, RefreshCw, Sparkles, AlertCircle, HelpCircle
 } from "lucide-react";
 import Link from "next/link";
 
@@ -41,7 +41,7 @@ interface TopCampaign {
     conversions: number;
 }
 
-// Metric card with trend
+// Metric card with trend and optional tooltip
 function MetricCard({
     title,
     value,
@@ -49,7 +49,8 @@ function MetricCard({
     icon: Icon,
     format = "number",
     prefix = "",
-    suffix = ""
+    suffix = "",
+    metric
 }: {
     title: string;
     value: number | null;
@@ -58,6 +59,7 @@ function MetricCard({
     format?: "number" | "currency" | "percent";
     prefix?: string;
     suffix?: string;
+    metric?: "spend" | "cpc" | "cpm" | "cpa" | "impressions" | "clicks" | "ctr" | "conversions" | "cr" | "roas";
 }) {
     const formatValue = (v: number | null) => {
         if (v === null) return "—";
@@ -74,7 +76,24 @@ function MetricCard({
             <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-muted flex items-center gap-2">
                     <Icon className="h-4 w-4" />
-                    {title}
+                    <span className="flex items-center gap-1">
+                        {title}
+                        {metric && (
+                            <span className="relative group">
+                                <HelpCircle className="h-3.5 w-3.5 text-muted/50 hover:text-accent cursor-help transition-colors" />
+                                <span className="absolute z-50 left-0 top-6 hidden group-hover:block w-64 p-2 text-xs bg-panel border border-border rounded-lg shadow-xl">
+                                    {metric === "ctr" && "CTR = (Клики / Показы) × 100%. Хороший: 1-5%"}
+                                    {metric === "cpc" && "CPC = Расходы / Клики. Чем ниже — тем лучше."}
+                                    {metric === "cpa" && "CPA = Расходы / Конверсии. Сравните с LTV."}
+                                    {metric === "spend" && "Общие расходы на рекламу за период."}
+                                    {metric === "impressions" && "Сколько раз показано объявление."}
+                                    {metric === "clicks" && "Количество кликов по объявлениям."}
+                                    {metric === "conversions" && "Целевые действия (покупки, заявки)."}
+                                    {metric === "roas" && "ROAS = Доход / Расходы × 100%. >300% = прибыль"}
+                                </span>
+                            </span>
+                        )}
+                    </span>
                 </CardTitle>
             </CardHeader>
             <CardContent>
@@ -286,22 +305,26 @@ export default function DashboardPage() {
                     icon={DollarSign}
                     format="currency"
                     suffix=" ₽"
+                    metric="spend"
                 />
                 <MetricCard
                     title="Показы"
                     value={summary?.impressions ?? 0}
                     icon={Eye}
+                    metric="impressions"
                 />
                 <MetricCard
                     title="Клики"
                     value={summary?.clicks ?? 0}
                     icon={MousePointer}
+                    metric="clicks"
                 />
                 <MetricCard
                     title="CTR"
                     value={summary?.ctr ?? null}
                     icon={TrendingUp}
                     format="percent"
+                    metric="ctr"
                 />
             </div>
 
