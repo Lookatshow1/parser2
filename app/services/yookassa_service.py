@@ -14,7 +14,8 @@ import httpx
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.db.models import Organization, BillingTransaction
+from app.db.models import Organization
+from app.db.models_billing import BillingTransaction
 
 
 class YooKassaService:

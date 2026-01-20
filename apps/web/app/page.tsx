@@ -7,7 +7,9 @@ import {
   Sparkles, Rocket, BarChart3, Zap, ArrowRight, Check,
   Loader2, Globe, FileText, Image as ImageIcon, ChevronRight,
   Target, TrendingUp, Shield, Play, Star, Users, Clock,
-  MousePointer, DollarSign, Flame, Award, CheckCircle
+  MousePointer, DollarSign, Flame, Award, CheckCircle,
+  Settings, Brain, Bot, LineChart, Gauge, Bell, Layers,
+  PieChart, Activity, CreditCard
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -134,9 +136,9 @@ export default function LandingPage() {
   };
 
   const testimonials = [
-    { name: "Александр К.", company: "Интернет-магазин", text: "Запустили рекламу за 10 минут. ROAS вырос в 3 раза!", avatar: "А" },
-    { name: "Мария С.", company: "Салон красоты", text: "Наконец-то реклама, которая работает без агентства!", avatar: "М" },
-    { name: "Дмитрий В.", company: "Автосервис", text: "AI создал объявления лучше, чем маркетолог за 50к/мес", avatar: "Д" }
+    { name: "Александр К.", company: "Интернет-магазин", text: "Автопилот сэкономил 15 часов в неделю. ROAS вырос в 3 раза!", avatar: "А" },
+    { name: "Мария С.", company: "Салон красоты", text: "Ставки оптимизируются сами. Наконец-то реклама работает без меня!", avatar: "М" },
+    { name: "Дмитрий В.", company: "Автосервис", text: "AI создал стратегию за 5 минут. Маркетолог просил 2 недели.", avatar: "Д" }
   ];
 
   useEffect(() => {
@@ -168,6 +170,11 @@ export default function LandingPage() {
               Effecto
             </span>
           </Link>
+          <div className="hidden md:flex gap-8 text-sm text-gray-400">
+            <a href="#features" className="hover:text-white transition-colors">Возможности</a>
+            <a href="#autopilot" className="hover:text-white transition-colors">Автопилот</a>
+            <a href="#pricing" className="hover:text-white transition-colors">Тарифы</a>
+          </div>
           <div className="flex gap-3">
             <Link href="/login">
               <Button variant="ghost" className="text-gray-300 hover:text-white hover:bg-white/10">
@@ -188,27 +195,46 @@ export default function LandingPage() {
         <div className="container mx-auto text-center max-w-5xl">
           {/* Badge */}
           <div className="inline-flex items-center gap-2 bg-gradient-to-r from-violet-600/20 to-fuchsia-600/20 border border-violet-500/30 rounded-full px-5 py-2.5 mb-8 backdrop-blur-xl">
-            <Flame className="h-4 w-4 text-orange-400" />
+            <Bot className="h-4 w-4 text-violet-400" />
             <span className="text-sm font-medium bg-gradient-to-r from-violet-300 to-fuchsia-300 bg-clip-text text-transparent">
-              AI-реклама нового поколения
+              Полная автоматизация рекламы с AI
             </span>
           </div>
 
           {/* Main Headline */}
           <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold mb-6 leading-[1.1] tracking-tight">
             <span className="block bg-gradient-to-r from-white via-white to-gray-400 bg-clip-text text-transparent">
-              Реклама, которая
+              Реклама на
             </span>
             <span className="block mt-2 bg-gradient-to-r from-violet-400 via-fuchsia-400 to-pink-400 bg-clip-text text-transparent animate-gradient">
-              продаёт сама
+              полном автопилоте
             </span>
           </h1>
 
-          {/* Subtitle */}
-          <p className="text-xl md:text-2xl text-gray-400 mb-12 max-w-3xl mx-auto leading-relaxed">
-            Введите URL или опишите бизнес — <span className="text-white font-medium">нейросеть создаст
-              10 объявлений и 10 креативов</span> за 60 секунд
+          {/* NEW Subtitle - Full Offer */}
+          <p className="text-xl md:text-2xl text-gray-400 mb-6 max-w-3xl mx-auto leading-relaxed">
+            <span className="text-white font-medium">AI создаёт объявления</span>, настраивает ставки,
+            оптимизирует бюджет и <span className="text-white font-medium">ведёт кампании 24/7</span>
           </p>
+
+          {/* Feature Pills */}
+          <div className="flex flex-wrap justify-center gap-3 mb-12">
+            {[
+              { icon: Brain, text: "AI-генерация креативов" },
+              { icon: Gauge, text: "Автоуправление ставками" },
+              { icon: Bot, text: "Автопилот 24/7" },
+              { icon: LineChart, text: "Умные стратегии" },
+              { icon: Bell, text: "Алерты в Telegram" }
+            ].map((item, idx) => (
+              <div
+                key={idx}
+                className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-full px-4 py-2 text-sm text-gray-300"
+              >
+                <item.icon className="h-4 w-4 text-violet-400" />
+                {item.text}
+              </div>
+            ))}
+          </div>
 
           {/* Main Generator Card */}
           {!creatives ? (
@@ -218,8 +244,8 @@ export default function LandingPage() {
                 <button
                   onClick={() => setShowInput("url")}
                   className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all ${showInput === "url"
-                      ? "bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg shadow-violet-500/25"
-                      : "bg-white/5 text-gray-400 hover:bg-white/10"
+                    ? "bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg shadow-violet-500/25"
+                    : "bg-white/5 text-gray-400 hover:bg-white/10"
                     }`}
                 >
                   <Globe className="h-4 w-4" />
@@ -228,8 +254,8 @@ export default function LandingPage() {
                 <button
                   onClick={() => setShowInput("text")}
                   className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all ${showInput === "text"
-                      ? "bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg shadow-violet-500/25"
-                      : "bg-white/5 text-gray-400 hover:bg-white/10"
+                    ? "bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg shadow-violet-500/25"
+                    : "bg-white/5 text-gray-400 hover:bg-white/10"
                     }`}
                 >
                   <FileText className="h-4 w-4" />
@@ -265,12 +291,12 @@ export default function LandingPage() {
                     {loading ? (
                       <>
                         <Loader2 className="mr-3 h-5 w-5 animate-spin" />
-                        AI создаёт рекламу...
+                        AI анализирует бизнес...
                       </>
                     ) : (
                       <>
                         <Sparkles className="mr-3 h-5 w-5" />
-                        Создать рекламу бесплатно
+                        Попробовать бесплатно
                         <ArrowRight className="ml-3 h-5 w-5" />
                       </>
                     )}
@@ -307,10 +333,10 @@ export default function LandingPage() {
                 <div className="w-10 h-10 rounded-xl bg-violet-500/20 flex items-center justify-center">
                   <FileText className="h-5 w-5 text-violet-400" />
                 </div>
-                10 текстовых объявлений
+                Текстовые объявления
               </h3>
               <div className="grid md:grid-cols-2 gap-4 mb-12">
-                {creatives.ads.map((ad, idx) => (
+                {creatives.ads.slice(0, 6).map((ad, idx) => (
                   <div
                     key={idx}
                     className="group relative bg-white/5 backdrop-blur-xl rounded-xl p-5 border border-white/10 text-left hover:border-violet-500/50 transition-all hover:bg-white/10"
@@ -329,10 +355,10 @@ export default function LandingPage() {
                 <div className="w-10 h-10 rounded-xl bg-fuchsia-500/20 flex items-center justify-center">
                   <ImageIcon className="h-5 w-5 text-fuchsia-400" />
                 </div>
-                10 рекламных креативов
+                Рекламные креативы
               </h3>
               <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-12">
-                {creatives.images.map((img, idx) => (
+                {creatives.images.slice(0, 5).map((img, idx) => (
                   <div
                     key={idx}
                     className="aspect-square rounded-xl overflow-hidden bg-white/5 border border-white/10 group hover:border-fuchsia-500/50 transition-all"
@@ -353,9 +379,9 @@ export default function LandingPage() {
                   <div className="flex items-center justify-center gap-2 mb-4">
                     <Rocket className="h-8 w-8 text-fuchsia-400" />
                   </div>
-                  <h3 className="text-3xl font-bold mb-4">Запустите рекламу прямо сейчас</h3>
+                  <h3 className="text-3xl font-bold mb-4">Запустите Автопилот</h3>
                   <p className="text-gray-400 mb-8 max-w-lg mx-auto">
-                    Зарегистрируйтесь, пополните баланс от 1000₽ — ваши объявления начнут приводить клиентов
+                    AI будет управлять ставками, оптимизировать бюджет и отключать неэффективные объявления автоматически
                   </p>
                   <Button
                     onClick={handleLaunch}
@@ -363,7 +389,7 @@ export default function LandingPage() {
                     className="bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-lg px-10 h-14 rounded-xl shadow-lg shadow-violet-500/25"
                   >
                     <Rocket className="mr-3 h-5 w-5" />
-                    Запустить рекламу
+                    Включить Автопилот
                     <ChevronRight className="ml-2 h-5 w-5" />
                   </Button>
                 </div>
@@ -378,10 +404,10 @@ export default function LandingPage() {
         <div className="container mx-auto max-w-6xl">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {[
-              { value: 127, suffix: "+", label: "Бизнесов", icon: Users },
-              { value: 12, suffix: "M", label: "Показов", icon: Target },
+              { value: 127, suffix: "+", label: "Бизнесов на автопилоте", icon: Bot },
+              { value: 15, suffix: " млн", label: "Оптимизированных показов", icon: Target },
               { value: 4.7, suffix: "x", label: "Средний ROAS", icon: TrendingUp },
-              { value: 60, suffix: "сек", label: "На создание", icon: Clock }
+              { value: 23, suffix: "%", label: "Экономия бюджета", icon: DollarSign }
             ].map((stat, idx) => (
               <div key={idx} className="text-center group">
                 <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -397,37 +423,59 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className="relative z-10 py-24 px-4 border-t border-white/5">
+      {/* FEATURES SECTION - EXPANDED */}
+      <section id="features" className="relative z-10 py-24 px-4 border-t border-white/5">
         <div className="container mx-auto max-w-6xl">
           <div className="text-center mb-16">
+            <div className="inline-flex items-center gap-2 bg-violet-500/10 border border-violet-500/30 rounded-full px-4 py-2 mb-6">
+              <Layers className="h-4 w-4 text-violet-400" />
+              <span className="text-sm text-violet-300">Полный набор инструментов</span>
+            </div>
             <h2 className="text-4xl md:text-5xl font-bold mb-4">
-              Всё для <span className="bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">роста бизнеса</span>
+              Всё для <span className="bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">умной рекламы</span>
             </h2>
             <p className="text-gray-400 text-lg max-w-2xl mx-auto">
-              Платформа, которая думает за вас и приводит клиентов на автопилоте
+              Не просто генератор объявлений — полноценная платформа управления рекламой
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
               {
-                icon: Sparkles,
+                icon: Brain,
                 color: "from-violet-600 to-violet-400",
                 title: "AI-генерация",
-                description: "Нейросеть анализирует ваш бизнес и создаёт тексты и креативы, которые продают"
+                description: "Нейросеть анализирует ваш сайт и создаёт тексты, заголовки и креативы, которые продают"
+              },
+              {
+                icon: Bot,
+                color: "from-fuchsia-600 to-fuchsia-400",
+                title: "Автопилот",
+                description: "AI работает 24/7: отключает неэффективное, масштабирует работающее, экономит бюджет"
+              },
+              {
+                icon: Gauge,
+                color: "from-cyan-600 to-cyan-400",
+                title: "Умные ставки",
+                description: "Автоматически повышает ставки на конверсионные объявления и снижает на неэффективные"
               },
               {
                 icon: Target,
-                color: "from-fuchsia-600 to-fuchsia-400",
+                color: "from-pink-600 to-pink-400",
                 title: "A/B тестирование",
-                description: "Автоматически находим лучшие объявления. Статистическая значимость гарантирована"
+                description: "Запускает эксперименты, анализирует статистику, выбирает победителей автоматически"
               },
               {
-                icon: DollarSign,
+                icon: LineChart,
                 color: "from-emerald-600 to-emerald-400",
-                title: "Оптимизация бюджета",
-                description: "AI перераспределяет бюджет на работающие кампании. ROAS растёт автоматически"
+                title: "Стратегии по нишам",
+                description: "Готовые шаблоны кампаний для 12 отраслей с бенчмарками CTR, CPA и ROAS"
+              },
+              {
+                icon: Bell,
+                color: "from-amber-600 to-amber-400",
+                title: "Telegram-алерты",
+                description: "Мгновенные уведомления о критических событиях: бюджет, CTR падает, аномалии"
               }
             ].map((feature, idx) => (
               <div key={idx} className="group relative">
@@ -439,6 +487,193 @@ export default function LandingPage() {
                   <h3 className="text-xl font-bold mb-3 text-white">{feature.title}</h3>
                   <p className="text-gray-400 leading-relaxed">{feature.description}</p>
                 </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* AUTOPILOT SECTION - NEW */}
+      <section id="autopilot" className="relative z-10 py-24 px-4 border-t border-white/5">
+        <div className="container mx-auto max-w-6xl">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <div>
+              <div className="inline-flex items-center gap-2 bg-fuchsia-500/10 border border-fuchsia-500/30 rounded-full px-4 py-2 mb-6">
+                <Bot className="h-4 w-4 text-fuchsia-400" />
+                <span className="text-sm text-fuchsia-300">Автопилот</span>
+              </div>
+              <h2 className="text-4xl md:text-5xl font-bold mb-6">
+                Реклама работает, <br />
+                <span className="bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">пока вы спите</span>
+              </h2>
+              <p className="text-gray-400 text-lg mb-8">
+                Включите Автопилот и AI возьмёт на себя рутину: анализ, оптимизация, управление ставками,
+                отключение неэффективных объявлений — всё автоматически.
+              </p>
+
+              <div className="space-y-4">
+                {[
+                  { icon: Gauge, text: "Автоматическая корректировка ставок каждый час" },
+                  { icon: Target, text: "Пауза объявлений с CTR ниже порога" },
+                  { icon: DollarSign, text: "Перераспределение бюджета на работающие кампании" },
+                  { icon: Bell, text: "Уведомления в Telegram о важных событиях" }
+                ].map((item, idx) => (
+                  <div key={idx} className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-fuchsia-500/20 flex items-center justify-center">
+                      <item.icon className="h-5 w-5 text-fuchsia-400" />
+                    </div>
+                    <span className="text-white">{item.text}</span>
+                  </div>
+                ))}
+              </div>
+
+              <Button
+                onClick={() => router.push("/signup")}
+                className="mt-8 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500"
+              >
+                <Bot className="mr-2 h-5 w-5" />
+                Включить Автопилот
+              </Button>
+            </div>
+
+            <div className="relative">
+              <div className="absolute -inset-4 bg-gradient-to-r from-violet-600/20 to-fuchsia-600/20 rounded-3xl blur-2xl" />
+              <div className="relative bg-white/5 backdrop-blur-xl rounded-2xl p-8 border border-white/10">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center">
+                      <Zap className="h-6 w-6 text-green-400" />
+                    </div>
+                    <div>
+                      <div className="text-white font-medium">Автопилот активен</div>
+                      <div className="text-gray-500 text-sm">Оптимизация каждый час</div>
+                    </div>
+                  </div>
+                  <div className="w-4 h-4 rounded-full bg-green-500 animate-pulse" />
+                </div>
+
+                <div className="space-y-3">
+                  {[
+                    { action: "Повышена ставка +15%", target: "Кампания 'Зимняя распродажа'", time: "2 мин назад", status: "success" },
+                    { action: "Пауза объявления", target: "CTR 0.2% < порога 0.5%", time: "15 мин назад", status: "warning" },
+                    { action: "Бюджет перенесён", target: "+5000₽ на 'Акция декабрь'", time: "1 час назад", status: "info" }
+                  ].map((log, idx) => (
+                    <div key={idx} className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
+                      <div className={`w-2 h-2 rounded-full mt-2 ${log.status === 'success' ? 'bg-green-500' :
+                          log.status === 'warning' ? 'bg-amber-500' : 'bg-blue-500'
+                        }`} />
+                      <div className="flex-1">
+                        <div className="text-white text-sm font-medium">{log.action}</div>
+                        <div className="text-gray-500 text-xs">{log.target}</div>
+                      </div>
+                      <div className="text-gray-600 text-xs">{log.time}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* PRICING SECTION - NEW */}
+      <section id="pricing" className="relative z-10 py-24 px-4 border-t border-white/5">
+        <div className="container mx-auto max-w-5xl">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-bold mb-4">
+              Простые <span className="bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">тарифы</span>
+            </h2>
+            <p className="text-gray-400 text-lg">
+              Начните бесплатно, масштабируйтесь по мере роста
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6">
+            {[
+              {
+                name: "Старт",
+                price: "0",
+                period: "бесплатно",
+                description: "Для тестирования платформы",
+                features: [
+                  "1 рекламный кабинет",
+                  "AI-генерация (10 запросов)",
+                  "Базовая аналитика",
+                  "Email-поддержка"
+                ],
+                cta: "Начать бесплатно",
+                popular: false
+              },
+              {
+                name: "Бизнес",
+                price: "2 990",
+                period: "/мес",
+                description: "Для растущего бизнеса",
+                features: [
+                  "5 рекламных кабинетов",
+                  "Безлимитная AI-генерация",
+                  "Автопилот",
+                  "Умные ставки",
+                  "Telegram-алерты",
+                  "Приоритетная поддержка"
+                ],
+                cta: "Выбрать план",
+                popular: true
+              },
+              {
+                name: "Агентство",
+                price: "9 990",
+                period: "/мес",
+                description: "Для агентств и команд",
+                features: [
+                  "50 рекламных кабинетов",
+                  "White-label",
+                  "API доступ",
+                  "Мультиаккаунт",
+                  "Персональный менеджер",
+                  "SLA 99.9%"
+                ],
+                cta: "Связаться",
+                popular: false
+              }
+            ].map((plan, idx) => (
+              <div
+                key={idx}
+                className={`relative rounded-2xl p-8 ${plan.popular
+                    ? 'bg-gradient-to-b from-violet-600/20 to-fuchsia-600/20 border-2 border-violet-500/50'
+                    : 'bg-white/5 border border-white/10'
+                  }`}
+              >
+                {plan.popular && (
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white text-sm font-medium px-4 py-1 rounded-full">
+                    Популярный
+                  </div>
+                )}
+                <div className="text-lg font-medium text-white mb-2">{plan.name}</div>
+                <div className="flex items-baseline gap-1 mb-2">
+                  <span className="text-4xl font-bold text-white">{plan.price}₽</span>
+                  <span className="text-gray-400">{plan.period}</span>
+                </div>
+                <p className="text-gray-500 text-sm mb-6">{plan.description}</p>
+
+                <ul className="space-y-3 mb-8">
+                  {plan.features.map((feature, fidx) => (
+                    <li key={fidx} className="flex items-center gap-2 text-gray-300 text-sm">
+                      <Check className="h-4 w-4 text-green-400" />
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+
+                <Button
+                  className={`w-full ${plan.popular
+                      ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500'
+                      : 'bg-white/10 hover:bg-white/20'
+                    }`}
+                  onClick={() => router.push("/signup")}
+                >
+                  {plan.cta}
+                </Button>
               </div>
             ))}
           </div>
@@ -459,8 +694,8 @@ export default function LandingPage() {
               <div
                 key={idx}
                 className={`absolute inset-0 transition-all duration-500 ${idx === activeTestimonial
-                    ? 'opacity-100 translate-y-0'
-                    : 'opacity-0 translate-y-4'
+                  ? 'opacity-100 translate-y-0'
+                  : 'opacity-0 translate-y-4'
                   }`}
               >
                 <p className="text-2xl md:text-3xl font-medium text-white mb-6">
@@ -485,8 +720,8 @@ export default function LandingPage() {
                 key={idx}
                 onClick={() => setActiveTestimonial(idx)}
                 className={`w-2 h-2 rounded-full transition-all ${idx === activeTestimonial
-                    ? 'w-8 bg-violet-500'
-                    : 'bg-white/20'
+                  ? 'w-8 bg-violet-500'
+                  : 'bg-white/20'
                   }`}
               />
             ))}
@@ -503,10 +738,10 @@ export default function LandingPage() {
           </div>
 
           <h2 className="text-4xl md:text-5xl font-bold mb-6">
-            Готовы получить <span className="bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">клиентов</span>?
+            Готовы к <span className="bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">автопилоту</span>?
           </h2>
           <p className="text-gray-400 text-lg mb-10">
-            Создайте рекламу прямо сейчас — это бесплатно и займёт 60 секунд
+            Попробуйте бесплатно — AI создаст объявления за 60 секунд
           </p>
           <Button
             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
@@ -514,7 +749,7 @@ export default function LandingPage() {
             className="bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-lg px-10 h-14 rounded-xl shadow-lg shadow-violet-500/25"
           >
             <Sparkles className="mr-3 h-5 w-5" />
-            Создать рекламу
+            Попробовать бесплатно
             <ArrowRight className="ml-3 h-5 w-5" />
           </Button>
         </div>

@@ -123,7 +123,7 @@ async def demo_topup(
         raise HTTPException(400, "Use real payment endpoint when YooKassa is configured")
     
     # Simulate successful payment
-    from app.db.models import BillingTransaction
+    from app.db.models_billing import BillingTransaction
     
     tx = BillingTransaction(
         organization_id=org_id,
