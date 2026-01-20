@@ -99,6 +99,9 @@ async def scrape_landing_page(url: str) -> str:
     
     logger.info(f"Starting deep scrape for: {url}")
     
+    if not url.startswith("http"):
+        url = f"https://{url}"
+    
     async with httpx.AsyncClient(timeout=15.0, follow_redirects=True, headers={"User-Agent": "Mozilla/5.0 (compatible; AI-Ad-Generator/1.0)"}) as client:
         while queue and len(visited_urls) < max_pages:
             current_url, depth = queue.pop(0)
