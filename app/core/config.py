@@ -157,6 +157,20 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("YANDEX_REDIRECT_URI"),
     )
 
+    # VK Ads API
+    vk_ads_client_id: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("VK_ADS_CLIENT_ID"),
+    )
+    vk_ads_client_secret: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("VK_ADS_CLIENT_SECRET"),
+    )
+    vk_ads_redirect_uri: str = Field(
+        default="https://ads.vk.com/hq/settings/access",
+        validation_alias=AliasChoices("VK_ADS_REDIRECT_URI"),
+    )
+
 
     # YooKassa Payments
     yookassa_shop_id: str | None = Field(

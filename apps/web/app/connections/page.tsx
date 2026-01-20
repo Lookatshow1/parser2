@@ -31,7 +31,7 @@ const platforms = ["yandex", "vk", "ozon"];
 
 const platformInfo: Record<string, {
   name: string;
-  method: "oauth" | "apikey";
+  method: "oauth" | "apikey" | "oauth-manual";
   description: string;
   fields: string[];
 }> = {
@@ -43,9 +43,9 @@ const platformInfo: Record<string, {
   },
   vk: {
     name: "VK Реклама",
-    method: "oauth",
-    description: "Авторизация через VK ID. Подключите ваш рекламный кабинет VK.",
-    fields: [],
+    method: "oauth-manual",
+    description: "Авторизация через VK ID. Получите код доступа и введите его ниже.",
+    fields: ["code", "account_id"],
   },
   ozon: {
     name: "Ozon Performance",
@@ -58,8 +58,10 @@ const platformInfo: Record<string, {
 const credentialsTemplates: Record<string, string> = {
   yandex: JSON.stringify({ mock: true }),
   ozon: JSON.stringify({ client_id: "", client_secret: "" }),
-  vk: JSON.stringify({ access_token: "", version: "5.131", account_id: "" }),
+  vk: JSON.stringify({ code: "", account_id: "" }),
 };
+
+const VK_CLIENT_ID = "Xm3G7VoWTh79zWQP"; // Hardcoded for matching backend config
 
 const syncStatusVariant: Record<string, "success" | "danger" | "warning" | "muted"> = {
   success: "success",
@@ -357,6 +359,30 @@ export default function ConnectionsPage() {
                 >
                   Войти через {platform === "yandex" ? "Яндекс" : "VK"}
                 </Button>
+              </div>
+            ) : platformInfo[platform]?.method === "oauth-manual" ? (
+              <div className="space-y-2">
+                <Label>Код доступа</Label>
+                <div className="flex gap-2 mb-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => {
+                      const url = `https://ads.vk.com/hq/settings/access?action=oauth2&response_type=code&client_id=${VK_CLIENT_ID}&redirect_uri=https://ads.vk.com/hq/settings/access&scope=ads_manager,ads_read`;
+                      window.open(url, "_blank");
+                    }}
+                  >
+                    Получить код
+                  </Button>
+                </div>
+                <textarea
+                  value={credentialsJson}
+                  onChange={(event) => setCredentialsJson(event.target.value)}
+                  className="h-24 w-full rounded-md border border-border bg-panel-strong px-3 py-2 text-sm text-text font-mono"
+                  placeholder='{"code": "...", "account_id": "optional"}'
+                />
+                <p className="text-xs text-muted">Скопируйте код из адресной строки после авторизации и вставьте в JSON поле "code".</p>
               </div>
             ) : (
               <div className="space-y-2">

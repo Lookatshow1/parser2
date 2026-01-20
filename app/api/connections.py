@@ -26,7 +26,7 @@ from app.security.credentials_crypto import CredentialsCryptoError, maybe_decryp
 router = APIRouter(prefix="/connections", tags=["connections"])
 
 @router.post("", response_model=ConnectionOut)
-def create_connection(
+async def create_connection(
     item: ConnectionCreateRequest,
     db: Session = Depends(get_db),
     org: Organization = Depends(get_current_org),
@@ -35,6 +35,42 @@ def create_connection(
 ):
     if not can_write_connections(membership.role):
         raise HTTPException(status_code=403, detail="Insufficient role to create connection")
+
+    # VK OAuth Exchange Logic
+    if item.platform == "vk" and item.credentials_json and item.credentials_json.get("code"):
+        try:
+            from app.services.oauth.base import VKAdsOAuth
+            from app.core.config import get_settings
+            
+            settings = get_settings()
+            if not settings.vk_ads_client_id or not settings.vk_ads_client_secret:
+                raise ValueError("VK Ads Client ID/Secret not configured on server")
+
+            oauth = VKAdsOAuth(
+                client_id=settings.vk_ads_client_id,
+                client_secret=settings.vk_ads_client_secret,
+                redirect_uri=item.credentials_json.get("redirect_uri") or settings.vk_ads_redirect_uri,
+            )
+            
+            token_data = await oauth.exchange_code(item.credentials_json["code"])
+            
+            # Update credentials with real token
+            item.credentials_json["access_token"] = token_data.access_token
+            item.credentials_json["refresh_token"] = token_data.refresh_token
+            item.credentials_json["expires_at"] = token_data.expires_at.isoformat() if token_data.expires_at else None
+            # Prepare to fetch account_id if missing
+            if not item.credentials_json.get("account_id"):
+                 # We will fetch it during validation or first sync, 
+                 # or we can try to fetch it now using the connector logic.
+                 # For now, let's keep it simple.
+                 pass
+
+            # Cleanup code
+            del item.credentials_json["code"]
+            
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"VK OAuth failed: {str(e)}")
+
     encrypted_credentials = maybe_encrypt(item.credentials_json or {})
     db_obj = Connection(
         organization_id=org.id,
