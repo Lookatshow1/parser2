@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone
 
 from sqlalchemy.orm import Session
 
@@ -163,5 +163,11 @@ def should_run(settings: OrgAutomationSettings, now: datetime) -> bool:
         return False
     if not settings.last_run_at:
         return True
-    delta = now - settings.last_run_at
+    # Normalize both to UTC-aware for comparison
+    last_run = settings.last_run_at
+    if last_run.tzinfo is None:
+        last_run = last_run.replace(tzinfo=timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    delta = now - last_run
     return delta.total_seconds() >= settings.run_interval_minutes * 60
