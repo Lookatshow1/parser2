@@ -7,69 +7,17 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
 import {
-    Search, TrendingUp, TrendingDown, Target, Eye,
-    Loader2, BarChart3, Globe, Zap, AlertTriangle
+    Search, TrendingUp, Target, Eye,
+    Loader2, Globe, Zap, AlertTriangle
 } from "lucide-react";
 import { toast } from "sonner";
-
-interface CompetitorData {
-    domain: string;
-    title: string;
-    description: string;
-    keywords: string[];
-    adCount: number;
-    estimatedBudget: string;
-    topAds: Array<{
-        title: string;
-        text: string;
-        keywords: string[];
-    }>;
-}
-
-interface Recommendation {
-    type: "opportunity" | "warning" | "insight";
-    title: string;
-    description: string;
-}
-
-// Mock data for demo
-const mockCompetitorData: CompetitorData = {
-    domain: "competitor.ru",
-    title: "Конкурент — Услуги и товары",
-    description: "Качественные услуги по доступным ценам",
-    keywords: ["услуги", "доставка", "скидки", "акции", "премиум"],
-    adCount: 24,
-    estimatedBudget: "₽150,000 — ₽300,000/мес",
-    topAds: [
-        { title: "Скидки до 50%!", text: "Только сегодня специальные цены на все услуги.", keywords: ["скидки", "акции"] },
-        { title: "Бесплатная доставка", text: "Закажите сейчас и получите доставку бесплатно.", keywords: ["доставка", "бесплатно"] },
-        { title: "Премиум качество", text: "Лучшие материалы от проверенных поставщиков.", keywords: ["качество", "премиум"] },
-    ]
-};
-
-const mockRecommendations: Recommendation[] = [
-    {
-        type: "opportunity",
-        title: "Используйте ключ «бесплатная консультация»",
-        description: "Конкуренты не используют этот запрос, но он имеет высокий объём поиска."
-    },
-    {
-        type: "warning",
-        title: "Высокая конкуренция по «скидки»",
-        description: "3 из 5 конкурентов активно используют этот ключ. Рассмотрите альтернативы."
-    },
-    {
-        type: "insight",
-        title: "Конкуренты делают ставку на эмоции",
-        description: "80% объявлений используют эмоциональные триггеры. Попробуйте рациональный подход."
-    }
-];
+import { CompetitorsApi, CompetitorAnalysis } from "@/lib/api";
 
 export default function CompetitorsPage() {
     const [domain, setDomain] = useState("");
     const [loading, setLoading] = useState(false);
-    const [competitor, setCompetitor] = useState<CompetitorData | null>(null);
-    const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+    const [analysis, setAnalysis] = useState<CompetitorAnalysis | null>(null);
+    const [error, setError] = useState<string | null>(null);
 
     const analyzeCompetitor = async () => {
         if (!domain) {
@@ -78,14 +26,20 @@ export default function CompetitorsPage() {
         }
 
         setLoading(true);
+        setError(null);
 
-        // Simulate API call
-        await new Promise(r => setTimeout(r, 2000));
-
-        setCompetitor(mockCompetitorData);
-        setRecommendations(mockRecommendations);
-        setLoading(false);
-        toast.success("Анализ завершён");
+        try {
+            const result = await CompetitorsApi.analyze(domain);
+            setAnalysis(result);
+            toast.success("Анализ завершён");
+        } catch (err) {
+            const message = (err as Error).message || "Ошибка анализа";
+            setError(message);
+            setAnalysis(null);
+            toast.error(message);
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -123,35 +77,77 @@ export default function CompetitorsPage() {
                 </CardContent>
             </Card>
 
-            {competitor && (
+            {error && (
+                <Card>
+                    <CardContent className="p-6 text-sm text-red-400">
+                        {error}
+                    </CardContent>
+                </Card>
+            )}
+
+            {analysis && (
                 <>
                     {/* Overview */}
                     <div className="grid md:grid-cols-4 gap-4">
                         <Card>
                             <CardContent className="p-4 text-center">
-                                <div className="text-3xl font-bold text-text">{competitor.adCount}</div>
-                                <div className="text-sm text-muted">Активных объявлений</div>
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardContent className="p-4 text-center">
-                                <div className="text-3xl font-bold text-text">{competitor.keywords.length}</div>
+                                <div className="text-3xl font-bold text-text">{analysis.keywords?.length || 0}</div>
                                 <div className="text-sm text-muted">Ключевых слов</div>
                             </CardContent>
                         </Card>
                         <Card>
                             <CardContent className="p-4 text-center">
-                                <div className="text-lg font-bold text-text">{competitor.estimatedBudget}</div>
-                                <div className="text-sm text-muted">Оценка бюджета</div>
+                                <div className="text-3xl font-bold text-text">{analysis.profile.products?.length || 0}</div>
+                                <div className="text-sm text-muted">Услуг/товаров</div>
                             </CardContent>
                         </Card>
                         <Card>
                             <CardContent className="p-4 text-center">
-                                <div className="text-3xl font-bold text-green-500">A</div>
-                                <div className="text-sm text-muted">Оценка качества</div>
+                                <div className="text-3xl font-bold text-text">{analysis.profile.trust_signals?.length || 0}</div>
+                                <div className="text-sm text-muted">Сигналов доверия</div>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardContent className="p-4 text-center">
+                                <div className="text-3xl font-bold text-text">{analysis.recommendations?.length || 0}</div>
+                                <div className="text-sm text-muted">Рекомендаций</div>
                             </CardContent>
                         </Card>
                     </div>
+
+                    {/* Profile */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <Globe className="h-5 w-5 text-accent" />
+                                Профиль сайта
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3 text-sm text-muted">
+                            <div>
+                                <span className="text-text font-medium">Название: </span>
+                                {analysis.profile.name || analysis.domain}
+                            </div>
+                            {analysis.profile.description && (
+                                <div>
+                                    <span className="text-text font-medium">Описание: </span>
+                                    {analysis.profile.description}
+                                </div>
+                            )}
+                            {(analysis.profile.social_links || []).length > 0 && (
+                                <div>
+                                    <span className="text-text font-medium">Соцсети: </span>
+                                    <div className="flex flex-wrap gap-2 mt-2">
+                                        {analysis.profile.social_links?.map((link) => (
+                                            <Badge key={link} variant="muted">
+                                                {link}
+                                            </Badge>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
 
                     {/* Keywords */}
                     <Card>
@@ -162,42 +158,91 @@ export default function CompetitorsPage() {
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="flex flex-wrap gap-2">
-                                {competitor.keywords.map((kw, idx) => (
-                                    <Badge key={idx} variant="muted" className="text-sm py-1 px-3">
-                                        {kw}
-                                    </Badge>
-                                ))}
-                            </div>
+                            {analysis.keywords?.length ? (
+                                <div className="flex flex-wrap gap-2">
+                                    {analysis.keywords.map((kw, idx) => (
+                                        <Badge key={idx} variant="muted" className="text-sm py-1 px-3">
+                                            {kw}
+                                        </Badge>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="text-muted text-sm">Ключевые слова не найдены.</div>
+                            )}
                         </CardContent>
                     </Card>
 
-                    {/* Top Ads */}
+                    {/* Products / Messages */}
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <Eye className="h-5 w-5 text-accent" />
-                                Топ объявлений конкурента
+                                Основные услуги и сообщения
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="space-y-4">
-                                {competitor.topAds.map((ad, idx) => (
-                                    <div key={idx} className="p-4 bg-panel-strong rounded-lg border border-border">
-                                        <h4 className="font-semibold text-text mb-1">{ad.title}</h4>
-                                        <p className="text-sm text-muted mb-2">{ad.text}</p>
-                                        <div className="flex gap-1">
-                                            {ad.keywords.map((kw, i) => (
-                                                <Badge key={i} variant="muted" className="text-xs">
-                                                    {kw}
-                                                </Badge>
-                                            ))}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
+                            {analysis.profile.products?.length ? (
+                                <div className="flex flex-wrap gap-2">
+                                    {analysis.profile.products.map((item, idx) => (
+                                        <Badge key={idx} variant="muted" className="text-sm py-1 px-3">
+                                            {item}
+                                        </Badge>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="text-muted text-sm">Не удалось выделить услуги/сообщения.</div>
+                            )}
                         </CardContent>
                     </Card>
+
+                    {/* Strengths / Weaknesses / Opportunities */}
+                    <div className="grid md:grid-cols-3 gap-4">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-sm">Сильные стороны</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-2 text-sm text-muted">
+                                {analysis.strengths?.length ? analysis.strengths.map((item, idx) => (
+                                    <div key={idx} className="flex items-start gap-2">
+                                        <TrendingUp className="h-4 w-4 text-green-500 mt-0.5" />
+                                        <span>{item}</span>
+                                    </div>
+                                )) : (
+                                    <span>Нет данных</span>
+                                )}
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-sm">Слабые стороны</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-2 text-sm text-muted">
+                                {analysis.weaknesses?.length ? analysis.weaknesses.map((item, idx) => (
+                                    <div key={idx} className="flex items-start gap-2">
+                                        <AlertTriangle className="h-4 w-4 text-yellow-500 mt-0.5" />
+                                        <span>{item}</span>
+                                    </div>
+                                )) : (
+                                    <span>Нет данных</span>
+                                )}
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-sm">Возможности</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-2 text-sm text-muted">
+                                {analysis.opportunities?.length ? analysis.opportunities.map((item, idx) => (
+                                    <div key={idx} className="flex items-start gap-2">
+                                        <TrendingUp className="h-4 w-4 text-blue-500 mt-0.5" />
+                                        <span>{item}</span>
+                                    </div>
+                                )) : (
+                                    <span>Нет данных</span>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </div>
 
                     {/* Recommendations */}
                     <Card>
@@ -208,31 +253,23 @@ export default function CompetitorsPage() {
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="space-y-3">
-                                {recommendations.map((rec, idx) => (
-                                    <div
-                                        key={idx}
-                                        className={`p-4 rounded-lg border ${rec.type === "opportunity" ? "bg-green-500/10 border-green-500/30" :
-                                                rec.type === "warning" ? "bg-yellow-500/10 border-yellow-500/30" :
-                                                    "bg-blue-500/10 border-blue-500/30"
-                                            }`}
-                                    >
-                                        <div className="flex items-start gap-3">
-                                            {rec.type === "opportunity" ? (
+                            {analysis.recommendations?.length ? (
+                                <div className="space-y-3">
+                                    {analysis.recommendations.map((rec, idx) => (
+                                        <div key={idx} className="p-4 rounded-lg border bg-green-500/10 border-green-500/30">
+                                            <div className="flex items-start gap-3">
                                                 <TrendingUp className="h-5 w-5 text-green-500 mt-0.5" />
-                                            ) : rec.type === "warning" ? (
-                                                <AlertTriangle className="h-5 w-5 text-yellow-500 mt-0.5" />
-                                            ) : (
-                                                <BarChart3 className="h-5 w-5 text-blue-500 mt-0.5" />
-                                            )}
-                                            <div>
-                                                <h4 className="font-semibold text-text">{rec.title}</h4>
-                                                <p className="text-sm text-muted mt-0.5">{rec.description}</p>
+                                                <div>
+                                                    <h4 className="font-semibold text-text">Идея</h4>
+                                                    <p className="text-sm text-muted mt-0.5">{rec}</p>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                ))}
-                            </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="text-muted text-sm">Рекомендации не сформированы.</div>
+                            )}
                         </CardContent>
                     </Card>
 

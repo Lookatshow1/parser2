@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import os
-from datetime import date, timedelta
+import asyncio
+from datetime import date, timedelta, datetime
 from typing import List, Dict, Any
 
 from pydantic import ValidationError
@@ -9,6 +10,8 @@ from pydantic import ValidationError
 from app.connectors.base import AdsConnector, MetricRecord
 from app.connectors.credentials import OzonCredentials
 from app.db.models import MetricSnapshot, Platform
+from app.services.oauth.base import OzonOAuth
+from app.services.platforms.ozon_perf import OzonPerformanceClient
 
 
 class OzonPerformanceConnector(AdsConnector):
@@ -17,6 +20,28 @@ class OzonPerformanceConnector(AdsConnector):
         self.client_id = self.credentials.get("client_id")
         self.client_secret = self.credentials.get("client_secret")
         self.is_mock = os.getenv("OZON_PERF_MOCK", "0") == "1"
+        self._access_token: str | None = None
+        self._token_expires_at: datetime | None = None
+
+    def _get_access_token(self) -> str:
+        if self._access_token and self._token_expires_at and datetime.utcnow() < self._token_expires_at:
+            return self._access_token
+        if not self.client_id or not self.client_secret:
+            raise ValueError("Ozon credentials are missing")
+
+        async def _fetch() -> str:
+            oauth = OzonOAuth(client_id=self.client_id, client_secret=self.client_secret, redirect_uri="")
+            token = await oauth.exchange_code("")
+            await oauth.close()
+            self._access_token = token.access_token
+            self._token_expires_at = token.expires_at
+            return token.access_token
+
+        return asyncio.run(_fetch())
+
+    def _build_client(self) -> OzonPerformanceClient:
+        token = self._get_access_token()
+        return OzonPerformanceClient(token)
 
     def credential_schema(self):
         return OzonCredentials
@@ -63,7 +88,25 @@ class OzonPerformanceConnector(AdsConnector):
                 }
                 for row in rows
             ]
-        raise NotImplementedError("Ozon real fetch is not implemented yet")
+        client = self._build_client()
+
+        async def _fetch() -> list[MetricRecord]:
+            try:
+                campaigns = await client.get_campaigns()
+                campaign_ids = [c.get("id") for c in campaigns if c.get("id")]
+                if not campaign_ids:
+                    return []
+                rows = await client.get_statistics(
+                    campaign_ids=campaign_ids,
+                    date_from=date_from.isoformat(),
+                    date_to=date_to.isoformat(),
+                    group_by="DATE",
+                )
+                return [self._map_stat_row(row) for row in rows]
+            finally:
+                await client.close()
+
+        return [row for row in asyncio.run(_fetch()) if row]
 
     def stop(self, external_ids: dict) -> None:
         return None
@@ -75,8 +118,23 @@ class OzonPerformanceConnector(AdsConnector):
                 {"id": "ozon_bbb", "name": "Ozon Campaign B", "status": "PAUSED"},
             ]
 
-        # TODO: Implement real API call
-        raise NotImplementedError("Ozon real API not implemented yet")
+        client = self._build_client()
+
+        async def _fetch() -> List[Dict[str, Any]]:
+            try:
+                campaigns = await client.get_campaigns()
+                result = []
+                for camp in campaigns or []:
+                    result.append({
+                        "id": camp.get("id") or camp.get("campaignId") or camp.get("campaign_id"),
+                        "name": camp.get("title") or camp.get("name") or "Ozon Campaign",
+                        "status": camp.get("state") or camp.get("status"),
+                    })
+                return result
+            finally:
+                await client.close()
+
+        return asyncio.run(_fetch())
 
     def get_daily_stats(self, campaign_ids: List[str], date_from: date, date_to: date) -> List[Dict[str, Any]]:
         if self.is_mock:
@@ -94,5 +152,67 @@ class OzonPerformanceConnector(AdsConnector):
                     })
             return results
 
-        # TODO: Implement real API call
-        raise NotImplementedError("Ozon real API not implemented yet")
+        client = self._build_client()
+
+        async def _fetch() -> List[Dict[str, Any]]:
+            try:
+                rows = await client.get_statistics(
+                    campaign_ids=[int(cid) for cid in campaign_ids],
+                    date_from=date_from.isoformat(),
+                    date_to=date_to.isoformat(),
+                    group_by="DATE",
+                )
+                result = []
+                for row in rows or []:
+                    mapped = self._map_stat_row(row)
+                    if not mapped:
+                        continue
+                    result.append({
+                        "Date": mapped["date"].isoformat(),
+                        "CampaignId": mapped["campaign_external_id"],
+                        "Impressions": mapped["impressions"],
+                        "Clicks": mapped["clicks"],
+                        "Cost": mapped["spend"],
+                    })
+                return result
+            finally:
+                await client.close()
+
+        return asyncio.run(_fetch())
+
+    def _map_stat_row(self, row: Dict[str, Any]) -> MetricRecord | None:
+        if not isinstance(row, dict):
+            return None
+        campaign_id = row.get("campaignId") or row.get("campaign_id") or row.get("CampaignId")
+        date_value = row.get("date") or row.get("Date")
+        if not campaign_id or not date_value:
+            return None
+
+        def pick(*keys, default=0):
+            for key in keys:
+                if key in row and row[key] is not None:
+                    return row[key]
+            return default
+
+        impressions = pick("impressions", "shows", "views", "Impressions")
+        clicks = pick("clicks", "Clicks")
+        spend = pick("spend", "cost", "Cost")
+        revenue = pick("revenue", "sales", "Revenue")
+
+        return {
+            "date": date.fromisoformat(str(date_value)),
+            "platform": Platform.ozon,
+            "level": "campaign",
+            "campaign_external_id": str(campaign_id),
+            "ad_group_external_id": None,
+            "ad_external_id": None,
+            "impressions": int(impressions or 0),
+            "clicks": int(clicks or 0),
+            "spend": int(float(spend or 0)),
+            "leads": 0,
+            "purchases": int(float(row.get("orders") or 0)),
+            "revenue": int(float(revenue or 0)),
+            "conversions": None,
+            "cost": int(float(spend or 0)),
+            "currency": "RUB",
+        }

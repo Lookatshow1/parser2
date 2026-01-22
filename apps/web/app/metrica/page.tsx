@@ -10,6 +10,7 @@ import {
     Loader2, RefreshCw, Target, TrendingUp, Globe
 } from "lucide-react";
 import { toast } from "sonner";
+import { getOrgId, getToken } from "@/lib/session";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -38,11 +39,24 @@ export default function MetricaPage() {
         checkStatus();
     }, []);
 
+    const buildHeaders = () => {
+        const token = getToken();
+        const orgId = getOrgId();
+        return {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            ...(orgId ? { "X-Org-Id": orgId } : {}),
+        };
+    };
+
     const checkStatus = async () => {
         try {
-            const token = localStorage.getItem("token");
+            const token = getToken();
+            if (!token) {
+                setConnected(false);
+                return;
+            }
             const res = await fetch(`${API_BASE}/api/metrica/status`, {
-                headers: { Authorization: `Bearer ${token}` }
+                headers: buildHeaders()
             });
             const data = await res.json();
             setConnected(data.connected);
@@ -60,10 +74,19 @@ export default function MetricaPage() {
     const startOAuth = async () => {
         setConnecting(true);
         try {
-            const token = localStorage.getItem("token");
+            const token = getToken();
+            if (!token) {
+                toast.error("Нужно войти в систему");
+                setConnecting(false);
+                return;
+            }
             const res = await fetch(`${API_BASE}/api/metrica/auth-url`, {
-                headers: { Authorization: `Bearer ${token}` }
+                headers: buildHeaders()
             });
+            if (!res.ok) {
+                const error = await res.json().catch(() => ({}));
+                throw new Error(error?.detail || "Ошибка подключения");
+            }
             const data = await res.json();
 
             // Open OAuth window
@@ -88,16 +111,15 @@ export default function MetricaPage() {
             }, 1000);
 
         } catch (err) {
-            toast.error("Ошибка подключения");
+            toast.error((err as Error).message || "Ошибка подключения");
             setConnecting(false);
         }
     };
 
     const loadCounters = async () => {
         try {
-            const token = localStorage.getItem("token");
             const res = await fetch(`${API_BASE}/api/metrica/counters`, {
-                headers: { Authorization: `Bearer ${token}` }
+                headers: buildHeaders()
             });
             if (res.ok) {
                 const data = await res.json();
@@ -110,9 +132,8 @@ export default function MetricaPage() {
 
     const loadGoals = async (counterId: number) => {
         try {
-            const token = localStorage.getItem("token");
             const res = await fetch(`${API_BASE}/api/metrica/counters/${counterId}/goals`, {
-                headers: { Authorization: `Bearer ${token}` }
+                headers: buildHeaders()
             });
             if (res.ok) {
                 const data = await res.json();

@@ -12,6 +12,7 @@ import {
     Loader2, MessageCircle, AlertTriangle, TrendingUp, Calendar
 } from "lucide-react";
 import { toast } from "sonner";
+import { getOrgId, getToken } from "@/lib/session";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -38,11 +39,19 @@ export default function NotificationsPage() {
         loadSettings();
     }, []);
 
+    const buildHeaders = () => {
+        const token = getToken();
+        const orgId = getOrgId();
+        return {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            ...(orgId ? { "X-Org-Id": orgId } : {}),
+        };
+    };
+
     const loadSettings = async () => {
         try {
-            const token = localStorage.getItem("token");
             const res = await fetch(`${API_BASE}/api/telegram/settings`, {
-                headers: { Authorization: `Bearer ${token}` }
+                headers: buildHeaders()
             });
             if (res.ok) {
                 setSettings(await res.json());
@@ -62,11 +71,16 @@ export default function NotificationsPage() {
 
         setConnecting(true);
         try {
-            const token = localStorage.getItem("token");
+            const token = getToken();
+            if (!token) {
+                toast.error("Нужно войти в систему");
+                setConnecting(false);
+                return;
+            }
             const res = await fetch(`${API_BASE}/api/telegram/connect`, {
                 method: "POST",
                 headers: {
-                    Authorization: `Bearer ${token}`,
+                    ...buildHeaders(),
                     "Content-Type": "application/json"
                 },
                 body: JSON.stringify({ chat_id: chatId })
@@ -91,11 +105,10 @@ export default function NotificationsPage() {
         setSaving(true);
 
         try {
-            const token = localStorage.getItem("token");
             await fetch(`${API_BASE}/api/telegram/settings`, {
                 method: "PUT",
                 headers: {
-                    Authorization: `Bearer ${token}`,
+                    ...buildHeaders(),
                     "Content-Type": "application/json"
                 },
                 body: JSON.stringify(newSettings)
@@ -111,11 +124,16 @@ export default function NotificationsPage() {
     const testNotification = async (type: string) => {
         setTestingType(type);
         try {
-            const token = localStorage.getItem("token");
+            const token = getToken();
+            if (!token) {
+                toast.error("Нужно войти в систему");
+                setTestingType(null);
+                return;
+            }
             const res = await fetch(`${API_BASE}/api/telegram/test`, {
                 method: "POST",
                 headers: {
-                    Authorization: `Bearer ${token}`,
+                    ...buildHeaders(),
                     "Content-Type": "application/json"
                 },
                 body: JSON.stringify({ type })
@@ -133,10 +151,9 @@ export default function NotificationsPage() {
 
     const disconnect = async () => {
         try {
-            const token = localStorage.getItem("token");
             await fetch(`${API_BASE}/api/telegram/disconnect`, {
                 method: "DELETE",
-                headers: { Authorization: `Bearer ${token}` }
+                headers: buildHeaders()
             });
             toast.success("Telegram отключён");
             loadSettings();

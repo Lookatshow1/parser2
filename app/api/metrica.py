@@ -12,6 +12,7 @@ from datetime import datetime, date
 from app.api.deps import get_db, get_current_user, get_current_org_id
 from app.db.models import User, Organization
 from app.services.yandex_metrica import YandexMetricaService, get_metrica_service
+from app.core.config import get_settings
 
 router = APIRouter(prefix="/metrica", tags=["Yandex Metrica"])
 
@@ -83,6 +84,9 @@ def get_auth_url(
     
     Redirect user to this URL to grant access.
     """
+    settings = get_settings()
+    if not settings.yandex_client_id:
+        raise HTTPException(status_code=503, detail="Yandex OAuth is not configured")
     service = get_metrica_service()
     auth_url = service.get_authorization_url(state=state)
     return MetricaAuthUrlResponse(auth_url=auth_url)
@@ -100,6 +104,9 @@ async def connect_metrica(
     
     Called after user completes OAuth flow.
     """
+    settings = get_settings()
+    if not settings.yandex_client_id or not settings.yandex_client_secret:
+        raise HTTPException(status_code=503, detail="Yandex OAuth is not configured")
     service = get_metrica_service()
     
     try:

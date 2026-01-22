@@ -167,6 +167,7 @@ async def analyze_competitor(
                 "description": analysis.profile.description,
                 "products": analysis.profile.products,
                 "trust_signals": analysis.profile.trust_signals,
+                "social_links": analysis.profile.social_links,
             },
             "keywords": analysis.keywords,
             "strengths": analysis.strengths,
@@ -423,4 +424,3 @@ async def build_platform_utm(
         keyword=payload.keyword,
     )
     return {"url": url, "platform": payload.platform}
-

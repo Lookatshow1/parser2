@@ -37,6 +37,7 @@ class CompetitorProfile:
     unique_selling_points: List[str] = None
     pricing_info: Optional[str] = None
     trust_signals: List[str] = None
+    social_links: List[str] = None
 
 
 @dataclass
@@ -166,6 +167,14 @@ class CompetitorIntelligence:
                         if kw in text:
                             trust_signals.append(p.get_text(strip=True)[:200])
                             break
+                
+                social_links = []
+                social_hosts = ("vk.com", "t.me", "instagram.com", "facebook.com", "ok.ru", "youtube.com")
+                for a in soup.find_all("a", href=True):
+                    href = a.get("href", "").strip()
+                    if any(host in href for host in social_hosts):
+                        social_links.append(href)
+                social_links = list(dict.fromkeys(social_links))  # keep order, unique
             else:
                 # Fallback: regex
                 title_match = re.search(r'<title[^>]*>(.*?)</title>', html, re.I | re.S)
@@ -178,6 +187,7 @@ class CompetitorIntelligence:
                 products = [re.sub(r'<[^>]+>', '', h).strip()[:100] for h in headings if 3 < len(re.sub(r'<[^>]+>', '', h).strip()) < 100]
                 
                 trust_signals = []
+                social_links = []
             
             # Find company name
             name = title.split("|")[0].split("-")[0].strip() if title else None
@@ -188,6 +198,7 @@ class CompetitorIntelligence:
                 description=description[:500] if description else None,
                 products=products[:10],
                 trust_signals=trust_signals[:5] if HAS_BS4 else [],
+                social_links=social_links[:5] if HAS_BS4 else [],
             )
         except Exception as e:
             logger.exception(f"Error scanning {url}: {e}")
@@ -283,16 +294,63 @@ class CompetitorIntelligence:
 """
         
         try:
-            response = await provider.generate_text(prompt=prompt)
-            import json
-            # Extract JSON from response
-            json_match = re.search(r'\{[\s\S]*\}', response)
-            if json_match:
-                return json.loads(json_match.group())
-            return {}
+            response = await provider.generate_text(
+                prompt=prompt,
+                json_schema={
+                    "type": "object",
+                    "properties": {
+                        "strengths": {"type": "array", "items": {"type": "string"}},
+                        "weaknesses": {"type": "array", "items": {"type": "string"}},
+                        "opportunities": {"type": "array", "items": {"type": "string"}},
+                        "recommendations": {"type": "array", "items": {"type": "string"}},
+                    },
+                },
+            )
+            if isinstance(response, dict):
+                return self._normalize_analysis(response, profile, keywords)
+            return self._normalize_analysis({}, profile, keywords)
         except Exception as e:
             logger.exception(f"Error in AI analysis: {e}")
-            return {}
+            return self._normalize_analysis({}, profile, keywords)
+
+    @staticmethod
+    def _normalize_analysis(
+        data: Dict[str, Any],
+        profile: CompetitorProfile,
+        keywords: List[str],
+    ) -> Dict[str, List[str]]:
+        def _as_list(value: Any) -> List[str]:
+            if isinstance(value, list):
+                return [str(item).strip() for item in value if str(item).strip()]
+            return []
+
+        strengths = _as_list(data.get("strengths"))
+        weaknesses = _as_list(data.get("weaknesses"))
+        opportunities = _as_list(data.get("opportunities"))
+        recommendations = _as_list(data.get("recommendations"))
+
+        if not strengths:
+            strengths = (profile.trust_signals or [])[:3] or (profile.products or [])[:3]
+        if not weaknesses:
+            weaknesses = []
+            if not profile.description:
+                weaknesses.append("На сайте не найдено подробного описания.")
+            if not profile.products:
+                weaknesses.append("Не удалось выделить список продуктов/услуг.")
+            if not profile.social_links:
+                weaknesses.append("Не найдено публичных ссылок на соцсети.")
+        if not opportunities:
+            opportunities = [f"Усилить ключевой запрос: {kw}" for kw in (keywords or [])[:3]]
+        if not recommendations:
+            recommendations = (profile.products or keywords or [])[:5]
+            recommendations = [f"Подсветить «{item}» в рекламе" for item in recommendations]
+
+        return {
+            "strengths": strengths,
+            "weaknesses": weaknesses,
+            "opportunities": opportunities,
+            "recommendations": recommendations,
+        }
     
     async def compare_with_competitor(
         self,

@@ -10,6 +10,7 @@ import {
     ArrowUpRight, Loader2, Calendar, RefreshCw, Sparkles, AlertCircle, HelpCircle
 } from "lucide-react";
 import Link from "next/link";
+import { getOrgId, getToken } from "@/lib/session";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -156,6 +157,15 @@ export default function DashboardPage() {
         loadDashboard();
     }, [period]);
 
+    const buildHeaders = () => {
+        const token = getToken();
+        const orgId = getOrgId();
+        return {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            ...(orgId ? { "X-Org-Id": orgId } : {}),
+        };
+    };
+
     const loadDashboard = async () => {
         setLoading(true);
         try {
@@ -171,7 +181,7 @@ export default function DashboardPage() {
 
             // Load KPI summary
             const summaryRes = await fetch(`${API_BASE}/api/dashboard/kpi-summary?${params}`, {
-                headers: { Authorization: `Bearer ${localStorage.getItem("ads_access_token")}` }
+                headers: buildHeaders()
             });
 
             if (summaryRes.ok) {
@@ -180,7 +190,7 @@ export default function DashboardPage() {
 
             // Load timeseries
             const timeseriesRes = await fetch(`${API_BASE}/api/dashboard/kpi-timeseries?${params}&mode=absolute`, {
-                headers: { Authorization: `Bearer ${localStorage.getItem("ads_access_token")}` }
+                headers: buildHeaders()
             });
 
             if (timeseriesRes.ok) {
@@ -190,7 +200,7 @@ export default function DashboardPage() {
 
             // Check connections
             const connRes = await fetch(`${API_BASE}/api/connections`, {
-                headers: { Authorization: `Bearer ${localStorage.getItem("ads_access_token")}` }
+                headers: buildHeaders()
             });
 
             if (connRes.ok) {

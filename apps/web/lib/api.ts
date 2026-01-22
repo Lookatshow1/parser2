@@ -1370,6 +1370,33 @@ export const MagicApi = {
     request<MagicRun>(`/magic/runs/${id}`),
 };
 
+// --- Competitors API ---
+
+export type CompetitorAnalysis = {
+  domain: string;
+  profile: {
+    name?: string | null;
+    description?: string | null;
+    products?: string[] | null;
+    trust_signals?: string[] | null;
+    social_links?: string[] | null;
+  };
+  keywords: string[];
+  strengths: string[];
+  weaknesses: string[];
+  opportunities: string[];
+  recommendations: string[];
+  analyzed_at: string;
+};
+
+export const CompetitorsApi = {
+  analyze: (domain: string) =>
+    request<CompetitorAnalysis>('/ai/competitor/analyze', {
+      method: 'POST',
+      body: JSON.stringify({ domain }),
+    }),
+};
+
 // --- Drafts API ---
 
 export type DraftAd = {
@@ -1435,7 +1462,6 @@ export type BillingTransaction = {
   status: string;
   created_at: string;
 };
-
 
 
 

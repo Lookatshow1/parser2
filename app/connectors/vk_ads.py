@@ -146,41 +146,24 @@ class VkAdsConnector(AdsConnector):
                 {"id": 111, "name": "VK Mock 1", "status": "active"},
                 {"id": 222, "name": "VK Mock 2", "status": "paused"},
             ]
-            
-        client = self._build_client()
-        # We need account_id. Check creds or fetch accounts.
-        account_id = self._get_account_id(client)
-        
-        campaigns = []
-        # Fetch all campaigns (pagination loop can be added)
-        try:
-            results = client._request("GET", "campaigns.json", params={"limit": 50})
-            items = results.get("items", [])
-            for item in items:
-                campaigns.append({
-                    "id": item["id"],
-                    "name": item["name"],
-                    "status": item["status"],
-                    # "budget": item.get("budget_limit"),
-                })
-            return campaigns
-        finally:
-            # client.close() # Async client needs async close, but connector is sync interface currently?
-            # The connector interface seems sync, but VKAdsClient is async. 
-            # We need to run it synchronously or change connector architecture.
-            # Yandex connector is sync.
-            # HACK: For now, we assume we are running in async context or using sync wrapper.
-            # BUT VKAdsClient uses httpx.AsyncClient. We need a synchronous client or run_until_complete.
-            pass
+        import asyncio
+        return asyncio.run(self._list_campaigns_async())
 
     async def _list_campaigns_async(self):
-         # Helper for async execution
-         client = self._build_client()
-         try:
-             results = await client._request("GET", "campaigns.json", params={"limit": 50})
-             return results.get("items", [])
-         finally:
-             await client.close()
+        client = self._build_client()
+        try:
+            account_id = await self._resolve_account_id(client)
+            results = await client.get_campaigns(account_id=account_id, limit=50)
+            return [
+                {
+                    "id": item.get("id"),
+                    "name": item.get("name"),
+                    "status": item.get("status"),
+                }
+                for item in results or []
+            ]
+        finally:
+            await client.close()
 
     def fetch_metrics(self, date_from: date, date_to: date, connection_id: int | None = None) -> list[MetricRecord]:
         # This method is used by sync_connection_metrics (generic sync)
@@ -199,11 +182,12 @@ class VkAdsConnector(AdsConnector):
             # VK Ads allows fetching by object_type="campaign" and empty IDs? No, IDs required usually.
             
             # Step 1: Get campaigns
-            campaigns = await client.get_campaigns(self._get_account_id_from_creds())
+            account_id = await self._resolve_account_id(client)
+            campaigns = await client.get_campaigns(account_id=account_id, limit=100)
             if not campaigns:
                 return []
                 
-            campaign_ids = [c["id"] for c in campaigns]
+            campaign_ids = [c["id"] for c in campaigns if c.get("id")]
             
             # Step 2: Get stats
             metrics = await client.get_statistics(
@@ -275,33 +259,29 @@ class VkAdsConnector(AdsConnector):
             await client.close()
 
     def _build_client(self) -> VKAdsClient:
-        token = self._credentials.get("access_token")
+        token = self._credentials.get("access_token") or self._credentials.get("token")
         
         # If no token, try Client Credentials flow if configured
-        if not token and self._settings.vk_ads_client_id and self._settings.vk_ads_client_secret:
-            # We need to get execution loop to run async auth? 
-            # Or just use the hardcoded/obtained token from settings if we implemented token fetching there?
-            # Since we don't have automatic token fetching in Settings, and VKAdsClient expects token.
-            
-            # TODO: Implement token fetching logic here or in factory.
-            # primarily we rely on saved credentials.
-            pass
-            
         if not token:
-             # Fallback for dev - maybe we can support user passed token in .env for simple setup
-             pass
+            token = os.getenv("VK_ADS_ACCESS_TOKEN")
 
         if not token:
             raise ValueError("VK Access Token is missing")
             
         return VKAdsClient(access_token=token)
-    
-    def _get_account_id(self, client):
-        # TODO: Fetch account from API if not in creds
-        return self._credentials.get("account_id")
-        
-    def _get_account_id_from_creds(self):
-        return self._credentials.get("account_id")
+
+    async def _resolve_account_id(self, client: VKAdsClient) -> int:
+        account_id = self._credentials.get("account_id")
+        if account_id:
+            return int(account_id)
+        accounts = await client.get_accounts()
+        if not accounts:
+            raise ValueError("VK Ads account not found")
+        account_id = accounts[0].get("id")
+        if not account_id:
+            raise ValueError("VK Ads account id missing")
+        self._credentials["account_id"] = account_id
+        return int(account_id)
 
     def _mock_metrics(self, date_from, date_to):
         delta = date_to - date_from

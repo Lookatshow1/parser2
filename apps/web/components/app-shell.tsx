@@ -4,8 +4,9 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import {
-  BarChart3, Megaphone, Cog, Sparkles, CreditCard,
-  ChevronDown, LogOut, UserCircle2, Menu, X, Activity
+  BarChart3, Megaphone, Sparkles, CreditCard,
+  ChevronDown, LogOut, UserCircle2, Menu, X,
+  Layers, LineChart, SlidersHorizontal, Target, Gauge, Bell, Plug, Settings
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -18,15 +19,15 @@ const navItems = [
   { href: "/dashboard", label: "Дашборд", icon: BarChart3 },
   { href: "/magic", label: "Магия", icon: Sparkles },
   { href: "/campaigns", label: STR.nav.campaigns, icon: Megaphone },
-  { href: "/templates", label: "Шаблоны", icon: Sparkles },
-  { href: "/analytics", label: "Аналитика", icon: Activity },
-  { href: "/ads-manager", label: "Управление", icon: Megaphone },
-  { href: "/competitors", label: "Конкуренты", icon: Activity },
-  { href: "/metrica", label: "Метрика", icon: Activity },
-  { href: "/notifications", label: "Уведомления", icon: Activity },
-  { href: "/connections", label: STR.nav.connections, icon: Cog },
+  { href: "/templates", label: "Шаблоны", icon: Layers },
+  { href: "/analytics", label: "Аналитика", icon: LineChart },
+  { href: "/ads-manager", label: "Управление", icon: SlidersHorizontal },
+  { href: "/competitors", label: "Конкуренты", icon: Target },
+  { href: "/metrica", label: "Метрика", icon: Gauge },
+  { href: "/notifications", label: "Уведомления", icon: Bell },
+  { href: "/connections", label: STR.nav.connections, icon: Plug },
   { href: "/billing", label: "Оплата", icon: CreditCard },
-  { href: "/settings", label: STR.nav.settings, icon: Cog },
+  { href: "/settings", label: STR.nav.settings, icon: Settings },
 ];
 
 /**
@@ -64,6 +65,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setActiveOrgId(getOrgId());
     setIsDemo(window.location.hostname === "localhost");
   }, []);
+
+  useEffect(() => {
+    if (!mounted) {
+      return;
+    }
+    setToken(getToken());
+    setActiveOrgId(getOrgId());
+  }, [mounted, pathname]);
+
+  useEffect(() => {
+    if (!mounted) {
+      return;
+    }
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === "ads_access_token" || event.key === "ads_active_org") {
+        setToken(getToken());
+        setActiveOrgId(getOrgId());
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, [mounted]);
 
   // Effect 2: Load user data when token is available
   useEffect(() => {
