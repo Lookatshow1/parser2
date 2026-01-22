@@ -26,20 +26,23 @@ def execute_action(db: Session, action_id: int, actor_user_id: int | None) -> Or
     
     # 1. Resolve context
     # Recommendation links to subject (e.g. Campaign)
-    # But we need Connection to get Connector.
-    rec = db.query(OrgRecommendation).filter(OrgRecommendation.id == action.recommendation_id).first()
-    if not rec:
-         # Fallback: maybe action has context payload?
-         pass
+    rec = None
+    if action.recommendation_id:
+        rec = db.query(OrgRecommendation).filter(OrgRecommendation.id == action.recommendation_id).first()
 
-    # We need connection_id.
-    # Recommendation has connection_id
-    connection_id = rec.connection_id if rec else None
-    
+    payload = action.payload_json or {}
+    subject_type = rec.subject_type if rec else payload.get("subject_type")
+    subject_id = rec.subject_id if rec else payload.get("subject_id")
+    connection_id = rec.connection_id if rec else payload.get("connection_id")
+
+    campaign = None
+    if subject_type == "campaign" and subject_id:
+        campaign = db.query(AdCampaign).filter(AdCampaign.id == subject_id).first()
+        if campaign and not connection_id:
+            connection_id = campaign.connection_id
+
     if not connection_id:
-        # Try to infer from subject if it's a campaign
-        # But subject_id is internal ID.
-        pass # TODO: handle missing connection in reco
+        return _mark_failed(db, action, "Connection not found")
 
     connection = db.query(Connection).filter(Connection.id == connection_id).first()
     if not connection:
@@ -55,12 +58,11 @@ def execute_action(db: Session, action_id: int, actor_user_id: int | None) -> Or
     # We need to know WHICH campaign.
     
     # Subject: campaign
-    if rec.subject_type != "campaign":
-         return _mark_failed(db, action, f"Unsupported subject type: {rec.subject_type}")
-    
-    campaign = db.query(AdCampaign).filter(AdCampaign.id == rec.subject_id).first()
+    if subject_type != "campaign":
+        return _mark_failed(db, action, f"Unsupported subject type: {subject_type}")
+
     if not campaign:
-         return _mark_failed(db, action, "Campaign not found")
+        return _mark_failed(db, action, "Campaign not found")
 
     # 3. Initialize Connector
     try:
@@ -103,6 +105,7 @@ def execute_action(db: Session, action_id: int, actor_user_id: int | None) -> Or
             rec.resolved_by_user_id = actor_user_id
     else:
         action.status = "failed"
+        action.payload_json = action.payload_json or {}
         action.payload_json["last_error"] = error_msg
 
     db.commit()

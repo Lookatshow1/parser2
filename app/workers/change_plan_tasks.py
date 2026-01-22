@@ -3,11 +3,11 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 
 from app.db import session as db_session
-from app.db.models import ChangePlan, ChangePlanItem, AdCampaign, AdAdGroup, AdAd, OrgUtmSettings
+from app.db.models import ChangePlan, ChangePlanItem, AdCampaign, AdAdGroup, AdAd, OrgUtmSettings, OrgUtmRule
 from app.services.audit import log_org_event
+from app.services.utm_service import apply_utm, build_utm_params, normalize_and_validate_url, pick_matching_rule
 from app.workers.celery_app import celery_app
 from app.core.context import set_correlation_id
-from app.utils.utm import build_utm_url
 
 @celery_app.task(bind=True, max_retries=3)
 def apply_change_plan(self, plan_id: int, correlation_id: str | None = None):
@@ -25,83 +25,139 @@ def apply_change_plan(self, plan_id: int, correlation_id: str | None = None):
 
         items = db.query(ChangePlanItem).filter(ChangePlanItem.plan_id == plan.id).all()
 
-        # Load UTM settings for apply_utm
+        # Load UTM settings and rules for apply_utm
         utm_settings = db.query(OrgUtmSettings).filter(OrgUtmSettings.organization_id == plan.organization_id).first()
+        utm_rules = (
+            db.query(OrgUtmRule)
+            .filter(OrgUtmRule.organization_id == plan.organization_id)
+            .order_by(OrgUtmRule.id.asc())
+            .all()
+        )
 
-        # Helper for UTM
-        def generate_url(base_url, platform, cid, gid, aid):
-            # Mock request object for build_utm_url logic re-use?
-            # Actually we need to replicate logic from api/catalog.py or move it to service.
-            # We have app.utils.utm.build_utm_url but it takes dict.
-            # We need logic that applies templates.
-            # Let's duplicate template logic here for MVP or extract it.
-            # Extracting is better but let's keep it simple.
+        def _resolve_base_url(ad: AdAd, base_url_override: str | None) -> str | None:
+            return base_url_override or ad.target_url or ad.desired_url
 
-            s_source = utm_settings.utm_source if utm_settings else "{platform}"
-            s_medium = utm_settings.utm_medium if utm_settings else "cpc"
-            s_campaign = utm_settings.utm_campaign_tpl if utm_settings else "{campaign_id}"
-            s_content = utm_settings.utm_content_tpl if utm_settings else "{ad_id}"
-            s_term = utm_settings.utm_term_tpl if utm_settings else None
+        def _load_ad_context(ad: AdAd) -> tuple[AdAdGroup | None, AdCampaign | None]:
+            group = (
+                db.query(AdAdGroup)
+                .filter(
+                    AdAdGroup.connection_id == ad.connection_id,
+                    AdAdGroup.external_id == ad.ad_group_external_id,
+                )
+                .first()
+            )
+            campaign = (
+                db.query(AdCampaign)
+                .filter(
+                    AdCampaign.connection_id == ad.connection_id,
+                    AdCampaign.external_id == ad.campaign_external_id,
+                )
+                .first()
+            )
+            return group, campaign
 
-            def replace(tpl):
-                if not tpl: return None
-                res = tpl.replace("{platform}", platform)
-                res = res.replace("{campaign_id}", cid or "")
-                res = res.replace("{ad_group_id}", gid or "")
-                res = res.replace("{ad_id}", aid or "")
-                return res
+        def _build_final_url(
+            ad: AdAd,
+            group: AdAdGroup | None,
+            campaign: AdCampaign | None,
+            base_url_override: str | None,
+        ) -> str:
+            base_url = _resolve_base_url(ad, base_url_override)
+            ok, reason, normalized = normalize_and_validate_url(base_url)
+            if not ok:
+                raise ValueError(reason or "invalid_url")
 
-            utm_params = {
-                "utm_source": replace(s_source),
-                "utm_medium": replace(s_medium),
-                "utm_campaign": replace(s_campaign),
-                "utm_content": replace(s_content),
-                "utm_term": replace(s_term),
-            }
-            return build_utm_url(base_url, utm_params)
+            rule = pick_matching_rule(
+                utm_rules,
+                platform=ad.platform,
+                connection_id=ad.connection_id,
+                campaign_name=campaign.name if campaign else None,
+                ad_group_name=group.name if group else None,
+                ad_name=ad.name,
+            )
+            params = build_utm_params(
+                utm_settings,
+                rule,
+                platform=ad.platform,
+                campaign_id=ad.campaign_external_id,
+                ad_group_id=ad.ad_group_external_id,
+                ad_id=ad.external_id,
+            )
+            return apply_utm(normalized, params)
 
         success_count = 0
         fail_count = 0
 
         for item in items:
             try:
+                params = item.params_json or {}
                 if item.subject_type == "campaign":
                     camp = db.query(AdCampaign).get(item.subject_id)
-                    if camp:
-                        if item.action_type == "pause":
-                            camp.desired_status = "paused"
-                        elif item.action_type == "resume":
-                            camp.desired_status = "active"
-                        elif item.action_type == "set_daily_budget":
-                            camp.desired_daily_budget = item.params_json.get("amount")
-                        elif item.action_type == "apply_utm":
-                            # Apply to all ads in campaign
-                            ads = db.query(AdAd).filter(AdAd.campaign_external_id == camp.external_id, AdAd.connection_id == camp.connection_id).all()
-                            for ad in ads:
-                                # We need base url. Catalog doesn't store base_url yet?
-                                # Wait, AdAd doesn't have base_url.
-                                # We can only update if we have it.
-                                # For MVP, let's assume we update desired_url if we can guess base?
-                                # Or we skip if no base.
-                                # Actually, we added desired_url. But we don't have original url in catalog.
-                                # So apply_utm only works if we pass url in params OR if we have it.
-                                # Let's assume params has url for single ad update.
-                                # For bulk apply, we can't do it without base url stored.
-                                # Let's skip bulk apply logic for now or mock it.
-                                pass
+                    if not camp:
+                        raise ValueError("Campaign not found")
+
+                    if item.action_type == "pause":
+                        camp.desired_status = "paused"
+                    elif item.action_type == "resume":
+                        camp.desired_status = "active"
+                    elif item.action_type == "set_daily_budget":
+                        camp.desired_daily_budget = params.get("amount")
+                    elif item.action_type == "apply_utm":
+                        base_url_override = params.get("base_url")
+                        ads = (
+                            db.query(AdAd, AdAdGroup, AdCampaign)
+                            .outerjoin(
+                                AdAdGroup,
+                                (AdAdGroup.connection_id == AdAd.connection_id)
+                                & (AdAdGroup.external_id == AdAd.ad_group_external_id),
+                            )
+                            .outerjoin(
+                                AdCampaign,
+                                (AdCampaign.connection_id == AdAd.connection_id)
+                                & (AdCampaign.external_id == AdAd.campaign_external_id),
+                            )
+                            .filter(
+                                AdAd.connection_id == camp.connection_id,
+                                AdAd.campaign_external_id == camp.external_id,
+                            )
+                            .all()
+                        )
+                        if not ads:
+                            raise ValueError("No ads found for campaign")
+
+                        updated = 0
+                        for ad, group, campaign in ads:
+                            try:
+                                final_url = _build_final_url(ad, group, campaign or camp, base_url_override)
+                            except ValueError:
+                                continue
+                            ad.desired_url = final_url
+                            updated += 1
+
+                        if updated == 0:
+                            raise ValueError("No ads with valid url")
+                    else:
+                        raise ValueError("Unsupported campaign action")
 
                 elif item.subject_type == "ad":
                     ad = db.query(AdAd).get(item.subject_id)
-                    if ad:
-                        if item.action_type == "update_url":
-                            url = item.params_json.get("url")
-                            if url:
-                                ad.desired_url = url
-                        elif item.action_type == "apply_utm":
-                            base_url = item.params_json.get("base_url")
-                            if base_url:
-                                final = generate_url(base_url, ad.platform.value, ad.campaign_external_id, ad.ad_group_external_id, ad.external_id)
-                                ad.desired_url = final
+                    if not ad:
+                        raise ValueError("Ad not found")
+
+                    if item.action_type == "update_url":
+                        url = params.get("url")
+                        if not url:
+                            raise ValueError("Missing url")
+                        ad.desired_url = url
+                    elif item.action_type == "apply_utm":
+                        base_url_override = params.get("base_url")
+                        group, campaign = _load_ad_context(ad)
+                        final = _build_final_url(ad, group, campaign, base_url_override)
+                        ad.desired_url = final
+                    else:
+                        raise ValueError("Unsupported ad action")
+                else:
+                    raise ValueError("Unsupported subject type")
 
                 item.status = "applied"
                 success_count += 1

@@ -453,6 +453,9 @@ class ApiVersionResponse(BaseModel):
 class ApiCapabilitiesResponse(BaseModel):
     platforms: list[str]
     operations: dict[str, bool]
+    entities: list[str] | None = None
+    access_levels: list[MembershipRole] | None = None
+    role_permissions: dict[str, list[str]] | None = None
 
 
 class DevSeedResponse(BaseModel):
@@ -1061,6 +1064,33 @@ class UtmBuildRequest(BaseModel):
 
 class UtmBuildResponse(BaseModel):
     final_url: str
+
+
+class UtmReportItem(BaseModel):
+    utm_source: str | None = None
+    utm_medium: str | None = None
+    utm_campaign: str | None = None
+    utm_content: str | None = None
+    utm_term: str | None = None
+    leads: int
+    purchases: int
+    revenue: int
+    total: int
+
+
+class UtmReportTotals(BaseModel):
+    leads: int
+    purchases: int
+    revenue: int
+    total: int
+
+
+class UtmReportResponse(BaseModel):
+    date_from: dt_date
+    date_to: dt_date
+    group_by: str
+    totals: UtmReportTotals
+    items: list[UtmReportItem]
 
 
 class UtmRuleOut(BaseModel):

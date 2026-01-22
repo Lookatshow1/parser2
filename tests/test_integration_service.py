@@ -98,6 +98,6 @@ class TestIntegrationService:
         assert mock_ad.final_url is not None
         assert "utm_source=yandex" in mock_ad.final_url
         assert "utm_medium=cpc" in mock_ad.final_url
-        assert "utm_campaign=1-" in mock_ad.final_url
+        assert "utm_campaign=1" in mock_ad.final_url
         assert "utm_content=10" in mock_ad.final_url
         assert "existing=param" in mock_ad.final_url

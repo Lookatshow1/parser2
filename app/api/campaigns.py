@@ -27,7 +27,7 @@ from app.api.schemas import (
 )
 from app.db.models import Campaign, CampaignAdGroup, CampaignAd, CampaignEvent, Organization, Platform, User, CampaignStatus
 from app.db.session import get_db
-from app.services.rbac import can_read, can_write_connections
+from app.services.rbac import can_read_campaigns, can_write_campaigns
 from app.services.campaign_service import cascade_campaign_status
 
 campaigns_router = APIRouter(prefix="/orgs/{org_id}/campaigns", tags=["campaigns"])
@@ -36,12 +36,12 @@ ads_router = APIRouter(prefix="/ads", tags=["ads"])
 
 
 def _require_read(role: str) -> None:
-    if not can_read(role):
+    if not can_read_campaigns(role):
         raise HTTPException(status_code=403, detail="Недостаточно прав")
 
 
 def _require_write(role: str) -> None:
-    if not can_write_connections(role):
+    if not can_write_campaigns(role):
         raise HTTPException(status_code=403, detail="Недостаточно прав")
 
 

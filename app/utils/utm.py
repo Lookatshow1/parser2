@@ -14,6 +14,8 @@ def build_utm_url(base_url: str, utm: dict) -> str:
 
     parsed = urlparse(base_url)
     existing_query = parse_qsl(parsed.query)
+    utm_keys = {"utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"}
+    existing_query = [(k, v) for k, v in existing_query if k not in utm_keys]
 
     # Filter empty values and sort keys
     utm_params = sorted(
@@ -21,9 +23,7 @@ def build_utm_url(base_url: str, utm: dict) -> str:
         key=lambda x: x[0]
     )
 
-    # Combine existing query with new UTM params
-    # Note: UTMs are appended. If a key exists in both, both are kept (standard behavior),
-    # or we could override. Usually UTMs shouldn't be in base_url, so appending is safe.
+    # Combine existing query with new UTM params, replacing any existing UTMs.
     final_query = existing_query + utm_params
 
     encoded_query = urlencode(final_query)

@@ -49,6 +49,7 @@ from app.api.schemas import ApiCapabilitiesResponse, ApiVersionResponse, HealthR
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.workers.yandex_tasks import sync_yandex_metrics
+from app.services.rbac import ROLE_ORDER, list_role_permissions
 from app.middleware.correlation import CorrelationIdMiddleware
 
 
@@ -127,7 +128,17 @@ def create_app() -> FastAPI:
                 "fetch_metrics": True,
                 "sync_metrics": True,
                 "validate_connection": True,
+                "manage_campaigns": True,
+                "manage_organizations": True,
             },
+            entities=[
+                "organizations",
+                "campaigns",
+                "ad_groups",
+                "ads",
+            ],
+            access_levels=ROLE_ORDER,
+            role_permissions=list_role_permissions(),
         )
     
     app.include_router(api_router)

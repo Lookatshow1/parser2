@@ -2,8 +2,10 @@ from typing import Dict, Type
 from app.adapters.platforms.base import PlatformAdapter
 from app.adapters.platforms.yandex_mock import YandexMockAdapter
 from app.db.models_drafts import DraftCampaign
+from app.db.models import OrgUtmSettings, Platform
 from sqlalchemy.orm import Session
 from datetime import datetime
+from app.utils.utm import build_utm_from_org_settings, build_utm_url
 
 class IntegrationService:
     def __init__(self, db: Session):
@@ -41,27 +43,38 @@ class IntegrationService:
         return external_id
 
     def _apply_utms(self, campaign: DraftCampaign):
-        import urllib.parse
-        
+        settings = (
+            self.db.query(OrgUtmSettings)
+            .filter(OrgUtmSettings.organization_id == campaign.organization_id)
+            .first()
+        )
+        try:
+            platform = Platform(campaign.platform)
+        except ValueError:
+            platform = None
+
         for group in campaign.ad_groups:
             for ad in group.ads:
                 if not ad.landing_url:
                     continue
-                    
-                # Basic UTM Construction
-                params = {
-                    "utm_source": campaign.platform,
-                    "utm_medium": "cpc",
-                    "utm_campaign": f"{campaign.id}-{urllib.parse.quote(campaign.name)}",
-                    "utm_content": str(ad.id)
-                }
-                
-                url_parts = list(urllib.parse.urlparse(ad.landing_url))
-                query = dict(urllib.parse.parse_qsl(url_parts[4]))
-                query.update(params)
-                
-                url_parts[4] = urllib.parse.urlencode(query)
-                ad.final_url = urllib.parse.urlunparse(url_parts)
+
+                if isinstance(settings, OrgUtmSettings) and platform:
+                    ad.final_url = build_utm_from_org_settings(
+                        base_url=ad.landing_url,
+                        org_settings=settings,
+                        platform=platform,
+                        campaign_id=str(campaign.id),
+                        ad_group_id=str(group.id),
+                        ad_id=str(ad.id),
+                    )
+                else:
+                    params = {
+                        "utm_source": campaign.platform,
+                        "utm_medium": "cpc",
+                        "utm_campaign": str(campaign.id),
+                        "utm_content": str(ad.id),
+                    }
+                    ad.final_url = build_utm_url(ad.landing_url, params)
 
 
     async def import_campaigns_to_drafts(self, platform: str, account_id: str, org_id: int):
@@ -102,4 +115,3 @@ class IntegrationService:
             created_drafts.append(draft)
             
         return created_drafts
-

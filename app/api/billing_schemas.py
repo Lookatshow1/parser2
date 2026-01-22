@@ -6,7 +6,7 @@ class BillingAccountResponse(BaseModel):
     id: int
     organization_id: int
     balance: float
-    status: str
+    status: str = "active"
     class Config:
         from_attributes = True
 
@@ -15,7 +15,7 @@ class TransactionResponse(BaseModel):
     type: str # credit, debit
     amount: float
     status: str
-    description: Optional[str]
+    description: Optional[str] = None
     created_at: datetime
     class Config:
         from_attributes = True

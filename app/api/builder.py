@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
-from urllib.parse import urlparse
 
 from app.api.deps import get_current_org
 from app.api.schemas import (
@@ -30,6 +29,7 @@ from app.db.models import (
 )
 from app.db.session import get_db
 from app.utils.utm import build_utm_url, build_utm_from_org_settings
+from app.services.utm_service import normalize_and_validate_url
 
 router = APIRouter(tags=["builder"])
 
@@ -297,31 +297,21 @@ def create_builder_ad(
     # Get campaign and plan for template replacements
     campaign = db.query(BuilderCampaign).filter(BuilderCampaign.id == group.campaign_id).first()
     platform = campaign.platform if campaign else None
+    plan = campaign.plan if campaign and campaign.plan_id else None
+    campaign_code = (
+        plan.internal_code
+        if plan and plan.internal_code
+        else (campaign.external_id or str(campaign.id) if campaign else None)
+    )
+    group_code = group.external_id or str(group.id)
     
     # Validate URL if present and build final_url
     final_url = None
+    normalized_url = None
     if item.base_url:
-        try:
-            parsed = urlparse(item.base_url)
-            if not parsed.scheme or not parsed.netloc:
-                raise ValueError("Invalid URL")
-            
-            # Use org settings if available, otherwise use custom utm_json
-            if utm_settings and platform:
-                final_url = build_utm_from_org_settings(
-                    base_url=item.base_url,
-                    org_settings=utm_settings,
-                    platform=platform,
-                    campaign_id=campaign.external_id or str(campaign.id),
-                    ad_group_id=group.external_id or str(group.id),
-                    ad_id=None,  # ad_id will be set after creation
-                    custom_utm=item.utm_json if item.utm_json else None
-                )
-            else:
-                # Fallback to manual UTM building
-                final_url = build_utm_url(item.base_url, item.utm_json or {})
-        except ValueError:
-            raise HTTPException(status_code=422, detail="Invalid base_url")
+        ok, reason, normalized_url = normalize_and_validate_url(item.base_url)
+        if not ok:
+            raise HTTPException(status_code=422, detail=f"Invalid base_url: {reason}")
 
     ad = BuilderAd(
         organization_id=org.id,
@@ -335,6 +325,21 @@ def create_builder_ad(
         status=item.status
     )
     db.add(ad)
+    db.flush()
+    if normalized_url:
+        if utm_settings and platform:
+            ad.final_url = build_utm_from_org_settings(
+                base_url=normalized_url,
+                org_settings=utm_settings,
+                platform=platform,
+                campaign_id=campaign_code,
+                ad_group_id=group_code,
+                ad_id=ad.external_id or str(ad.id),
+                custom_utm=item.utm_json if item.utm_json else None
+            )
+        else:
+            # Fallback to manual UTM building
+            ad.final_url = build_utm_url(normalized_url, item.utm_json or {})
     db.commit()
     db.refresh(ad)
     log_audit(db, org.id, "ad_created", "builder_ad", ad.id, {"name": ad.name})
@@ -371,6 +376,13 @@ def update_builder_ad(
     group = db.query(BuilderAdGroup).filter(BuilderAdGroup.id == ad.ad_group_id).first()
     campaign = group.campaign if group else None
     platform = campaign.platform if campaign else None
+    plan = campaign.plan if campaign and campaign.plan_id else None
+    campaign_code = (
+        plan.internal_code
+        if plan and plan.internal_code
+        else (campaign.external_id or str(campaign.id) if campaign else None)
+    )
+    group_code = group.external_id or str(group.id) if group else None
     
     # Recalculate final_url if base_url or utm_json changes
     new_base_url = item.base_url if item.base_url is not None else ad.base_url
@@ -378,27 +390,24 @@ def update_builder_ad(
 
     if item.base_url is not None or item.utm_json is not None:
         if new_base_url:
-            try:
-                parsed = urlparse(new_base_url)
-                if not parsed.scheme or not parsed.netloc:
-                    raise ValueError("Invalid URL")
-                
-                # Use org settings if available
-                if utm_settings and platform and group:
-                    ad.final_url = build_utm_from_org_settings(
-                        base_url=new_base_url,
-                        org_settings=utm_settings,
-                        platform=platform,
-                        campaign_id=campaign.external_id or str(campaign.id) if campaign else None,
-                        ad_group_id=group.external_id or str(group.id) if group else None,
-                        ad_id=ad.external_id or str(ad.id),
-                        custom_utm=new_utm_json if new_utm_json else None
-                    )
-                else:
-                    # Fallback to manual UTM building
-                    ad.final_url = build_utm_url(new_base_url, new_utm_json or {})
-            except ValueError:
-                raise HTTPException(status_code=422, detail="Invalid base_url")
+            ok, reason, normalized_url = normalize_and_validate_url(new_base_url)
+            if not ok:
+                raise HTTPException(status_code=422, detail=f"Invalid base_url: {reason}")
+
+            # Use org settings if available
+            if utm_settings and platform and group:
+                ad.final_url = build_utm_from_org_settings(
+                    base_url=normalized_url,
+                    org_settings=utm_settings,
+                    platform=platform,
+                    campaign_id=campaign_code,
+                    ad_group_id=group_code,
+                    ad_id=ad.external_id or str(ad.id),
+                    custom_utm=new_utm_json if new_utm_json else None
+                )
+            else:
+                # Fallback to manual UTM building
+                ad.final_url = build_utm_url(normalized_url, new_utm_json or {})
         else:
             ad.final_url = None
 
