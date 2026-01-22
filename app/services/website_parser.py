@@ -46,6 +46,17 @@ class WebsiteParserService:
         self.db.commit()
         return ctx
 
+    async def parse_only(self, url: str) -> str:
+        """
+        Parses a website and returns text without saving to DB.
+        """
+        try:
+            text, _ = await self._scrape_content(url)
+            return text
+        except Exception as e:
+             logger.error(f"Failed to parse {url}: {e}")
+             return ""
+
     async def _scrape_content(self, url: str) -> tuple[str, dict]:
         """
         Scrapes content using httpx and BeautifulSoup.

@@ -243,15 +243,16 @@ class MagicService:
         # If landing_url provided, try to scrape (legacy/fallback)
         business_info = input_text or ""
         
+        # Собираем информацию о бизнесе
+        business_info = input_text or ""
+        
         if landing_url:
-             # Just use what we have, skip deep scrape here to force using the Parser Service + Context flow
-             # Or keep legacy behavior? 
-             # Let's keep legacy but simplified or warn.
-             # Ideally we should call WebsiteParserService here but we don't have org_id easily for public.
-             # For now, we reuse the old scrape logic if simpler, OR better:
-             # We rely on text input mostly.
-             pass
-
+            from app.services.website_parser import WebsiteParserService
+            parser = WebsiteParserService(self.db)
+            scraped = await parser.parse_only(landing_url)
+            # scraped = await scrape_landing_page(landing_url) # Legacy removed
+            business_info = f"{scraped[:5000]}\n\nДополнительная информация от клиента: {input_text}" if input_text else scraped[:5000]
+        
         if not business_info.strip():
             business_info = "Универсальный бизнес, товары и услуги"
         

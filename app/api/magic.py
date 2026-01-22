@@ -170,12 +170,18 @@ async def generate_stream(
             yield f"data: {json_module.dumps({'type': 'step', 'step': 1, 'message': 'Анализируем сайт...'})}\n\n"
             await asyncio.sleep(0.5)
             
-            # Scrape the landing page
-            from app.services.magic import scrape_landing_page
+            # Scrape using WebsiteParserService
+            from app.services.website_parser import WebsiteParserService
+            parser = WebsiteParserService(db)
+            
             business_info = payload.description or ""
             if payload.landing_url:
-                scraped = await scrape_landing_page(payload.landing_url)
-                business_info = f"{scraped}\n\n{payload.description}" if payload.description else scraped
+                scraped_text = await parser.parse_only(payload.landing_url)
+                if scraped_text:
+                     # Limit context size for prompt
+                    business_info = f"{scraped_text[:5000]}\n\n{payload.description}" if payload.description else scraped_text[:5000]
+                else:
+                    yield f"data: {json_module.dumps({'type': 'error', 'message': 'Не удалось прочитать сайт. Генерируем по описанию.'})}\n\n"
             
             yield f"data: {json_module.dumps({'type': 'progress', 'percent': 20})}\n\n"
             
