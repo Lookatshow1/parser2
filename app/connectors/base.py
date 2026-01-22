@@ -52,6 +52,11 @@ class AdsConnector(ABC):
     def stop(self, external_ids: dict) -> None:
         raise NotImplementedError
 
+    @abstractmethod
+    def stop_campaign(self, campaign_external_id: str) -> bool:
+        """Stop (suspend) a campaign. Returns True on success."""
+        raise NotImplementedError
+
     # New methods for sync pipeline
     @abstractmethod
     def list_campaigns(self) -> List[Dict[str, Any]]:

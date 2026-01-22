@@ -57,8 +57,147 @@ class YandexDirectConnector(AdsConnector):
             }
         return {"ok": True}
 
-    def create_campaign_bundle(self, plan, experiment, creatives) -> dict:
-        return {"campaign_id": "stub"}
+    def create_campaign_bundle(self, plan: Dict, experiment: Any, creatives: List[Any]) -> dict:
+        """
+        Creates a campaign, ad group, and ads in Yandex Direct.
+        Returns a dict with 'campaign_id'.
+        """
+        if self.is_mock:
+            # Return a stub ID in mock mode
+            return {"campaign_id": "999999"}
+
+        settings = get_settings()
+        if not settings.yandex_reports_token:
+             # Fallback to connection token
+            if not self.token:
+                 raise ValueError("YANDEX token is not configured")
+            token = self.token
+        else:
+            token = settings.yandex_reports_token
+
+        # Base API URL
+        base_url = "https://api.direct.yandex.com/json/v5"
+        if "sandbox" in settings.yandex_reports_url:
+             base_url = "https://api-sandbox.direct.yandex.com/json/v5"
+        
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Client-Login": self.login,
+            "Accept-Language": "ru",
+            "Content-Type": "application/json; charset=utf-8",
+        }
+
+        # 1. Create Campaign
+        campaign_name = f"Exp {experiment.id} - Round {experiment.current_round_index or 1}"
+        # Basic Text Campaign Strategy
+        avg_cpc = 10000000 # 10 RUB in micros
+        if experiment.total_budget:
+             # Just an example strategy
+             pass
+
+        campaign_payload = {
+            "method": "add",
+            "params": {
+                "Campaigns": [{
+                    "Name": campaign_name,
+                    "StartDate": date.today().isoformat(),
+                    "TextCampaign": {
+                        "BiddingStrategy": {
+                            "Search": {
+                                "BiddingStrategyType": "HIGHEST_POSITION"
+                            }, 
+                            "Network": {
+                                "BiddingStrategyType": "MAXIMUM_COVERAGE"
+                            }
+                        },
+                         "Settings": [
+                            {"Option": "ADD_METRICA_TAG", "Value": "YES"},
+                        ]
+                    }
+                }]
+            }
+        }
+
+        with httpx.Client() as client:
+            # Create Campaign
+            resp = client.post(f"{base_url}/campaigns", json=campaign_payload, headers=headers)
+            resp.raise_for_status()
+            data = resp.json()
+            if "error" in data:
+                 raise ValueError(f"Yandex Campaign Create Error: {data['error']}")
+            
+            results = data.get("result", {}).get("AddResults", [])
+            if not results or results[0].get("Errors"):
+                 raise ValueError(f"Yandex Campaign Create Failed: {results}")
+
+            campaign_id = results[0]["Id"]
+            
+            # 2. Create Ad Group
+            # We assume one ad group for simplicity in this MVP
+            adgroup_payload = {
+                "method": "add",
+                "params": {
+                    "AdGroups": [{
+                        "Name": f"Group for {campaign_name}",
+                        "CampaignId": campaign_id,
+                        "RegionIds": [0], # Worldwide? Or Russia (225)? Let's use 0 for now or user setting
+                        "Type": "TEXT_AD_GROUP"
+                    }]
+                }
+            }
+            
+            resp = client.post(f"{base_url}/adgroups", json=adgroup_payload, headers=headers)
+            resp.raise_for_status()
+            data = resp.json()
+            if "error" in data:
+                 # Cleanup campaign?
+                 raise ValueError(f"Yandex AdGroup Create Error: {data['error']}")
+            
+            results = data.get("result", {}).get("AddResults", [])
+            if not results or results[0].get("Errors"):
+                 raise ValueError(f"Yandex AdGroup Create Failed: {results}")
+
+            ad_group_id = results[0]["Id"]
+
+            # 3. Create Ads
+            ads_data = []
+            for creative in creatives:
+                # creative is expected to be a CreativeVariant object
+                 # Check if platform matches (should be filtered by caller)
+                if creative.platform.value != "yandex":
+                    continue
+
+                ad_item = {
+                    "AdGroupId": ad_group_id,
+                    "TextAd": {
+                        "Title": creative.title or "Default Title",
+                        "Text": creative.text or "Default Text",
+                        "Mobile": "NO",
+                        "Href": creative.target_url or "https://example.com"
+                    }
+                }
+                ads_data.append(ad_item)
+            
+            if ads_data:
+                ads_payload = {
+                    "method": "add",
+                    "params": {
+                        "Ads": ads_data
+                    }
+                }
+                resp = client.post(f"{base_url}/ads", json=ads_payload, headers=headers)
+                resp.raise_for_status()
+                data = resp.json()
+                if "error" in data:
+                     raise ValueError(f"Yandex Ads Create Error: {data['error']}")
+                
+                # We don't necessarily need individual ad IDs right now, but good to check errors
+                results = data.get("result", {}).get("AddResults", [])
+                for res in results:
+                     if res.get("Errors"):
+                          print(f"Ad creation error: {res['Errors']}")
+
+        return {"campaign_id": str(campaign_id)}
 
     def sync_status(self, external_ids: dict) -> dict:
         return {"campaign_id": "active"}
@@ -137,7 +276,70 @@ class YandexDirectConnector(AdsConnector):
         ]
 
     def stop(self, external_ids: dict) -> None:
-        return None
+        return None  # Legacy
+
+    def stop_campaign(self, campaign_external_id: str) -> bool:
+        """
+        Stops (suspends) a campaign.
+        Returns True if successful, False otherwise.
+        """
+        if self.is_mock:
+            # In mock mode, we just return True
+            return True
+
+        settings = get_settings()
+        if not settings.yandex_reports_token:
+             # Fallback to connection token
+            if not self.token:
+                 raise ValueError("YANDEX token is not configured")
+            token = self.token
+        else:
+            token = settings.yandex_reports_token
+
+        # Use reports URL base but change endpoint to campaigns
+        # Report URL: https://api.direct.yandex.com/json/v5/reports
+        # Campaign URL: https://api.direct.yandex.com/json/v5/campaigns
+        api_url = "https://api.direct.yandex.com/json/v5/campaigns"
+        if "sandbox" in settings.yandex_reports_url:
+             api_url = "https://api-sandbox.direct.yandex.com/json/v5/campaigns"
+
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Client-Login": self.login,
+            "Accept-Language": "ru",
+            "Content-Type": "application/json; charset=utf-8",
+        }
+        
+        body = {
+            "method": "suspend",
+            "params": {
+                "SelectionCriteria": {
+                    "Ids": [int(campaign_external_id)]
+                }
+            }
+        }
+        
+        with httpx.Client() as client:
+            resp = client.post(api_url, json=body, headers=headers, timeout=10.0)
+            if resp.status_code != 200:
+                # Log error or raise? For now, print/log and return False
+                print(f"Yandex stop_campaign failed: {resp.text}")
+                return False
+            
+            data = resp.json()
+            if "error" in data:
+                 print(f"Yandex API error: {data['error']}")
+                 return False
+            
+            # Check results
+            # Result: { SuspendResults: [ { Id, Warnings, Errors } ] }
+            result = data.get("result", {}).get("SuspendResults", [])
+            for res in result:
+                if res.get("Errors"):
+                     print(f"Yandex suspend error for {campaign_external_id}: {res['Errors']}")
+                     return False
+            
+            return True
 
     def list_campaigns(self) -> List[Dict[str, Any]]:
         if self.is_mock:

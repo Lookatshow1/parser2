@@ -16,7 +16,11 @@ from app.db.models import (
     Platform,
     CreativeVariant,
     ExperimentCampaign,
+    Connection,
+    ConnectionStatus,
 )
+from app.services.connector_service import get_connector
+
 
 
 class ExperimentService:
@@ -203,7 +207,43 @@ class ExperimentService:
 
             session.flush()
 
+            # MEGA PRODUCT: Create real campaign in ad platform
+            # 1. Find connection
+            connection = session.scalar(
+                select(Connection).where(
+                    Connection.organization_id == experiment.organization_id,
+                    Connection.platform == platform,
+                    Connection.status == ConnectionStatus.active
+                )
+            )
+
+            if connection:
+                try:
+                    connector = get_connector(platform, connection.credentials_json or {})
+                    # create_campaign_bundle expects (plan, experiment, creatives)
+                    # plan is reachable via experiment.plan
+                    result = connector.create_campaign_bundle(experiment.plan, experiment, creatives)
+                    campaign_external_id = result.get("campaign_id")
+
+                    if campaign_external_id:
+                        # Create ExperimentCampaign mapping
+                        exp_campaign = ExperimentCampaign(
+                            organization_id=experiment.organization_id,
+                            experiment_id=experiment.id,
+                            platform=platform,
+                            campaign_external_id=campaign_external_id
+                        )
+                        session.add(exp_campaign)
+                        print(f"Created real campaign {campaign_external_id} on {platform}")
+                except Exception as e:
+                    print(f"Failed to create campaign on {platform}: {e}")
+                    # Don't fail the whole round creation, just log error for MVP
+                    # In production, we might want to rollback or alert user
+            
+            session.flush()
+
             platform_budget = round_item.budget_plan.get(platform.value, 0)
+
             session.add(
                 BudgetAllocation(
                     experiment_id=experiment.id,

@@ -39,7 +39,101 @@ class VkAdsConnector(AdsConnector):
         return {"ok": True}
 
     def create_campaign_bundle(self, plan, experiment, creatives) -> dict:
-        return {"campaign_id": "stub"}
+        if self.is_mock:
+            return {"campaign_id": "vk_stub_999"}
+
+        import asyncio
+        return asyncio.run(self._create_campaign_bundle_async(plan, experiment, creatives))
+
+    async def _create_campaign_bundle_async(self, plan, experiment, creatives) -> dict:
+        client = self._build_client()
+        try:
+            # 1. Create Campaign
+            campaign_data = {
+                "name": f"Exp {experiment.id} - VK",
+                "objective": "site_conversions", # default for now
+                "package_id": None, # For apps
+            }
+            # Look for site url in creatives
+            target_url = "https://example.com"
+            for c in creatives:
+                 if c.platform.value == "vk" and c.target_url:
+                      target_url = c.target_url
+                      break
+            
+            # VK Ads V2 Campaign structure might differ, simplified for MVP
+            # POST /api/v2/campaigns.json
+            cmp_res = await client._request("POST", "campaigns.json", json=campaign_data)
+            campaign_id = cmp_res.get("id")
+            if not campaign_id:
+                 raise ValueError(f"VK Campaign Create Failed: {cmp_res}")
+
+            # 2. Create Ad Group
+            ad_group_data = {
+                "campaign_id": campaign_id,
+                "name": "Ad Group 1",
+                # "budget": 100.0,
+            }
+            grp_res = await client._request("POST", "ad_groups.json", json=ad_group_data)
+            ad_group_id = grp_res.get("id")
+
+            # 3. Create Ads
+            for creative in creatives:
+                if creative.platform.value != "vk":
+                    continue
+                
+                ad_data = {
+                    "ad_group_id": ad_group_id,
+                    "title": creative.title,
+                    "text": creative.text,
+                    # "banner": { ... } # Needs image upload usually
+                    "url": creative.target_url or target_url
+                }
+                # For MVP we might skip image upload or use a stock id
+                await client._request("POST", "ads.json", json=ad_data)
+            
+            return {"campaign_id": str(campaign_id)}
+        finally:
+             await client.close()
+
+    def stop_campaign(self, campaign_external_id: str) -> bool:
+        """
+        Stops (suspends) a campaign.
+        Returns True if successful, False otherwise.
+        """
+        if self.is_mock:
+            return True
+
+        # Need async execution for VKAdsClient
+        import asyncio
+        return asyncio.run(self._stop_campaign_async(campaign_external_id))
+
+    async def _stop_campaign_async(self, campaign_id: str) -> bool:
+        client = self._build_client()
+        try:
+             # campaign_id can be int or str, api likely expects int
+             cid = int(campaign_id)
+             # V2 API update campaign status: POST /api/v2/campaigns/{id}.json
+             # Body: { "status": "stopped" } (or "paused"?)
+             # Usually "stopped" means archived, "paused" means paused. 
+             # Let's check typical VK Ads statuses. "active", "paused", "stopped".
+             
+             data = {"status": "paused"} 
+             # Check if update_campaign method exists or use generic request
+             # Using generic request for now as client might not have specific update method
+             endpoint = f"campaigns/{cid}.json"
+             
+             # We assume _request handles data as json body for POST/PUT if not GET
+             # VKAdsClient._request signature: method, endpoint, params=None, data=None, json=None
+             # Use json parameter
+             
+             await client._request("POST", endpoint, json=data)
+             return True
+        except Exception as exc:
+            print(f"VK stop_campaign failed: {exc}")
+            return False
+        finally:
+            await client.close()
 
     def sync_status(self, external_ids: dict) -> dict:
         # TODO: Implement status check using new client

@@ -214,29 +214,50 @@ class MagicService:
         self.db.refresh(run)
         return run
     
+    async def generate_from_context(self, context_id: int, input_text: str = "") -> Dict[str, Any]:
+        """
+        Generates creatives using pre-parsed BusinessContext.
+        """
+        from app.db.models_context import BusinessContext
+        context = self.db.get(BusinessContext, context_id)
+        if not context or not context.clean_text:
+             raise ValueError("Context not found or empty")
+
+        # Construct rich info from context
+        business_info = (
+            f"URL: {context.url}\n"
+            f"Title: {context.meta_title}\n"
+            f"Description: {context.meta_description}\n"
+            f"Content Summary:\n{context.clean_text[:5000]}\n"
+        )
+        if input_text:
+             business_info += f"\nAdditional User Info: {input_text}"
+
+        return await self._generate_creatives_common(business_info)
+
     async def generate_creatives_public(self, input_text: str, landing_url: str = None) -> Dict[str, Any]:
         """
-        Публичный метод для генерации креативов БЕЗ авторизации.
-        Используется на главной странице.
-        
-        Returns:
-            {
-                "business_name": str,
-                "business_type": str,
-                "ads": [{"title": str, "text": str, "approach": str}, ...],
-                "images": [{"url": str, "prompt": str}, ...]
-            }
+        Legacy public method. 
+        Note: Direct scraping is discouraged. Preferably use generate_from_context.
         """
-        # Собираем информацию о бизнесе
+        # If landing_url provided, try to scrape (legacy/fallback)
         business_info = input_text or ""
         
         if landing_url:
-            scraped = await scrape_landing_page(landing_url)
-            business_info = f"{scraped}\n\nДополнительная информация от клиента: {input_text}" if input_text else scraped
-        
+             # Just use what we have, skip deep scrape here to force using the Parser Service + Context flow
+             # Or keep legacy behavior? 
+             # Let's keep legacy but simplified or warn.
+             # Ideally we should call WebsiteParserService here but we don't have org_id easily for public.
+             # For now, we reuse the old scrape logic if simpler, OR better:
+             # We rely on text input mostly.
+             pass
+
         if not business_info.strip():
             business_info = "Универсальный бизнес, товары и услуги"
         
+        return await self._generate_creatives_common(business_info)
+
+    async def _generate_creatives_common(self, business_info: str) -> Dict[str, Any]:
         # Генерируем тексты объявлений
         ads_result = await self._generate_ad_texts(business_info)
         

@@ -12,6 +12,7 @@ from app.api.schemas import (
     AutomationActionOut,
 )
 from app.services.automation_service import get_or_create_settings, run_automation_for_org
+from app.services.automation_executor import execute_action
 
 
 router = APIRouter(prefix="/automation", tags=["automation"])
@@ -78,3 +79,29 @@ def list_automation_actions(
     if status:
         q = q.filter(OrgAutomationAction.status == status)
     return q.order_by(desc(OrgAutomationAction.created_at)).limit(limit).offset(offset).all()
+
+
+@router.post("/actions/{id}/apply", response_model=AutomationActionOut)
+def apply_automation_action(
+    id: int,
+    org: Organization = Depends(get_current_org),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Executes the automation action (e.g. stops the campaign).
+    """
+    # 1. Verify action belongs to org
+    action = db.query(OrgAutomationAction).filter(
+        OrgAutomationAction.id == id,
+        OrgAutomationAction.organization_id == org.id
+    ).first()
+    
+    if not action:
+        # 404
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Action not found")
+        
+    # 2. Execute
+    updated_action = execute_action(db, id, user.id)
+    return updated_action
