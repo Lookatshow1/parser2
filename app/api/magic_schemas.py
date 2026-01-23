@@ -10,7 +10,7 @@ class MagicRunCreate(BaseModel):
     target_audience: Optional[str] = None
     budget_total: Optional[float] = None
     budget_daily: Optional[float] = None
-    ad_count: Optional[int] = Field(default=9, ge=1, le=20)
+    ad_count: Optional[int] = Field(default=9, ge=1, le=50)
     connection_id: Optional[int] = None
     connection_ids: Optional[List[int]] = None
     product_ids: Optional[List[int]] = None

@@ -1,4 +1,4 @@
-import { clearOrgId, clearRefreshToken, clearToken, getOrgId, getToken } from "./session";
+import { clearOrgId, clearRefreshToken, clearToken, getOrgId, getRefreshToken, getToken, setToken } from "./session";
 import { ru } from "./ru";
 
 const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || ""; // Default to relative path
@@ -29,7 +29,42 @@ function resolveErrorMessage(status: number, serverMessage?: string | null) {
   return statusMessageMap[status] || ru.messages.error;
 }
 
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
+let refreshPromise: Promise<string | null> | null = null;
+
+async function refreshAccessToken(): Promise<string | null> {
+  if (refreshPromise) {
+    return refreshPromise;
+  }
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) {
+    return null;
+  }
+  refreshPromise = (async () => {
+    try {
+      const response = await fetch(`${apiBase}/auth/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      });
+      if (!response.ok) {
+        return null;
+      }
+      const data = await response.json();
+      if (data?.access_token) {
+        setToken(data.access_token);
+        return data.access_token as string;
+      }
+      return null;
+    } catch {
+      return null;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+  return refreshPromise;
+}
+
+async function request<T>(path: string, options?: RequestInit, attemptRefresh = true): Promise<T> {
   const token = getToken();
   const orgId = getOrgId();
   let response: Response;
@@ -60,6 +95,13 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
       error = null;
     }
     if (response.status === 401 && typeof window !== "undefined") {
+      const isAuthPath = path.startsWith("/auth/");
+      if (attemptRefresh && !isAuthPath) {
+        const refreshed = await refreshAccessToken();
+        if (refreshed) {
+          return request<T>(path, options, false);
+        }
+      }
       // Only redirect if not already on login page to avoid loops
       if (!window.location.pathname.startsWith("/login")) {
         clearToken();

@@ -20,7 +20,8 @@ from app.services.connector_service import get_connector
 
 logger = logging.getLogger(__name__)
 DEFAULT_AD_COUNT = 9
-MAX_AD_COUNT = 20
+MAX_AD_COUNT = 50
+MAX_IMAGE_COUNT = 12
 
 
 # =============================================================================
@@ -219,6 +220,63 @@ class MagicService:
         fallback = self._generate_fallback_ads(business_info, ad_count).get("ads", [])
         needed = ad_count - len(ads)
         return ads + fallback[:needed]
+
+    async def _build_business_info_with_rag(
+        self,
+        org_id: int,
+        landing_url: str | None,
+        description: str,
+    ) -> str:
+        business_info = description or ""
+        if landing_url:
+            from app.services.website_parser import WebsiteParserService
+
+            parser = WebsiteParserService(self.db)
+            scraped = await parser.parse_only(landing_url)
+            if scraped:
+                business_info = (
+                    f"{scraped[:5000]}\n\nДополнительная информация от клиента: {description}"
+                    if description
+                    else scraped[:5000]
+                )
+                try:
+                    from app.services.rag_service import RagService
+
+                    rag = RagService(self.db)
+                    await rag.ingest_text(
+                        organization_id=org_id,
+                        source_type="website",
+                        title=landing_url,
+                        url=landing_url,
+                        text=scraped,
+                    )
+                except Exception:
+                    logger.exception("RAG ingest failed for landing page")
+
+        if not business_info.strip():
+            business_info = "Универсальный бизнес, товары и услуги"
+
+        try:
+            from app.services.rag_service import RagService
+
+            rag = RagService(self.db)
+            results = await rag.search(
+                organization_id=org_id,
+                query=business_info,
+                top_k=4,
+            )
+            if results:
+                snippets = []
+                for item in results:
+                    text = item.get("text", "")
+                    if text:
+                        snippets.append(text[:300])
+                if snippets:
+                    business_info = f"{business_info}\n\nКонтекст из базы знаний:\n- " + "\n- ".join(snippets)
+        except Exception:
+            logger.exception("RAG search failed")
+
+        return business_info
     
     async def create_magic_run(self, org_id: int, user_id: int, input_data: dict) -> MagicRun:
         """Create a new magic run record."""
@@ -276,7 +334,7 @@ class MagicService:
             business_info = "Универсальный бизнес, товары и услуги"
         
         # ... logic ...
-        return await self._generate_creatives_internal(business_info)
+        return await self._generate_creatives_common(business_info, self._normalize_ad_count(ad_count))
 
     async def launch_magic_run(
         self,
@@ -583,7 +641,7 @@ class MagicService:
             "контакты и связь"
         ]
 
-        total = self._normalize_ad_count(count)
+        total = min(self._normalize_ad_count(count), MAX_IMAGE_COUNT)
         for i in range(total):
             ad_theme = None
             if i < len(ads):
@@ -624,9 +682,13 @@ class MagicService:
             landing_url = input_data.get('landing_url')
             description = input_data.get('description', '')
             ad_count = self._normalize_ad_count(input_data.get("ad_count"))
-            
-            # Generate creatives
-            result = await self.generate_creatives_public(description, landing_url, ad_count=ad_count)
+
+            business_info = await self._build_business_info_with_rag(
+                run.organization_id,
+                landing_url,
+                description,
+            )
+            result = await self._generate_creatives_common(business_info, ad_count)
             drafts = self._create_drafts(run, result)
             result["drafts"] = drafts
             result["ad_count"] = ad_count
@@ -691,8 +753,6 @@ class MagicService:
             self.db.flush()
 
             ads_for_platform = ads
-            if platform == "vk":
-                ads_for_platform = ads[:10]
 
             for i, ad_data in enumerate(ads_for_platform):
                 image_url = images[i]["url"] if i < len(images) else None

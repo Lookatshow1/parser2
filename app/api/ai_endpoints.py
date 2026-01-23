@@ -9,13 +9,18 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from datetime import datetime
 
-from app.api.deps import get_db, get_current_user
-from app.db.models import User
+import logging
+
+from app.api.deps import get_db, get_current_user, get_current_org
+from app.db.models import User, Organization
 from app.services.smart_optimizer import SmartOptimizer, PerformanceMetrics
 from app.services.competitor_intelligence import CompetitorIntelligence
 from app.services.creative_studio import CreativeStudio
 from app.services.cascade_pipeline import CascadeImagePipeline
 from app.services.utm_builder import UTMBuilder
+from app.services.rag_service import RagService
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/ai", tags=["AI"])
 
@@ -153,12 +158,44 @@ async def get_budget_allocation(
 async def analyze_competitor(
     payload: CompetitorRequest,
     current_user: User = Depends(get_current_user),
+    org: Organization = Depends(get_current_org),
+    db: Session = Depends(get_db),
 ):
     """Analyze a competitor domain."""
     intel = CompetitorIntelligence()
     
     try:
         analysis = await intel.analyze_competitor(payload.domain)
+
+        try:
+            rag = RagService(db)
+            summary_lines = [
+                analysis.profile.description or "",
+                f"Продукты: {', '.join(analysis.profile.products or [])}" if analysis.profile.products else "",
+                f"Сильные стороны: {', '.join(analysis.strengths or [])}" if analysis.strengths else "",
+                f"Слабые стороны: {', '.join(analysis.weaknesses or [])}" if analysis.weaknesses else "",
+                f"Возможности: {', '.join(analysis.opportunities or [])}" if analysis.opportunities else "",
+                f"Рекомендации: {', '.join(analysis.recommendations or [])}" if analysis.recommendations else "",
+                f"Ключевые слова: {', '.join(analysis.keywords or [])}" if analysis.keywords else "",
+            ]
+            rag_text = "\n".join([line for line in summary_lines if line]).strip()
+            if rag_text:
+                await rag.ingest_text(
+                    organization_id=org.id,
+                    source_type="competitor",
+                    title=analysis.profile.name or analysis.domain,
+                    url=f"https://{analysis.domain}",
+                    text=rag_text,
+                    meta={
+                        "keywords": analysis.keywords,
+                        "strengths": analysis.strengths,
+                        "weaknesses": analysis.weaknesses,
+                        "opportunities": analysis.opportunities,
+                        "recommendations": analysis.recommendations,
+                    },
+                )
+        except Exception:
+            logger.exception("Failed to ingest competitor into RAG")
         
         return {
             "domain": analysis.domain,

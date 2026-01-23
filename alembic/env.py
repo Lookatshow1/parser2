@@ -17,6 +17,8 @@ from app.db import models  # noqa: F401
 from app.db import models_magic  # noqa: F401
 from app.db import models_drafts  # noqa: F401
 from app.db import models_billing  # noqa: F401
+from app.db import models_context  # noqa: F401
+from app.db import models_rag  # noqa: F401
 
 config = context.config
 

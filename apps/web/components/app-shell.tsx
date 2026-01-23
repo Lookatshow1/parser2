@@ -103,7 +103,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         setUserEmail(meData.email);
         setOrgs(orgData.items || []);
 
-        const active = await getActiveOrg();
+        let active = null;
+        try {
+          active = await getActiveOrg();
+        } catch {
+          active = null;
+        }
+        if (!active && orgData.items && orgData.items.length > 0) {
+          try {
+            active = await switchOrg({ organization_id: orgData.items[0].id });
+          } catch {
+            active = null;
+          }
+        }
         if (!cancelled && active?.id) {
           setActiveOrgId(String(active.id));
           setOrgId(String(active.id));

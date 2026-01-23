@@ -37,7 +37,8 @@ const platformLabels: Record<string, string> = {
 function StepInput({ onStart, isLoading }: { onStart: (payload: MagicRunPayload) => void; isLoading: boolean }) {
     const [url, setUrl] = useState("https://");
     const [description, setDescription] = useState("");
-    const [adCount, setAdCount] = useState("6");
+    const [adCount, setAdCount] = useState("12");
+    const [customAdCount, setCustomAdCount] = useState("");
     const [budgetDaily, setBudgetDaily] = useState("1000");
     const [productIdsRaw, setProductIdsRaw] = useState("");
     const [connections, setConnections] = useState<ConnectionResponse[]>([]);
@@ -72,10 +73,17 @@ function StepInput({ onStart, isLoading }: { onStart: (payload: MagicRunPayload)
         const landingUrl = cleanedUrl === "https://" || cleanedUrl === "http://" ? "" : cleanedUrl;
         const primaryConnection = connections.find((conn) => selectedConnectionIds.includes(conn.id));
 
+        const resolvedAdCount = adCount === "custom" ? customAdCount : adCount;
+        const adCountValue = Number(resolvedAdCount);
+        if (!Number.isFinite(adCountValue) || adCountValue < 1) {
+            toast.error("Укажите корректное количество объявлений");
+            return;
+        }
+
         const payload: MagicRunPayload = {
             landing_url: landingUrl || null,
             description: description.trim() || undefined,
-            ad_count: Number(adCount),
+            ad_count: adCountValue,
             budget_daily: Number(budgetDaily) || 1000,
             connection_ids: selectedConnectionIds,
             connection_id: primaryConnection?.id || null,
@@ -160,19 +168,33 @@ function StepInput({ onStart, isLoading }: { onStart: (payload: MagicRunPayload)
                             <div className="space-y-2">
                                 <Label>Количество объявлений</Label>
                                 <Select value={adCount} onValueChange={setAdCount}>
-                                    <SelectTrigger className="bg-black/20 border-white/10 text-white">
-                                        <SelectValue placeholder="Выберите количество" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="3">3 объявления</SelectItem>
-                                        <SelectItem value="6">6 объявлений</SelectItem>
-                                        <SelectItem value="9">9 объявлений</SelectItem>
-                                        <SelectItem value="12">12 объявлений</SelectItem>
-                                        <SelectItem value="15">15 объявлений</SelectItem>
-                                        <SelectItem value="20">20 объявлений</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
+                                <SelectTrigger className="bg-black/20 border-white/10 text-white">
+                                    <SelectValue placeholder="Выберите количество" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="3">3 объявления</SelectItem>
+                                    <SelectItem value="6">6 объявлений</SelectItem>
+                                    <SelectItem value="9">9 объявлений</SelectItem>
+                                    <SelectItem value="12">12 объявлений</SelectItem>
+                                    <SelectItem value="15">15 объявлений</SelectItem>
+                                    <SelectItem value="20">20 объявлений</SelectItem>
+                                    <SelectItem value="30">30 объявлений</SelectItem>
+                                    <SelectItem value="50">50 объявлений</SelectItem>
+                                    <SelectItem value="custom">Свой вариант</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            {adCount === "custom" && (
+                                <Input
+                                    type="number"
+                                    min="1"
+                                    max="50"
+                                    value={customAdCount}
+                                    onChange={(e) => setCustomAdCount(e.target.value)}
+                                    placeholder="Введите количество (до 50)"
+                                    className="bg-black/20 border-white/10 text-white placeholder:text-gray-500"
+                                />
+                            )}
+                        </div>
                             <div className="space-y-2">
                                 <Label>Бюджет в день, ₽</Label>
                                 <Input

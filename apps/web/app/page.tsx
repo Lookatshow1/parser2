@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
+import { getToken } from "@/lib/session";
 
 // Types
 interface AdCreative {
@@ -117,6 +118,7 @@ export default function LandingPage() {
   const [creatives, setCreatives] = useState<GeneratedCreatives | null>(null);
   const [showInput, setShowInput] = useState<"url" | "text">("url");
   const [activeTestimonial, setActiveTestimonial] = useState(0);
+  const [token, setToken] = useState<string | null>(null);
 
   const handleGenerate = async () => {
     if (!landingUrl && !description) {
@@ -206,10 +208,20 @@ export default function LandingPage() {
   ];
 
   useEffect(() => {
+    setToken(getToken());
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === "ads_access_token") {
+        setToken(getToken());
+      }
+    };
+    window.addEventListener("storage", handleStorage);
     const timer = setInterval(() => {
       setActiveTestimonial((prev) => (prev + 1) % testimonials.length);
     }, 5000);
-    return () => clearInterval(timer);
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      clearInterval(timer);
+    };
   }, []);
 
   return (
@@ -240,16 +252,26 @@ export default function LandingPage() {
             <a href="#pricing" className="hover:text-white transition-colors">Тарифы</a>
           </div>
           <div className="flex gap-3">
-            <Link href="/login">
-              <Button variant="ghost" className="text-gray-300 hover:text-white hover:bg-white/10">
-                Войти
-              </Button>
-            </Link>
-            <Link href="/signup">
-              <Button className="bg-white/10 hover:bg-white/20 backdrop-blur-xl border border-white/20">
-                Регистрация
-              </Button>
-            </Link>
+            {token ? (
+              <Link href="/dashboard">
+                <Button className="bg-white/10 hover:bg-white/20 backdrop-blur-xl border border-white/20">
+                  В кабинет
+                </Button>
+              </Link>
+            ) : (
+              <>
+                <Link href="/login">
+                  <Button variant="ghost" className="text-gray-300 hover:text-white hover:bg-white/10">
+                    Войти
+                  </Button>
+                </Link>
+                <Link href="/signup">
+                  <Button className="bg-white/10 hover:bg-white/20 backdrop-blur-xl border border-white/20">
+                    Регистрация
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </header>
