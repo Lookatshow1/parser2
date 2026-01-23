@@ -2,7 +2,7 @@
 export const dynamic = "force-dynamic";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import Link from "next/link";
 import { Sparkles, ArrowLeft, Rocket, Loader2 } from "lucide-react";
@@ -16,7 +16,7 @@ import { Label } from "../../components/ui/label";
 
 export default function SignupPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+
   const [inviteToken, setInviteToken] = useState<string | null>(null);
   const [fromMagic, setFromMagic] = useState(false);
   const [email, setEmail] = useState("");

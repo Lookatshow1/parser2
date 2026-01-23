@@ -6,7 +6,8 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   BarChart3, Megaphone, CreditCard,
   ChevronDown, LogOut, UserCircle2, Menu, X,
-  LineChart, Target, Gauge, Bell, Plug, Settings
+  LineChart, Target, Gauge, Bell, Plug, Settings,
+  Sparkles
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
