@@ -70,6 +70,9 @@ class ABTestVariant(Base):
     
     # Traffic allocation percentage
     traffic_percentage = Column(Integer, default=50)
+
+    # Link to real campaign for metrics
+    campaign_external_id = Column(String(255), nullable=True)
     
     # Metrics collected
     impressions = Column(Integer, default=0)

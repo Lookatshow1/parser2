@@ -170,11 +170,57 @@ class ABTestService:
         await self.session.commit()
         return variant
     
+    async def refresh_metrics(self, test_id: int):
+        """Refresh variant metrics from MetricSnapshot."""
+        from app.db.models import MetricSnapshot
+        
+        result = await self.session.execute(
+            select(ABTestVariant).where(ABTestVariant.ab_test_id == test_id)
+        )
+        variants = result.scalars().all()
+        
+        for variant in variants:
+            if not variant.campaign_external_id:
+                continue
+                
+            # Aggregate metrics from Snapshot
+            query = select(
+                func.sum(MetricSnapshot.impressions),
+                func.sum(MetricSnapshot.clicks),
+                func.sum(MetricSnapshot.spend),
+                func.sum(MetricSnapshot.purchases),
+                func.sum(MetricSnapshot.revenue)
+            ).where(
+                MetricSnapshot.campaign_external_id == variant.campaign_external_id
+            )
+            
+            metrics = (await self.session.execute(query)).one()
+            
+            variant.impressions = metrics[0] or 0
+            variant.clicks = metrics[1] or 0
+            variant.spend = metrics[2] or 0.0
+            variant.conversions = metrics[3] or 0
+            variant.revenue = metrics[4] or 0.0
+            
+            # Recalc derived
+            if variant.impressions > 0:
+                variant.ctr = (variant.clicks / variant.impressions) * 100
+            if variant.clicks > 0:
+                variant.conversion_rate = (variant.conversions / variant.clicks) * 100
+                variant.cpc = variant.spend / variant.clicks
+            if variant.spend > 0:
+                variant.roas = variant.revenue / variant.spend
+
+        await self.session.commit()
+
     async def calculate_significance(self, test_id: int) -> Dict[str, Any]:
         """
         Calculate statistical significance between variants.
         Uses Chi-squared test for proportions (CTR comparison).
         """
+        # Ensure metrics are fresh
+        await self.refresh_metrics(test_id)
+        
         result = await self.session.execute(
             select(ABTestVariant).where(ABTestVariant.ab_test_id == test_id)
         )
@@ -194,14 +240,24 @@ class ABTestService:
                 "significant": False,
                 "reason": "Недостаточно данных",
                 "current_sample": total_impressions,
-                "required_sample": 100
+                "required_sample": 100,
+                "variant_a": {
+                     "id": variant_a.id,
+                     "impressions": variant_a.impressions,
+                     "clicks": variant_a.clicks
+                },
+                "variant_b": {
+                     "id": variant_b.id,
+                     "impressions": variant_b.impressions,
+                     "clicks": variant_b.clicks
+                }
             }
         
         # Chi-squared test for CTR comparison
         # Observed: [[clicks_a, non_clicks_a], [clicks_b, non_clicks_b]]
         observed = [
-            [variant_a.clicks, variant_a.impressions - variant_a.clicks],
-            [variant_b.clicks, variant_b.impressions - variant_b.clicks]
+            [variant_a.clicks, max(0, variant_a.impressions - variant_a.clicks)],
+            [variant_b.clicks, max(0, variant_b.impressions - variant_b.clicks)]
         ]
         
         try:
@@ -290,6 +346,9 @@ class ABTestService:
     
     async def get_test(self, test_id: int) -> Optional[ABTest]:
         """Get a single A/B test with variants."""
+        # Ensure metrics are refreshed
+        await self.refresh_metrics(test_id)
+        
         result = await self.session.execute(
             select(ABTest).where(ABTest.id == test_id)
         )

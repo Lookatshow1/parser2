@@ -50,6 +50,7 @@ class DraftCampaignCreate(DraftCampaignBase):
 class DraftCampaignResponse(DraftCampaignBase):
     id: int
     organization_id: int
+    connection_id: Optional[int] = None
     magic_run_id: Optional[int]
     ad_groups: List[DraftAdGroupResponse] = []
     created_at: datetime

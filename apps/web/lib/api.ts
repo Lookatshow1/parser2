@@ -434,6 +434,96 @@ export type RecommendationListResponse = {
   total: number;
 };
 
+// --- A/B Tests API ---
+
+export type AbTestVariant = {
+  id: number;
+  name: string;
+  title?: string | null;
+  text?: string | null;
+  landing_url?: string | null;
+  traffic_percentage: number;
+  impressions: number;
+  clicks: number;
+  conversions: number;
+  spend: number;
+  revenue: number;
+  ctr: number;
+  conversion_rate: number;
+  cpc: number;
+  roas: number;
+};
+
+export type AbTest = {
+  id: number;
+  name: string;
+  description?: string | null;
+  status: string;
+  primary_metric: string;
+  min_sample_size: number;
+  confidence_level: number;
+  winner_variant_id?: number | null;
+  statistical_significance?: number | null;
+  created_at: string;
+  started_at?: string | null;
+  ended_at?: string | null;
+  variants: AbTestVariant[];
+};
+
+export type AbTestSignificance = {
+  significant: boolean;
+  p_value?: number | null;
+  chi2?: number | null;
+  confidence?: number | null;
+  winner_id?: number | null;
+  winner_name?: string | null;
+  variant_a?: Record<string, unknown> | null;
+  variant_b?: Record<string, unknown> | null;
+  reason?: string | null;
+};
+
+export async function listAbTests(params?: { status?: string }) {
+  const q = new URLSearchParams();
+  if (params?.status) q.set("status", params.status);
+  const suffix = q.toString() ? `?${q.toString()}` : "";
+  return request<AbTest[]>(`/abtests${suffix}`);
+}
+
+export async function createAbTest(payload: {
+  name: string;
+  description?: string | null;
+  variants: Array<{ name: string; title?: string | null; text?: string | null; landing_url?: string | null; draft_ad_id?: number | null }>;
+  primary_metric?: string;
+  min_sample_size?: number;
+  confidence_level?: number;
+}) {
+  return request<AbTest>("/abtests", { method: "POST", body: JSON.stringify(payload) });
+}
+
+export async function startAbTest(testId: number) {
+  return request<AbTest>(`/abtests/${testId}/start`, { method: "POST" });
+}
+
+export async function pauseAbTest(testId: number) {
+  return request<AbTest>(`/abtests/${testId}/pause`, { method: "POST" });
+}
+
+export async function getAbTestSignificance(testId: number) {
+  return request<AbTestSignificance>(`/abtests/${testId}/significance`);
+}
+
+// --- Budget Allocation API ---
+
+export async function getBudgetAllocation(payload: {
+  total_budget: number;
+  campaign_metrics: Record<number, { impressions: number; clicks: number; conversions: number; spend: number; revenue: number }>;
+}) {
+  return request<{ total_budget: number; allocations: Record<string, number> }>("/ai/budget-allocation", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
 export type ChangePlanItemOut = {
   id: number;
   subject_type: string;
@@ -1355,7 +1445,7 @@ export async function dashboardUnifiedTimeseries(payload: {
 export type MagicRun = {
   id: number;
   organization_id: number;
-  status: 'pending' | 'running' | 'success' | 'failed';
+  status: 'draft' | 'pending' | 'running' | 'success' | 'done' | 'failed';
   input_json: any;
   result_json: any;
   error?: string;
@@ -1363,7 +1453,19 @@ export type MagicRun = {
 };
 
 export const MagicApi = {
-  createRun: (data: { landing_url: string; description?: string }) =>
+  createRun: (data: {
+    landing_url?: string | null;
+    description?: string;
+    ad_count?: number;
+    budget_daily?: number;
+    budget_total?: number;
+    platform?: string;
+    connection_id?: number | null;
+    connection_ids?: number[];
+    product_ids?: number[];
+    campaign_goal?: string;
+    target_audience?: string;
+  }) =>
     request<MagicRun>('/magic/runs', { method: 'POST', body: JSON.stringify(data) }),
 
   getRun: (id: number) =>
@@ -1420,7 +1522,9 @@ export type DraftCampaign = {
   name: string;
   platform: string;
   status: string;
+  connection_id?: number | null;
   magic_run_id?: number;
+  payload_json?: any;
   ad_groups: DraftAdGroup[];
   created_at: string;
 };
@@ -1430,6 +1534,8 @@ export const DraftsApi = {
   get: (id: number) => request<DraftCampaign>(`/drafts/${id}`),
   delete: (id: number) => request<void>(`/drafts/${id}`, { method: 'DELETE' }),
   publish: (id: number) => request<{ ok: boolean; external_id: string }>(`/drafts/${id}/publish`, { method: 'POST' }),
+  update: (id: number, data: { connection_id?: number | null; budget_daily?: number; landing_url?: string; product_ids?: number[] }) =>
+    request<{ ok: boolean }>(`/drafts/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   updateGroup: (groupId: number, data: { name?: string }) =>
     request<{ ok: boolean }>(`/drafts/groups/${groupId}`, { method: 'PATCH', body: JSON.stringify(data) }),
   updateAd: (adId: number, data: { title?: string; text?: string; landing_url?: string }) =>
@@ -1462,6 +1568,3 @@ export type BillingTransaction = {
   status: string;
   created_at: string;
 };
-
-
-

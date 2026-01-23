@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { DraftsApi, DraftCampaign } from "@/lib/api";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { CampaignsNav } from "@/components/campaigns/campaigns-nav";
 import { Loader2, Trash2, FileText, ArrowRight, Rocket, CreditCard, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -59,6 +60,7 @@ export default function DraftsPage() {
 
     return (
         <div className="min-h-screen pt-24 pb-12 px-4 container mx-auto text-white">
+            <CampaignsNav className="mb-6" />
             {/* Success Banner */}
             {showBanner && drafts.length > 0 && (
                 <div className="bg-gradient-to-r from-green-600/20 to-emerald-600/20 border border-green-500/30 rounded-2xl p-6 mb-8">
@@ -153,7 +155,7 @@ export default function DraftsPage() {
                                     <Button
                                         className="flex-[2] bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500"
                                         onClick={(e) => { e.preventDefault(); handlePublish(draft.id); }}
-                                        disabled={draft.status === 'published'}
+                                        disabled={draft.status === 'published' || !draft.connection_id}
                                     >
                                         {draft.status === 'published' ? (
                                             <>Опубликовано</>

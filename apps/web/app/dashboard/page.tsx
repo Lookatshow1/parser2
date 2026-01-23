@@ -393,20 +393,20 @@ export default function DashboardPage() {
                             </div>
                             <div>
                                 <div className="font-medium text-text">Кампании</div>
-                                <div className="text-xs text-muted">Управление</div>
+                                <div className="text-xs text-muted">Создание и запуск</div>
                             </div>
                         </CardContent>
                     </Link>
                 </Card>
                 <Card className="hover:border-accent/50 transition-colors">
-                    <Link href="/recommendations" className="block">
+                    <Link href="/competitors" className="block">
                         <CardContent className="py-4 flex items-center gap-3">
                             <div className="p-2 bg-accent/10 rounded-lg">
                                 <AlertCircle className="h-5 w-5 text-accent" />
                             </div>
                             <div>
-                                <div className="font-medium text-text">Рекомендации</div>
-                                <div className="text-xs text-muted">AI-советы</div>
+                                <div className="font-medium text-text">Конкуренты</div>
+                                <div className="text-xs text-muted">Анализ рынка</div>
                             </div>
                         </CardContent>
                     </Link>

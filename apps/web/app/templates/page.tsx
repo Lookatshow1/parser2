@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
+import { CampaignsNav } from "@/components/campaigns/campaigns-nav";
 import {
     LayoutTemplate, TrendingUp, Target, DollarSign,
     Loader2, ChevronRight, Sparkles, Copy
@@ -45,6 +47,7 @@ interface CampaignTemplate {
 }
 
 export default function TemplatesPage() {
+    const router = useRouter();
     const [industries, setIndustries] = useState<Industry[]>([]);
     const [selectedIndustry, setSelectedIndustry] = useState<string | null>(null);
     const [benchmark, setBenchmark] = useState<Benchmark | null>(null);
@@ -93,6 +96,15 @@ export default function TemplatesPage() {
         toast.success("Объявление скопировано");
     };
 
+    const useTemplate = (template: CampaignTemplate) => {
+        const payload = {
+            name: template.name,
+            budget_daily: template.recommended_budget,
+        };
+        localStorage.setItem("campaign_template", JSON.stringify(payload));
+        router.push("/campaigns/new");
+    };
+
     if (loading) {
         return (
             <div className="flex items-center justify-center min-h-[400px]">
@@ -103,6 +115,7 @@ export default function TemplatesPage() {
 
     return (
         <div className="space-y-6">
+            <CampaignsNav />
             <PageHeader
                 title="Шаблоны кампаний"
                 subtitle="Готовые кампании и бенчмарки по отраслям"
@@ -241,7 +254,7 @@ export default function TemplatesPage() {
                                     </div>
                                 )}
 
-                                <Button className="w-full">
+                                <Button className="w-full" onClick={() => useTemplate(template)}>
                                     <ChevronRight className="h-4 w-4 mr-2" />
                                     Использовать шаблон
                                 </Button>

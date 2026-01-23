@@ -5,13 +5,13 @@ Public and authenticated endpoints for AI ad generation.
 """
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 
 from app.api.deps import get_db, get_current_user, get_current_org_id
-from app.api.magic_schemas import MagicRunCreate, MagicRunResponse
+from app.api.magic_schemas import MagicRunCreate, MagicRunResponse, MagicLaunchRequest
 from app.services.magic import MagicService
-from app.db.models import User
+from app.db.models import User, Connection, Platform
 from app.db.models_magic import MagicRun
 
 router = APIRouter(prefix="/magic", tags=["Magic"])
@@ -25,6 +25,7 @@ class PublicGenerateRequest(BaseModel):
     """Request for public creative generation."""
     landing_url: Optional[str] = None
     description: Optional[str] = None
+    ad_count: Optional[int] = Field(default=9, ge=1, le=20)
 
 
 class AdCreative(BaseModel):
@@ -75,7 +76,8 @@ async def generate_public(
     
     result = await service.generate_creatives_public(
         input_text=payload.description or "",
-        landing_url=payload.landing_url
+        landing_url=payload.landing_url,
+        ad_count=payload.ad_count
     )
     
     return result
@@ -121,6 +123,28 @@ async def create_magic_run(
 ):
     """Создать Magic Run для полной генерации кампании."""
     service = MagicService(db)
+
+    if not payload.landing_url and not payload.description:
+        raise HTTPException(status_code=422, detail="Укажите сайт или описание бизнеса")
+
+    connection_ids = payload.connection_ids or []
+    if payload.connection_id and payload.connection_id not in connection_ids:
+        connection_ids = [payload.connection_id, *connection_ids]
+
+    if not connection_ids:
+        raise HTTPException(status_code=422, detail="Выберите хотя бы одно подключение")
+
+    connections = (
+        db.query(Connection)
+        .filter(Connection.organization_id == org_id, Connection.id.in_(connection_ids))
+        .all()
+    )
+    if len({c.id for c in connections}) != len(set(connection_ids)):
+        raise HTTPException(status_code=404, detail="Подключение не найдено")
+
+    has_ozon = any(conn.platform == Platform.ozon for conn in connections)
+    if has_ozon and not payload.product_ids:
+        raise HTTPException(status_code=422, detail="Для Ozon укажите ID товаров")
     
     run = await service.create_magic_run(
         org_id=org_id,
@@ -143,6 +167,33 @@ def get_magic_run(
     if not run:
         raise HTTPException(status_code=404, detail="Magic Run not found")
     return run
+
+
+@router.post("/{run_id}/launch-all")
+async def launch_all_magic_run(
+    run_id: int,
+    payload: MagicLaunchRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    org_id: int = Depends(get_current_org_id)
+):
+    """
+    Запустить все сгенерированные креативы (Launch All).
+    Создает эксперимент, раунд 1, и запускает кампании в Connector.
+    """
+    service = MagicService(db)
+    try:
+        result = await service.launch_magic_run(
+            run_id=run_id,
+            user_id=current_user.id,
+            total_budget=payload.total_budget,
+            platforms=payload.platforms
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal Error: {str(e)}")
 
 
 # =============================================================================
@@ -188,7 +239,8 @@ async def generate_stream(
             # Step 2: Generating texts
             yield f"data: {json_module.dumps({'type': 'step', 'step': 2, 'message': 'Генерируем тексты объявлений...'})}\n\n"
             
-            ads_result = await service._generate_ad_texts(business_info or "Универсальный бизнес")
+            ad_count = service._normalize_ad_count(payload.ad_count)
+            ads_result = await service._generate_ad_texts(business_info or "Универсальный бизнес", ad_count)
             
             yield f"data: {json_module.dumps({'type': 'progress', 'percent': 60})}\n\n"
             
@@ -197,7 +249,8 @@ async def generate_stream(
             
             images_result = await service._generate_images(
                 ads_result.get("business_type", "бизнес"),
-                ads_result.get("ads", [])
+                ads_result.get("ads", []),
+                ad_count
             )
             
             yield f"data: {json_module.dumps({'type': 'progress', 'percent': 90})}\n\n"

@@ -2,14 +2,16 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { DraftsApi, DraftCampaign } from "@/lib/api";
+import { DraftsApi, DraftCampaign, ConnectionResponse, listConnections } from "@/lib/api";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ArrowLeft, Save, Send, Loader2, ChevronDown, ChevronRight, Edit2, X, Check } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { STR } from "@/lib/strings";
+import { CampaignsNav } from "@/components/campaigns/campaigns-nav";
 
 type EditingAd = { id: number; title: string; text: string } | null;
 
@@ -24,9 +26,14 @@ export default function DraftDetailPage() {
     const [expandedGroups, setExpandedGroups] = useState<Set<number>>(new Set());
     const [editingAd, setEditingAd] = useState<EditingAd>(null);
     const [saving, setSaving] = useState(false);
+    const [connections, setConnections] = useState<ConnectionResponse[]>([]);
+    const [selectedConnectionId, setSelectedConnectionId] = useState<string>("");
+    const [productIdsRaw, setProductIdsRaw] = useState("");
+    const [updatingDraft, setUpdatingDraft] = useState(false);
 
     useEffect(() => {
         loadDraft();
+        loadConnections();
     }, [draftId]);
 
     const loadDraft = async () => {
@@ -34,6 +41,9 @@ export default function DraftDetailPage() {
         try {
             const data = await DraftsApi.get(draftId);
             setDraft(data);
+            setSelectedConnectionId(data.connection_id ? String(data.connection_id) : "");
+            const ids = data.payload_json?.product_ids;
+            setProductIdsRaw(Array.isArray(ids) ? ids.join(", ") : "");
             if (data.ad_groups) {
                 setExpandedGroups(new Set(data.ad_groups.map(g => g.id)));
             }
@@ -41,6 +51,15 @@ export default function DraftDetailPage() {
             console.error(e);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const loadConnections = async () => {
+        try {
+            const data = await listConnections();
+            setConnections(data.items || []);
+        } catch (e) {
+            console.error(e);
         }
     };
 
@@ -90,6 +109,49 @@ export default function DraftDetailPage() {
         }
     };
 
+    const selectedConnection = connections.find((conn) => String(conn.id) === selectedConnectionId) || null;
+    const isOzon = selectedConnection?.platform === "ozon";
+
+    const updateDraftConnection = async (value: string) => {
+        setSelectedConnectionId(value);
+        if (!draft) return;
+        if (!value) return;
+        setUpdatingDraft(true);
+        try {
+            await DraftsApi.update(draft.id, { connection_id: Number(value) });
+            toast.success("Подключение обновлено");
+            loadDraft();
+        } catch (e) {
+            toast.error("Не удалось обновить подключение");
+        } finally {
+            setUpdatingDraft(false);
+        }
+    };
+
+    const saveProductIds = async () => {
+        if (!draft) return;
+        const productIds = productIdsRaw
+            .split(",")
+            .map((item) => item.trim())
+            .filter(Boolean)
+            .map((item) => Number(item))
+            .filter((item) => !Number.isNaN(item));
+        if (productIds.length === 0) {
+            toast.error("Введите корректные ID товаров");
+            return;
+        }
+        setUpdatingDraft(true);
+        try {
+            await DraftsApi.update(draft.id, { product_ids: productIds });
+            toast.success("Товары сохранены");
+            loadDraft();
+        } catch (e) {
+            toast.error("Не удалось сохранить товары");
+        } finally {
+            setUpdatingDraft(false);
+        }
+    };
+
 
     if (loading) {
         return (
@@ -102,6 +164,7 @@ export default function DraftDetailPage() {
     if (!draft) {
         return (
             <div className="min-h-screen pt-24 pb-12 px-4 container mx-auto text-white">
+                <CampaignsNav className="mb-6" />
                 <h1 className="text-3xl font-bold mb-4">Черновик не найден</h1>
                 <Link href="/drafts">
                     <Button variant="outline"><ArrowLeft className="mr-2 h-4 w-4" /> Назад</Button>
@@ -112,6 +175,7 @@ export default function DraftDetailPage() {
 
     return (
         <div className="min-h-screen pt-24 pb-12 px-4 container mx-auto text-white">
+            <CampaignsNav className="mb-6" />
             <div className="flex justify-between items-start mb-8">
                 <div>
                     <Link href="/drafts" className="text-gray-400 hover:text-white text-sm flex items-center mb-2">
@@ -125,11 +189,69 @@ export default function DraftDetailPage() {
                         </span>
                     </div>
                 </div>
-                <Button onClick={handlePublish} disabled={publishing || draft.status === 'published'} className="bg-accent hover:bg-accent/80">
+                <Button
+                    onClick={handlePublish}
+                    disabled={publishing || draft.status === 'published' || !draft.connection_id}
+                    className="bg-accent hover:bg-accent/80"
+                >
                     {publishing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
                     {draft.status === 'published' ? STR.drafts.published : STR.drafts.publish}
                 </Button>
             </div>
+
+            <Card className="glass-card border-white/5 mb-6">
+                <CardHeader>
+                    <CardTitle className="text-white">Подключение для запуска</CardTitle>
+                    <CardDescription className="text-gray-400">
+                        Выберите рекламный кабинет, чтобы можно было запустить кампанию.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    {connections.length === 0 ? (
+                        <div className="text-sm text-gray-400">
+                            Нет подключений. Перейдите в <Link href="/connections" className="text-accent hover:underline">подключения</Link>.
+                        </div>
+                    ) : (
+                        <div className="space-y-2">
+                            <Label>Подключение</Label>
+                            <select
+                                className="w-full rounded-md border border-border bg-panel px-3 py-2 text-sm text-text"
+                                value={selectedConnectionId}
+                                onChange={(e) => updateDraftConnection(e.target.value)}
+                                disabled={updatingDraft}
+                            >
+                                <option value="">Выберите подключение</option>
+                                {connections.map((conn) => (
+                                    <option key={conn.id} value={String(conn.id)}>
+                                        {conn.name || conn.platform}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
+                    {!draft.connection_id && (
+                        <div className="text-xs text-amber-300">
+                            Без подключения запуск невозможен.
+                        </div>
+                    )}
+                    {isOzon && (
+                        <div className="space-y-2">
+                            <Label>ID товаров Ozon</Label>
+                            <div className="flex flex-wrap gap-2">
+                                <Input
+                                    value={productIdsRaw}
+                                    onChange={(e) => setProductIdsRaw(e.target.value)}
+                                    placeholder="12345, 67890"
+                                    className="flex-1 bg-black/20 border-white/10 text-white"
+                                />
+                                <Button onClick={saveProductIds} disabled={updatingDraft} variant="secondary">
+                                    Сохранить
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
 
             <div className="space-y-4">
                 {draft.ad_groups?.length === 0 && (

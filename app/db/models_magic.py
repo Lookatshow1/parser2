@@ -7,8 +7,10 @@ from app.db.base import Base
 
 class MagicRunStatus(str, enum.Enum):
     draft = "draft"
+    pending = "pending"
     running = "running"
     done = "done"
+    success = "success"
     failed = "failed"
 
 class MagicRun(Base):

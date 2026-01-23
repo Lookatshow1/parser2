@@ -207,57 +207,63 @@ class ExperimentService:
 
             session.flush()
 
-            # MEGA PRODUCT: Create real campaign in ad platform
-            # 1. Find connection
-            connection = session.scalar(
-                select(Connection).where(
-                    Connection.organization_id == experiment.organization_id,
-                    Connection.platform == platform,
-                    Connection.status == ConnectionStatus.active
-                )
-            )
-
-            if connection:
-                try:
-                    connector = get_connector(platform, connection.credentials_json or {})
-                    # create_campaign_bundle expects (plan, experiment, creatives)
-                    # plan is reachable via experiment.plan
-                    result = connector.create_campaign_bundle(experiment.plan, experiment, creatives)
-                    campaign_external_id = result.get("campaign_id")
-
-                    if campaign_external_id:
-                        # Create ExperimentCampaign mapping
-                        exp_campaign = ExperimentCampaign(
-                            organization_id=experiment.organization_id,
-                            experiment_id=experiment.id,
-                            platform=platform,
-                            campaign_external_id=campaign_external_id
-                        )
-                        session.add(exp_campaign)
-                        print(f"Created real campaign {campaign_external_id} on {platform}")
-                except Exception as e:
-                    print(f"Failed to create campaign on {platform}: {e}")
-                    # Don't fail the whole round creation, just log error for MVP
-                    # In production, we might want to rollback or alert user
+            # Mega Product: Create Shadow ABTest for UI visibility
+            from app.db.models_abtests import ABTest, ABTestVariant, ABTestStatus
             
+            ab_test = ABTest(
+                organization_id=experiment.organization_id,
+                name=f"Exp {experiment.id} Round {round_item.round_index} - {platform.value}",
+                description=f"Auto-generated for Experiment {experiment.id}",
+                status=ABTestStatus.RUNNING.value,
+                started_at=datetime.utcnow()
+            )
+            session.add(ab_test)
             session.flush()
 
             platform_budget = round_item.budget_plan.get(platform.value, 0)
-
-            session.add(
-                BudgetAllocation(
-                    experiment_id=experiment.id,
-                    experiment_round_id=round_item.id,
-                    platform=platform,
-                    creative_variant_id=None,
-                    amount=platform_budget,
-                )
-            )
+            
+            # Create campaigns (One per creative to track variants)
+            # Allocation
             per_creative = platform_budget // len(creatives) if creatives else 0
             remainder = platform_budget % len(creatives) if creatives else 0
+            
             for idx, creative in enumerate(creatives):
-                amount = per_creative + (1 if idx < remainder else 0)
-                session.add(
+                 amount = per_creative + (1 if idx < remainder else 0)
+                 
+                 # MEGA PRODUCT: Create real campaign in ad platform per creative
+                 # 1. Find connection
+                 connection = session.scalar(
+                    select(Connection).where(
+                        Connection.organization_id == experiment.organization_id,
+                        Connection.platform == platform,
+                        Connection.status == ConnectionStatus.active
+                    )
+                 )
+                 
+                 campaign_external_id = None
+                 if connection:
+                    try:
+                        connector = get_connector(platform, connection.credentials_json or {})
+                        # Create campaign for THIS single creative
+                        # We pass list of 1 to satisfy signature
+                        result = connector.create_campaign_bundle(experiment.plan, experiment, [creative])
+                        campaign_external_id = result.get("campaign_id")
+
+                        if campaign_external_id:
+                            # Create ExperimentCampaign mapping
+                            exp_campaign = ExperimentCampaign(
+                                organization_id=experiment.organization_id,
+                                experiment_id=experiment.id,
+                                platform=platform,
+                                campaign_external_id=campaign_external_id
+                            )
+                            session.add(exp_campaign)
+                            print(f"Created real campaign {campaign_external_id} on {platform} for creative {creative.id}")
+                    except Exception as e:
+                        print(f"Failed to create campaign on {platform}: {e}")
+
+                 # Create BudgetAllocation
+                 session.add(
                     BudgetAllocation(
                         experiment_id=experiment.id,
                         experiment_round_id=round_item.id,
@@ -265,7 +271,30 @@ class ExperimentService:
                         creative_variant_id=creative.id,
                         amount=amount,
                     )
+                 )
+                 
+                 # Create Shadow ABTestVariant
+                 ab_variant = ABTestVariant(
+                     ab_test_id=ab_test.id,
+                     name=f"Variant {idx+1} ({creative.title})",
+                     title=creative.title,
+                     text=creative.text,
+                     landing_url=None, # Todo
+                     campaign_external_id=campaign_external_id,
+                     traffic_percentage=100 // len(creatives)
+                 )
+                 session.add(ab_variant)
+                 session.flush()
+
+            session.add(
+                BudgetAllocation(
+                    experiment_id=experiment.id,
+                    experiment_round_id=round_item.id,
+                    platform=platform,
+                    creative_variant_id=None,
+                    amount=0, # Remaining/Common check
                 )
+            )
 
     def _reallocate_budget(self, session: Session, experiment: Experiment, round_item: ExperimentRound) -> dict[str, int]:
         platforms = [Platform(value) for value in (experiment.platforms or [])]

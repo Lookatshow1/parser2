@@ -21,6 +21,7 @@ import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../../components/ui/table";
+import { CampaignsNav } from "../../../components/campaigns/campaigns-nav";
 
 const statusVariant: Record<string, "success" | "danger" | "warning" | "muted"> = {
   draft: "muted",
@@ -165,6 +166,7 @@ export default function CampaignDetailPage() {
 
   return (
     <div className="space-y-6">
+      <CampaignsNav />
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-text">{tree.name}</h1>

@@ -1,7 +1,7 @@
 "use client";
 export const dynamic = "force-dynamic";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { createCampaign } from "../../../lib/api";
@@ -9,12 +9,14 @@ import { Button } from "../../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
+import { CampaignsNav } from "../../../components/campaigns/campaigns-nav";
 
 const steps = ["Кампания", "Бюджет и даты", "Резюме"];
 
 export default function CampaignBuilderPage() {
   const router = useRouter();
   const [step, setStep] = useState(0);
+  const [templateName, setTemplateName] = useState<string | null>(null);
   const [form, setForm] = useState({
     name: "",
     platform: "yandex",
@@ -41,6 +43,26 @@ export default function CampaignBuilderPage() {
     return true;
   }, [step, form.name]);
 
+  useEffect(() => {
+    const raw = localStorage.getItem("campaign_template");
+    if (!raw) return;
+    try {
+      const parsed = JSON.parse(raw) as { name?: string; budget_daily?: number | null };
+      setForm((prev) => ({
+        ...prev,
+        name: parsed.name || prev.name,
+        budget_daily: parsed.budget_daily ? String(parsed.budget_daily) : prev.budget_daily,
+      }));
+      if (parsed.name) {
+        setTemplateName(parsed.name);
+      }
+    } catch {
+      // ignore malformed template payload
+    } finally {
+      localStorage.removeItem("campaign_template");
+    }
+  }, []);
+
   const handleCreate = async () => {
     try {
       const payload = {
@@ -63,6 +85,12 @@ export default function CampaignBuilderPage() {
 
   return (
     <div className="space-y-6">
+      <CampaignsNav />
+      {templateName && (
+        <div className="rounded-lg border border-accent/30 bg-accent/5 px-4 py-3 text-sm text-text">
+          Шаблон "{templateName}" применен. Можно изменить параметры перед запуском.
+        </div>
+      )}
       <div>
         <h1 className="text-2xl font-semibold text-text">Конструктор кампании</h1>
         <p className="text-sm text-muted">Шаг {step + 1} из 3: {steps[step]}</p>

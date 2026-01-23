@@ -16,6 +16,7 @@ import { Label } from "../../components/ui/label";
 import { Skeleton } from "../../components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
 import { BadgePercent, Beaker, Send, Store } from "lucide-react";
+import { CampaignsNav } from "../../components/campaigns/campaigns-nav";
 
 const statusVariant: Record<string, "success" | "danger" | "warning" | "muted"> = {
   draft: "muted",
@@ -69,6 +70,7 @@ export default function CampaignsPage() {
 
   return (
     <div className="space-y-6">
+      <CampaignsNav />
       <PageHeader
         title="Кампании"
         subtitle="Создавайте кампании, группы и объявления в одном месте."

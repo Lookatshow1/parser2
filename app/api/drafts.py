@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from app.api.deps import get_db, get_current_membership, get_current_org, get_current_user
-from app.db.models import Organization, User
+from app.db.models import Organization, User, Connection
 from app.db.models_drafts import DraftCampaign, DraftAdGroup, DraftAd
 from app.api.drafts_schemas import DraftCampaignResponse, DraftCampaignCreate
 from app.services.rbac import can_read_campaigns, can_write_campaigns
@@ -112,6 +112,13 @@ class AdUpdate(BaseModel):
     text: Optional[str] = None
     landing_url: Optional[str] = None
 
+
+class DraftCampaignUpdate(BaseModel):
+    connection_id: Optional[int] = None
+    budget_daily: Optional[float] = None
+    landing_url: Optional[str] = None
+    product_ids: Optional[List[int]] = None
+
 @router.patch("/groups/{group_id}")
 def update_ad_group(
     group_id: int,
@@ -166,3 +173,46 @@ def update_ad(
     
     db.commit()
     return {"ok": True, "id": ad.id, "title": ad.title, "text": ad.text}
+
+
+@router.patch("/{id}")
+def update_draft(
+    id: int,
+    payload: DraftCampaignUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    org: Organization = Depends(get_current_org),
+    membership=Depends(get_current_membership),
+):
+    _require_write(membership.role)
+    draft = (
+        db.query(DraftCampaign)
+        .filter(DraftCampaign.id == id, DraftCampaign.organization_id == org.id)
+        .first()
+    )
+    if not draft:
+        raise HTTPException(status_code=404, detail="Draft not found")
+
+    if payload.connection_id is not None:
+        connection = (
+            db.query(Connection)
+            .filter(Connection.id == payload.connection_id, Connection.organization_id == org.id)
+            .first()
+        )
+        if not connection:
+            raise HTTPException(status_code=404, detail="Connection not found")
+        draft.connection_id = connection.id
+        draft.platform = connection.platform.value if hasattr(connection.platform, "value") else str(connection.platform)
+
+    payload_json = draft.payload_json or {}
+    if payload.budget_daily is not None:
+        payload_json["budget"] = payload.budget_daily
+    if payload.landing_url is not None:
+        payload_json["landing_url"] = payload.landing_url
+    if payload.product_ids is not None:
+        payload_json["product_ids"] = payload.product_ids
+
+    draft.payload_json = payload_json
+    db.commit()
+
+    return {"ok": True, "id": draft.id}

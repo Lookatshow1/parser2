@@ -4,9 +4,9 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import {
-  BarChart3, Megaphone, Sparkles, CreditCard,
+  BarChart3, Megaphone, CreditCard,
   ChevronDown, LogOut, UserCircle2, Menu, X,
-  Layers, LineChart, SlidersHorizontal, Target, Gauge, Bell, Plug, Settings
+  LineChart, Target, Gauge, Bell, Plug, Settings
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -17,11 +17,8 @@ import { STR } from "../lib/strings";
 
 const navItems = [
   { href: "/dashboard", label: "Дашборд", icon: BarChart3 },
-  { href: "/magic", label: "Магия", icon: Sparkles },
   { href: "/campaigns", label: STR.nav.campaigns, icon: Megaphone },
-  { href: "/templates", label: "Шаблоны", icon: Layers },
   { href: "/analytics", label: "Аналитика", icon: LineChart },
-  { href: "/ads-manager", label: "Управление", icon: SlidersHorizontal },
   { href: "/competitors", label: "Конкуренты", icon: Target },
   { href: "/metrica", label: "Метрика", icon: Gauge },
   { href: "/notifications", label: "Уведомления", icon: Bell },

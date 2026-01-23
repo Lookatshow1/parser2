@@ -9,7 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 
 from app.db.models_optimizer import BudgetAllocation, OptimizationRule, OptimizationLog
-from app.db.models_analytics import CampaignMetrics
+from app.db.models import MetricSnapshot
+from sqlalchemy import func
 
 
 class BudgetOptimizerService:
@@ -30,15 +31,20 @@ class BudgetOptimizerService:
         # Get recent metrics by platform
         date_from = date.today() - timedelta(days=7)
         
-        query = select(CampaignMetrics).where(
+        query = select(
+            MetricSnapshot.platform,
+            func.sum(MetricSnapshot.spend).label("spend"),
+            func.sum(MetricSnapshot.revenue).label("revenue")
+        ).where(
             and_(
-                CampaignMetrics.organization_id == organization_id,
-                CampaignMetrics.date >= date_from
+                MetricSnapshot.organization_id == organization_id,
+                MetricSnapshot.date >= date_from,
+                MetricSnapshot.level == "campaign"
             )
-        )
+        ).group_by(MetricSnapshot.platform)
         
         result = await self.session.execute(query)
-        metrics = result.scalars().all()
+        metrics = result.all()
         
         if not metrics:
             # Generate mock recommendations for demo
@@ -47,10 +53,14 @@ class BudgetOptimizerService:
         # Aggregate by platform
         platform_data = {}
         for m in metrics:
-            if m.platform not in platform_data:
-                platform_data[m.platform] = {"spend": 0, "revenue": 0}
-            platform_data[m.platform]["spend"] += m.spend or 0
-            platform_data[m.platform]["revenue"] += m.revenue or 0
+             # m is a Row with platform, spend, revenue
+             # platform might be Enum
+            platform_val = m.platform.value if hasattr(m.platform, "value") else str(m.platform)
+            
+            if platform_val not in platform_data:
+                platform_data[platform_val] = {"spend": 0, "revenue": 0}
+            platform_data[platform_val]["spend"] += m.spend or 0
+            platform_data[platform_val]["revenue"] += m.revenue or 0
         
         # Calculate ROAS and generate recommendations
         recommendations = []

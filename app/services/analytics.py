@@ -8,7 +8,7 @@ from typing import Optional, List, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
 
-from app.db.models_analytics import CampaignMetrics, AggregatedMetrics
+from app.db.models import MetricSnapshot, Platform
 
 
 class AnalyticsService:
@@ -16,6 +16,45 @@ class AnalyticsService:
     
     def __init__(self, session: AsyncSession):
         self.session = session
+
+    # ... existing methods ...
+
+    async def seed_demo_data(self, organization_id: int):
+        """Generate demo analytics data for testing using MetricSnapshot."""
+        import random
+        import uuid
+        
+        today = date.today()
+        platforms = [Platform.yandex, Platform.google, Platform.vk]
+        
+        for days_ago in range(30):
+            current_date = today - timedelta(days=days_ago)
+            
+            for platform in platforms:
+                # Generate 3 dummy campaigns per platform
+                for i in range(3):
+                    impressions = random.randint(1000, 10000)
+                    clicks = int(impressions * random.uniform(0.02, 0.08))
+                    spend = int(clicks * random.uniform(15, 50)) # Integer spend
+                    conversions = int(clicks * random.uniform(0.05, 0.15))
+                    revenue = int(conversions * random.uniform(500, 2000)) # Integer revenue
+                    
+                    snapshot = MetricSnapshot(
+                        organization_id=organization_id,
+                        platform=platform,
+                        date=current_date,
+                        level="campaign",
+                        campaign_external_id=f"demo_camp_{platform.value}_{i}",
+                        impressions=impressions,
+                        clicks=clicks,
+                        spend=spend,
+                        purchases=conversions,
+                        revenue=revenue,
+                        leads=conversions # Assume leads ~= purchases for demo
+                    )
+                    self.session.add(snapshot)
+        
+        await self.session.commit()
     
     async def get_dashboard_metrics(
         self,
@@ -24,24 +63,26 @@ class AnalyticsService:
         date_to: date,
         platform: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Get aggregated metrics for dashboard."""
+        """Get aggregated metrics for dashboard using MetricSnapshot."""
         
         query = select(
-            func.sum(CampaignMetrics.impressions).label("impressions"),
-            func.sum(CampaignMetrics.clicks).label("clicks"),
-            func.sum(CampaignMetrics.spend).label("spend"),
-            func.sum(CampaignMetrics.conversions).label("conversions"),
-            func.sum(CampaignMetrics.revenue).label("revenue")
+            func.sum(MetricSnapshot.impressions).label("impressions"),
+            func.sum(MetricSnapshot.clicks).label("clicks"),
+            func.sum(MetricSnapshot.spend).label("spend"),
+            func.sum(MetricSnapshot.purchases).label("purchases"),  # Mapping purchases to conversions
+            func.sum(MetricSnapshot.revenue).label("revenue")
         ).where(
             and_(
-                CampaignMetrics.organization_id == organization_id,
-                CampaignMetrics.date >= date_from,
-                CampaignMetrics.date <= date_to
+                MetricSnapshot.organization_id == organization_id,
+                MetricSnapshot.date >= date_from,
+                MetricSnapshot.date <= date_to,
+                MetricSnapshot.level == "campaign" # Avoid double counting if ad_group/ad levels exist
             )
         )
         
         if platform:
-            query = query.where(CampaignMetrics.platform == platform)
+            # Handle platform enum conversion if needed, assuming string match works for query
+            query = query.where(MetricSnapshot.platform == platform)
         
         result = await self.session.execute(query)
         row = result.one()
@@ -49,7 +90,7 @@ class AnalyticsService:
         impressions = row.impressions or 0
         clicks = row.clicks or 0
         spend = row.spend or 0.0
-        conversions = row.conversions or 0
+        conversions = row.purchases or 0 # Using purchases as primary conversion
         revenue = row.revenue or 0.0
         
         # Calculate derived metrics
@@ -80,19 +121,28 @@ class AnalyticsService:
     ) -> List[Dict[str, Any]]:
         """Get daily timeseries for a specific metric."""
         
+        # Map frontend metric names to DB columns
+        metric_column = getattr(MetricSnapshot, metric, None)
+        if metric == "conversions":
+             metric_column = MetricSnapshot.purchases
+
+        if metric_column is None:
+             metric_column = MetricSnapshot.impressions # Fallback
+
         query = select(
-            CampaignMetrics.date,
-            func.sum(getattr(CampaignMetrics, metric)).label("value")
+            MetricSnapshot.date,
+            func.sum(metric_column).label("value")
         ).where(
             and_(
-                CampaignMetrics.organization_id == organization_id,
-                CampaignMetrics.date >= date_from,
-                CampaignMetrics.date <= date_to
+                MetricSnapshot.organization_id == organization_id,
+                MetricSnapshot.date >= date_from,
+                MetricSnapshot.date <= date_to,
+                MetricSnapshot.level == "campaign"
             )
-        ).group_by(CampaignMetrics.date).order_by(CampaignMetrics.date)
+        ).group_by(MetricSnapshot.date).order_by(MetricSnapshot.date)
         
         if platform:
-            query = query.where(CampaignMetrics.platform == platform)
+            query = query.where(MetricSnapshot.platform == platform)
         
         result = await self.session.execute(query)
         rows = result.all()
@@ -111,30 +161,31 @@ class AnalyticsService:
         """Get metrics breakdown by platform."""
         
         query = select(
-            CampaignMetrics.platform,
-            func.sum(CampaignMetrics.impressions).label("impressions"),
-            func.sum(CampaignMetrics.clicks).label("clicks"),
-            func.sum(CampaignMetrics.spend).label("spend"),
-            func.sum(CampaignMetrics.conversions).label("conversions"),
-            func.sum(CampaignMetrics.revenue).label("revenue")
+            MetricSnapshot.platform,
+            func.sum(MetricSnapshot.impressions).label("impressions"),
+            func.sum(MetricSnapshot.clicks).label("clicks"),
+            func.sum(MetricSnapshot.spend).label("spend"),
+            func.sum(MetricSnapshot.purchases).label("purchases"),
+            func.sum(MetricSnapshot.revenue).label("revenue")
         ).where(
             and_(
-                CampaignMetrics.organization_id == organization_id,
-                CampaignMetrics.date >= date_from,
-                CampaignMetrics.date <= date_to
+                MetricSnapshot.organization_id == organization_id,
+                MetricSnapshot.date >= date_from,
+                MetricSnapshot.date <= date_to,
+                MetricSnapshot.level == "campaign"
             )
-        ).group_by(CampaignMetrics.platform)
+        ).group_by(MetricSnapshot.platform)
         
         result = await self.session.execute(query)
         rows = result.all()
         
         return [
             {
-                "platform": row.platform,
+                "platform": row.platform.value if hasattr(row.platform, "value") else str(row.platform),
                 "impressions": row.impressions or 0,
                 "clicks": row.clicks or 0,
                 "spend": round(row.spend or 0, 2),
-                "conversions": row.conversions or 0,
+                "conversions": row.purchases or 0,
                 "revenue": round(row.revenue or 0, 2),
                 "ctr": round((row.clicks or 0) / (row.impressions or 1) * 100, 2),
                 "roas": round((row.revenue or 0) / (row.spend or 1), 2) if row.spend else 0
@@ -173,37 +224,4 @@ class AnalyticsService:
             }
         }
     
-    async def seed_demo_data(self, organization_id: int):
-        """Generate demo analytics data for testing."""
-        import random
-        
-        today = date.today()
-        platforms = ["yandex", "google", "vk"]
-        
-        for days_ago in range(30):
-            current_date = today - timedelta(days=days_ago)
-            
-            for platform in platforms:
-                impressions = random.randint(1000, 10000)
-                clicks = int(impressions * random.uniform(0.02, 0.08))
-                spend = clicks * random.uniform(15, 50)
-                conversions = int(clicks * random.uniform(0.05, 0.15))
-                revenue = conversions * random.uniform(500, 2000)
-                
-                metric = CampaignMetrics(
-                    organization_id=organization_id,
-                    platform=platform,
-                    date=current_date,
-                    impressions=impressions,
-                    clicks=clicks,
-                    spend=round(spend, 2),
-                    conversions=conversions,
-                    revenue=round(revenue, 2),
-                    ctr=round(clicks / impressions * 100, 2) if impressions else 0,
-                    cpc=round(spend / clicks, 2) if clicks else 0,
-                    conversion_rate=round(conversions / clicks * 100, 2) if clicks else 0,
-                    roas=round(revenue / spend, 2) if spend else 0
-                )
-                self.session.add(metric)
-        
-        await self.session.commit()
+

@@ -5,11 +5,8 @@ import Link from "next/link";
 import {
     Sparkles,
     TrendingUp,
-    Zap,
     LayoutGrid,
     Target,
-    Bell,
-    Settings,
     ArrowRight,
     type LucideIcon
 } from "lucide-react";
@@ -38,17 +35,16 @@ const defaultActions: QuickAction[] = [
     {
         id: "campaigns",
         title: "Кампании",
-        description: "Управление",
+        description: "Создание и запуск",
         icon: LayoutGrid,
         href: "/campaigns"
     },
     {
-        id: "recommendations",
-        title: "Рекомендации",
-        description: "AI-советы",
+        id: "competitors",
+        title: "Конкуренты",
+        description: "Анализ рынка",
         icon: Target,
-        href: "/analytics",
-        badge: "3"
+        href: "/competitors"
     },
     {
         id: "analytics",
