@@ -122,22 +122,20 @@ async def demo_topup(
     if service.is_configured:
         raise HTTPException(400, "Use real payment endpoint when YooKassa is configured")
     
-    # Simulate successful payment
-    from app.db.models_billing import BillingTransaction
+    # Use BillingService to correctly update balance
+    from app.services.billing import BillingService
+    billing_service = BillingService(db)
     
-    tx = BillingTransaction(
-        organization_id=org_id,
-        type="topup",
+    account = billing_service.process_topup(
+        org_id=org_id,
         amount=payload.amount,
-        status="completed",
-        external_id=f"demo_{org_id}_{payload.amount}"
+        description=f"Demo Topup: {payload.description}"
     )
-    db.add(tx)
-    db.commit()
     
     return {
         "status": "credited",
         "amount": payload.amount,
+        "balance": account.balance,
         "demo_mode": True,
         "message": "Демо-пополнение выполнено"
     }
