@@ -27,6 +27,7 @@ class ConnectionStatus(str, enum.Enum):
 
 class ExperimentStatus(str, enum.Enum):
     draft = "draft"
+    planned = "planned"
     running = "running"
     stopped = "stopped"
     completed = "completed"

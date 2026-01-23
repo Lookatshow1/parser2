@@ -9,8 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MagicApi, MagicRun, ConnectionResponse, listConnections } from "@/lib/api";
-import { Loader2, Sparkles, ArrowRight, CheckCircle2, AlertCircle } from "lucide-react";
+import { MagicApi, MagicRun, ConnectionResponse, listConnections, DraftsApi } from "@/lib/api";
+import { Loader2, Sparkles, ArrowRight, CheckCircle2, AlertCircle, Play } from "lucide-react";
 import { STR } from "@/lib/strings";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -264,11 +264,30 @@ function StepProcessing() {
 }
 
 function StepSuccess({ run, onReset }: { run: MagicRun; onReset: () => void }) {
+    const [publishing, setPublishing] = useState(false);
     const result = run.result_json || {};
     const campaignName = result.business_name ? `Magic: ${result.business_name}` : "Новая кампания";
     const ads = Array.isArray(result.ads) ? result.ads : [];
     const drafts = Array.isArray(result.drafts) ? result.drafts : [];
     const draftsCount = drafts.length;
+
+    const handlePublishAll = async () => {
+        if (!drafts.length) {
+            toast.error("Нет черновиков для запуска");
+            return;
+        }
+        setPublishing(true);
+        const results = await Promise.allSettled(drafts.map((draft: any) => DraftsApi.publish(draft.id)));
+        const successCount = results.filter((res) => res.status === "fulfilled").length;
+        const failedCount = results.length - successCount;
+        if (successCount > 0) {
+            toast.success(`Запущено кампаний: ${successCount}`);
+        }
+        if (failedCount > 0) {
+            toast.error(`Не удалось запустить: ${failedCount}`);
+        }
+        setPublishing(false);
+    };
 
     return (
         <motion.div
@@ -314,7 +333,15 @@ function StepSuccess({ run, onReset }: { run: MagicRun; onReset: () => void }) {
                         </div>
                     )}
                     {drafts.length > 0 && (
-                        <div className="grid gap-2">
+                        <div className="grid gap-3">
+                            <Button
+                                className="w-full bg-green-600 hover:bg-green-500"
+                                onClick={handlePublishAll}
+                                disabled={publishing}
+                            >
+                                {publishing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
+                                Запустить все площадки
+                            </Button>
                             <div className="text-sm text-gray-400">Черновики для запуска</div>
                             <div className="grid gap-2 md:grid-cols-2">
                                 {drafts.map((draft: any) => (

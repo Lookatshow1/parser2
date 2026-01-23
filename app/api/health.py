@@ -40,14 +40,25 @@ def health_check(db: Session = Depends(get_db)):
     except Exception:
         migrations_ok = False
 
+    # Check Redis
+    redis_ok = True
+    try:
+        settings = get_settings()
+        r = redis.from_url(settings.redis_url)
+        if not r.ping():
+            redis_ok = False
+    except Exception:
+        redis_ok = False
+
     return {
-        "status": "ok" if db_ok and migrations_ok else "degraded",
+        "status": "ok" if db_ok and migrations_ok and redis_ok else "degraded",
         "db": {"ok": db_ok},
         "migrations": {
             "ok": migrations_ok,
             "current": current_rev,
             "head": head_rev
-        }
+        },
+        "redis": {"ok": redis_ok}
     }
 
 @router.get("/healthz", response_model=HealthzResponse)

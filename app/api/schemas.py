@@ -304,6 +304,7 @@ class HealthResponse(BaseModel):
     status: str
     db: HealthDb
     migrations: HealthMigrations
+    redis: HealthDb
 
 
 class HealthzResponse(BaseModel):

@@ -5,62 +5,119 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-    LineChart, Line, AreaChart, Area, BarChart, Bar,
+    AreaChart, Area, BarChart, Bar, LineChart, Line,
     XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from "recharts";
 import {
-    TrendingUp, TrendingDown, Eye, MousePointer, DollarSign, Target,
+    TrendingUp, Eye, MousePointer, DollarSign, Target,
     BarChart3, RefreshCw, ArrowUpRight, ArrowDownRight
 } from "lucide-react";
 import { toast } from "sonner";
+import { listConnections, getMetricsTimeseries, ConnectionResponse } from "@/lib/api";
 
-// Дневные данные за последние 14 дней
-const generateDailyData = () => {
-    const data = [];
-    const today = new Date();
+const PERIOD_DAYS: Record<string, number> = {
+    "7d": 7,
+    "14d": 14,
+    "30d": 30
+};
 
-    for (let i = 13; i >= 0; i--) {
-        const date = new Date(today);
-        date.setDate(date.getDate() - i);
+const PLATFORM_LABELS: Record<string, string> = {
+    yandex: "Яндекс Директ",
+    vk: "VK Реклама",
+    ozon: "Ozon Performance",
+    google: "Google Ads"
+};
 
-        data.push({
-            date: date.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short' }),
-            fullDate: date.toISOString().split('T')[0],
-            impressions: Math.floor(30000 + Math.random() * 15000),
-            clicks: Math.floor(900 + Math.random() * 600),
-            spend: Math.floor(35000 + Math.random() * 20000),
-            conversions: Math.floor(80 + Math.random() * 60),
-        });
+const PLATFORM_COLORS: Record<string, string> = {
+    yandex: "#FF5C00",
+    vk: "#0077FF",
+    ozon: "#005BFF",
+    google: "#34A853"
+};
+
+type MetricsSummary = {
+    impressions: number;
+    clicks: number;
+    spend: number;
+    conversions: number;
+    revenue: number;
+    ctr: number;
+    cpc: number;
+    conversion_rate: number;
+    roas: number;
+};
+
+type DailyMetrics = {
+    date: string;
+    fullDate: string;
+    impressions: number;
+    clicks: number;
+    spend: number;
+    conversions: number;
+    revenue: number;
+};
+
+type PlatformMetrics = {
+    platform: string;
+    name: string;
+    impressions: number;
+    clicks: number;
+    spend: number;
+    ctr: number;
+    roas: number;
+    color: string;
+};
+
+const EMPTY_SUMMARY: MetricsSummary = {
+    impressions: 0,
+    clicks: 0,
+    spend: 0,
+    conversions: 0,
+    revenue: 0,
+    ctr: 0,
+    cpc: 0,
+    conversion_rate: 0,
+    roas: 0
+};
+
+const formatDate = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+};
+
+const formatShortDate = (dateStr: string) => {
+    const date = new Date(`${dateStr}T00:00:00`);
+    return date.toLocaleDateString("ru-RU", { day: "2-digit", month: "short" });
+};
+
+const calcChange = (current: number, previous: number) => {
+    if (!Number.isFinite(previous) || previous === 0) {
+        return undefined;
     }
-    return data;
+    const diff = ((current - previous) / previous) * 100;
+    return Number.isFinite(diff) ? Number(diff.toFixed(1)) : undefined;
 };
 
-const mockSummary = {
-    impressions: 458920,
-    clicks: 18540,
-    spend: 542890.50,
-    conversions: 1245,
-    revenue: 2456780.00,
-    ctr: 4.04,
-    cpc: 29.28,
-    conversion_rate: 6.72,
-    roas: 4.52
-};
+const buildDateRange = (days: number) => {
+    const dateTo = new Date();
+    dateTo.setHours(0, 0, 0, 0);
+    const dateFrom = new Date(dateTo);
+    dateFrom.setDate(dateFrom.getDate() - (days - 1));
 
-const mockChanges = {
-    impressions: 12.5,
-    clicks: 8.3,
-    spend: -5.2,
-    conversions: 15.8,
-    ctr: -3.4,
-    roas: 22.1
-};
+    const prevDateTo = new Date(dateFrom);
+    prevDateTo.setDate(prevDateTo.getDate() - 1);
+    const prevDateFrom = new Date(prevDateTo);
+    prevDateFrom.setDate(prevDateFrom.getDate() - (days - 1));
 
-const mockPlatforms = [
-    { platform: "yandex", name: "Яндекс Директ", impressions: 245000, clicks: 10200, spend: 298500, roas: 4.8, ctr: 4.16, color: "#FF5C00" },
-    { platform: "vk", name: "VK Реклама", impressions: 148000, clicks: 5800, spend: 178200, roas: 4.2, ctr: 3.92, color: "#0077FF" },
-    { platform: "ozon", name: "Ozon Performance", impressions: 65920, clicks: 2540, spend: 66190, roas: 3.9, ctr: 3.85, color: "#005BFF" },
-];
+    return {
+        dateFrom: formatDate(dateFrom),
+        dateTo: formatDate(dateTo),
+        prevDateFrom: formatDate(prevDateFrom),
+        prevDateTo: formatDate(prevDateTo)
+    };
+};
 
 function MetricCard({
     title,
@@ -79,14 +136,19 @@ function MetricCard({
     prefix?: string;
     suffix?: string;
 }) {
+    const safeValue = Number.isFinite(value) ? value : 0;
     const formatValue = () => {
-        if (format === "currency") return `₽${value.toLocaleString('ru-RU', { maximumFractionDigits: 0 })}`;
-        if (format === "percent") return `${value.toFixed(2)}%`;
-        return value.toLocaleString('ru-RU');
+        if (format === "currency") {
+            return `₽${safeValue.toLocaleString("ru-RU", { maximumFractionDigits: 0 })}`;
+        }
+        if (format === "percent") {
+            return `${safeValue.toFixed(2)}%`;
+        }
+        return safeValue.toLocaleString("ru-RU");
     };
 
-    const isPositive = change && change > 0;
-    const isNegative = change && change < 0;
+    const isPositive = change !== undefined && change > 0;
+    const isNegative = change !== undefined && change < 0;
 
     return (
         <Card className="glass-card border-white/5">
@@ -96,7 +158,7 @@ function MetricCard({
                         <Icon className="h-5 w-5 text-accent" />
                     </div>
                     {change !== undefined && (
-                        <div className={`flex items-center text-sm ${isPositive ? 'text-green-400' : isNegative ? 'text-red-400' : 'text-gray-400'}`}>
+                        <div className={`flex items-center text-sm ${isPositive ? "text-green-400" : isNegative ? "text-red-400" : "text-gray-400"}`}>
                             {isPositive ? <ArrowUpRight className="h-4 w-4" /> : isNegative ? <ArrowDownRight className="h-4 w-4" /> : null}
                             {Math.abs(change)}%
                         </div>
@@ -118,7 +180,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
                 <p className="text-white font-medium mb-2">{label}</p>
                 {payload.map((entry: any, index: number) => (
                     <p key={index} className="text-sm" style={{ color: entry.color }}>
-                        {entry.name}: {entry.value.toLocaleString('ru-RU')}
+                        {entry.name}: {Number(entry.value || 0).toLocaleString("ru-RU")}
                         {entry.name === "Расход" ? " ₽" : ""}
                     </p>
                 ))}
@@ -132,20 +194,178 @@ export default function AnalyticsPage() {
     const [loading, setLoading] = useState(false);
     const [period, setPeriod] = useState("14d");
     const [platform, setPlatform] = useState("all");
-    const [dailyData, setDailyData] = useState(generateDailyData());
+    const [connections, setConnections] = useState<ConnectionResponse[]>([]);
+    const [connectionsLoaded, setConnectionsLoaded] = useState(false);
+    const [dailyData, setDailyData] = useState<DailyMetrics[]>([]);
+    const [summary, setSummary] = useState<MetricsSummary>(EMPTY_SUMMARY);
+    const [changes, setChanges] = useState<Record<string, number | undefined>>({});
+    const [platformData, setPlatformData] = useState<PlatformMetrics[]>([]);
 
-    const refresh = () => {
+    useEffect(() => {
+        let cancelled = false;
+        const loadConnections = async () => {
+            try {
+                const data = await listConnections();
+                if (cancelled) return;
+                setConnections(data.items || []);
+            } catch (error) {
+                if (!cancelled) {
+                    setConnections([]);
+                }
+            } finally {
+                if (!cancelled) {
+                    setConnectionsLoaded(true);
+                }
+            }
+        };
+        loadConnections();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!connectionsLoaded) return;
+        const available = new Set(connections.map((conn) => String(conn.platform)));
+        if (platform !== "all" && !available.has(platform)) {
+            setPlatform("all");
+        }
+    }, [connectionsLoaded, connections, platform]);
+
+    const loadMetrics = async () => {
         setLoading(true);
-        setTimeout(() => {
-            setDailyData(generateDailyData());
+        try {
+            const days = PERIOD_DAYS[period] ?? 14;
+            const { dateFrom, dateTo, prevDateFrom, prevDateTo } = buildDateRange(days);
+            const allConnectionIds = connections.map((conn) => conn.id);
+            const selectedConnectionIds = platform === "all"
+                ? allConnectionIds
+                : connections.filter((conn) => String(conn.platform) === platform).map((conn) => conn.id);
+
+            if (connections.length === 0 || (platform !== "all" && selectedConnectionIds.length === 0)) {
+                setDailyData([]);
+                setSummary(EMPTY_SUMMARY);
+                setChanges({});
+                setPlatformData([]);
+                return;
+            }
+
+            const [currentData, previousData] = await Promise.all([
+                getMetricsTimeseries({
+                    date_from: dateFrom,
+                    date_to: dateTo,
+                    connection_ids: selectedConnectionIds
+                }),
+                getMetricsTimeseries({
+                    date_from: prevDateFrom,
+                    date_to: prevDateTo,
+                    connection_ids: selectedConnectionIds
+                })
+            ]);
+
+            const currentTotals = currentData.totals;
+            const prevTotals = previousData.totals;
+
+            const currentConversions = currentTotals.purchases > 0 ? currentTotals.purchases : currentTotals.leads;
+            const prevConversions = prevTotals.purchases > 0 ? prevTotals.purchases : prevTotals.leads;
+
+            const currentCtr = currentTotals.ctr ?? (currentTotals.impressions ? (currentTotals.clicks / currentTotals.impressions) * 100 : 0);
+            const prevCtr = prevTotals.ctr ?? (prevTotals.impressions ? (prevTotals.clicks / prevTotals.impressions) * 100 : 0);
+            const currentRoas = currentTotals.roas ?? (currentTotals.spend ? currentTotals.revenue / currentTotals.spend : 0);
+            const prevRoas = prevTotals.roas ?? (prevTotals.spend ? prevTotals.revenue / prevTotals.spend : 0);
+            const currentCpc = currentTotals.cpc ?? (currentTotals.clicks ? currentTotals.spend / currentTotals.clicks : 0);
+            const conversionRate = currentTotals.clicks ? (currentConversions / currentTotals.clicks) * 100 : 0;
+
+            setSummary({
+                impressions: currentTotals.impressions,
+                clicks: currentTotals.clicks,
+                spend: currentTotals.spend,
+                conversions: currentConversions,
+                revenue: currentTotals.revenue,
+                ctr: currentCtr,
+                cpc: currentCpc,
+                conversion_rate: conversionRate,
+                roas: currentRoas
+            });
+
+            setChanges({
+                impressions: calcChange(currentTotals.impressions, prevTotals.impressions),
+                clicks: calcChange(currentTotals.clicks, prevTotals.clicks),
+                spend: calcChange(currentTotals.spend, prevTotals.spend),
+                conversions: calcChange(currentConversions, prevConversions),
+                ctr: calcChange(currentCtr, prevCtr),
+                roas: calcChange(currentRoas, prevRoas)
+            });
+
+            setDailyData(
+                currentData.items.map((item) => ({
+                    date: formatShortDate(item.date),
+                    fullDate: item.date,
+                    impressions: item.impressions,
+                    clicks: item.clicks,
+                    spend: item.spend,
+                    conversions: item.purchases > 0 ? item.purchases : item.leads,
+                    revenue: item.revenue
+                }))
+            );
+
+            const platformGroups: Record<string, number[]> = {};
+            if (platform === "all") {
+                connections.forEach((conn) => {
+                    const key = String(conn.platform);
+                    platformGroups[key] = platformGroups[key] || [];
+                    platformGroups[key].push(conn.id);
+                });
+            } else if (selectedConnectionIds.length > 0) {
+                platformGroups[platform] = selectedConnectionIds;
+            }
+
+            const platformEntries = await Promise.all(
+                Object.entries(platformGroups).map(async ([platformKey, ids]) => {
+                    if (!ids.length) return null;
+                    const data = await getMetricsTimeseries({
+                        date_from: dateFrom,
+                        date_to: dateTo,
+                        connection_ids: ids
+                    });
+                    const totals = data.totals;
+                    const ctr = totals.ctr ?? (totals.impressions ? (totals.clicks / totals.impressions) * 100 : 0);
+                    const roas = totals.roas ?? (totals.spend ? totals.revenue / totals.spend : 0);
+                    return {
+                        platform: platformKey,
+                        name: PLATFORM_LABELS[platformKey] || platformKey.toUpperCase(),
+                        impressions: totals.impressions,
+                        clicks: totals.clicks,
+                        spend: totals.spend,
+                        ctr,
+                        roas,
+                        color: PLATFORM_COLORS[platformKey] || "#22C55E"
+                    };
+                })
+            );
+
+            setPlatformData(platformEntries.filter((item): item is PlatformMetrics => Boolean(item)));
+        } catch (error) {
+            toast.error("Не удалось загрузить аналитику");
+        } finally {
             setLoading(false);
-            toast.success("Данные обновлены");
-        }, 1000);
+        }
     };
+
+    useEffect(() => {
+        if (!connectionsLoaded) return;
+        loadMetrics();
+    }, [connectionsLoaded, period, platform]);
+
+    const refresh = async () => {
+        await loadMetrics();
+        toast.success("Данные обновлены");
+    };
+
+    const platformOptions = Array.from(new Set(connections.map((conn) => String(conn.platform))));
 
     return (
         <div className="space-y-6">
-            {/* Header */}
             <div className="flex justify-between items-center">
                 <div>
                     <h1 className="text-3xl font-bold text-white">Аналитика</h1>
@@ -163,32 +383,32 @@ export default function AnalyticsPage() {
                         </SelectContent>
                     </Select>
                     <Select value={platform} onValueChange={setPlatform}>
-                        <SelectTrigger className="w-40 bg-black/30 border-white/10 text-white">
+                        <SelectTrigger className="w-44 bg-black/30 border-white/10 text-white">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">Все платформы</SelectItem>
-                            <SelectItem value="yandex">Яндекс Директ</SelectItem>
-                            <SelectItem value="vk">VK Реклама</SelectItem>
-                            <SelectItem value="ozon">Ozon</SelectItem>
+                            {platformOptions.map((key) => (
+                                <SelectItem key={key} value={key}>
+                                    {PLATFORM_LABELS[key] || key.toUpperCase()}
+                                </SelectItem>
+                            ))}
                         </SelectContent>
                     </Select>
                     <Button variant="outline" onClick={refresh} disabled={loading}>
-                        <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                        <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
                         Обновить
                     </Button>
                 </div>
             </div>
 
-            {/* KPI Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <MetricCard title="Показы" value={mockSummary.impressions} change={mockChanges.impressions} icon={Eye} />
-                <MetricCard title="Клики" value={mockSummary.clicks} change={mockChanges.clicks} icon={MousePointer} />
-                <MetricCard title="Расход" value={mockSummary.spend} change={mockChanges.spend} icon={DollarSign} format="currency" />
-                <MetricCard title="Конверсии" value={mockSummary.conversions} change={mockChanges.conversions} icon={Target} />
+                <MetricCard title="Показы" value={summary.impressions} change={changes.impressions} icon={Eye} />
+                <MetricCard title="Клики" value={summary.clicks} change={changes.clicks} icon={MousePointer} />
+                <MetricCard title="Расход" value={summary.spend} change={changes.spend} icon={DollarSign} format="currency" />
+                <MetricCard title="Конверсии" value={summary.conversions} change={changes.conversions} icon={Target} />
             </div>
 
-            {/* Main Chart - Impressions & Clicks */}
             <Card className="glass-card border-white/5">
                 <CardHeader>
                     <CardTitle className="text-white flex items-center gap-2">
@@ -241,7 +461,6 @@ export default function AnalyticsPage() {
             </Card>
 
             <div className="grid md:grid-cols-2 gap-6">
-                {/* Spend Chart */}
                 <Card className="glass-card border-white/5">
                     <CardHeader>
                         <CardTitle className="text-white flex items-center gap-2">
@@ -269,7 +488,6 @@ export default function AnalyticsPage() {
                     </CardContent>
                 </Card>
 
-                {/* Conversions Chart */}
                 <Card className="glass-card border-white/5">
                     <CardHeader>
                         <CardTitle className="text-white flex items-center gap-2">
@@ -301,54 +519,56 @@ export default function AnalyticsPage() {
                 </Card>
             </div>
 
-            {/* Platform Breakdown */}
             <Card className="glass-card border-white/5">
                 <CardHeader>
                     <CardTitle className="text-white">Распределение по платформам</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div className="space-y-6">
-                        {mockPlatforms.map((p) => {
-                            const totalSpend = mockPlatforms.reduce((s, pl) => s + pl.spend, 0);
-                            const percentage = (p.spend / totalSpend) * 100;
+                    {platformData.length === 0 ? (
+                        <div className="text-sm text-gray-500">Нет данных по выбранным подключениям.</div>
+                    ) : (
+                        <div className="space-y-6">
+                            {platformData.map((p) => {
+                                const totalSpend = platformData.reduce((s, pl) => s + pl.spend, 0);
+                                const percentage = totalSpend ? (p.spend / totalSpend) * 100 : 0;
 
-                            return (
-                                <div key={p.platform} className="space-y-2">
-                                    <div className="flex justify-between items-center">
-                                        <div className="flex items-center gap-3">
-                                            <div
-                                                className="w-3 h-3 rounded-full"
-                                                style={{ backgroundColor: p.color }}
-                                            />
-                                            <span className="text-white font-medium">{p.name}</span>
+                                return (
+                                    <div key={p.platform} className="space-y-2">
+                                        <div className="flex justify-between items-center">
+                                            <div className="flex items-center gap-3">
+                                                <div
+                                                    className="w-3 h-3 rounded-full"
+                                                    style={{ backgroundColor: p.color }}
+                                                />
+                                                <span className="text-white font-medium">{p.name}</span>
+                                            </div>
+                                            <span className="text-gray-400 text-sm">₽{p.spend.toLocaleString("ru-RU")}</span>
                                         </div>
-                                        <span className="text-gray-400 text-sm">₽{p.spend.toLocaleString()}</span>
+                                        <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                                            <div
+                                                className="h-full rounded-full transition-all duration-500"
+                                                style={{ width: `${percentage}%`, backgroundColor: p.color }}
+                                            />
+                                        </div>
+                                        <div className="flex justify-between text-xs text-gray-500">
+                                            <span>CTR: {p.ctr.toFixed(2)}%</span>
+                                            <span>Показы: {p.impressions.toLocaleString("ru-RU")}</span>
+                                            <span>Клики: {p.clicks.toLocaleString("ru-RU")}</span>
+                                            <span>ROAS: {p.roas.toFixed(2)}x</span>
+                                        </div>
                                     </div>
-                                    <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                                        <div
-                                            className="h-full rounded-full transition-all duration-500"
-                                            style={{ width: `${percentage}%`, backgroundColor: p.color }}
-                                        />
-                                    </div>
-                                    <div className="flex justify-between text-xs text-gray-500">
-                                        <span>CTR: {p.ctr}%</span>
-                                        <span>Показы: {p.impressions.toLocaleString()}</span>
-                                        <span>Клики: {p.clicks.toLocaleString()}</span>
-                                        <span>ROAS: {p.roas}x</span>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
                 </CardContent>
             </Card>
 
-            {/* Secondary KPIs */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <MetricCard title="CTR" value={mockSummary.ctr} change={mockChanges.ctr} icon={TrendingUp} format="percent" />
-                <MetricCard title="CPC" value={mockSummary.cpc} icon={DollarSign} prefix="₽" />
-                <MetricCard title="Конверсия" value={mockSummary.conversion_rate} icon={Target} format="percent" />
-                <MetricCard title="ROAS" value={mockSummary.roas} change={mockChanges.roas} icon={TrendingUp} suffix="x" />
+                <MetricCard title="CTR" value={summary.ctr} change={changes.ctr} icon={TrendingUp} format="percent" />
+                <MetricCard title="CPC" value={summary.cpc} icon={DollarSign} prefix="₽" />
+                <MetricCard title="Конверсия" value={summary.conversion_rate} icon={Target} format="percent" />
+                <MetricCard title="ROAS" value={summary.roas} change={changes.roas} icon={TrendingUp} suffix="x" />
             </div>
         </div>
     );
