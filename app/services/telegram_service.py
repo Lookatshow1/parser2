@@ -203,8 +203,130 @@ class TelegramService:
         if not admin_chat:
             logger.warning("Admin chat ID not configured")
             return {"ok": False, "error": "Admin chat not configured"}
-        
+
         return await self.send_message(admin_chat, text)
+
+    # -------------------------------------------------------------------------
+    # Magic Launch Notifications
+    # -------------------------------------------------------------------------
+
+    async def send_magic_launch_started(
+        self,
+        chat_id: str,
+        business_name: str,
+        budget: float,
+        platforms: list[str],
+    ):
+        """Notify that Magic Launch has started."""
+        platforms_text = ", ".join([
+            "Яндекс.Директ" if p == "yandex" else
+            "VK Ads" if p == "vk" else
+            "Ozon" if p == "ozon" else p
+            for p in platforms
+        ])
+
+        text = f"""
+🚀 <b>Magic Launch запущен!</b>
+
+🏢 Бизнес: <b>{business_name}</b>
+💰 Бюджет: <b>₽{budget:,.0f}</b>
+📍 Площадки: {platforms_text}
+
+<i>AI генерирует креативы...</i>
+"""
+        return await self.send_message(chat_id, text.strip())
+
+    async def send_magic_launch_completed(
+        self,
+        chat_id: str,
+        business_name: str,
+        budget_launched: float,
+        platforms_launched: int,
+        ads_count: int,
+        images_count: int,
+    ):
+        """Notify that Magic Launch completed successfully."""
+        text = f"""
+✅ <b>Реклама запущена!</b>
+
+🏢 <b>{business_name}</b>
+💰 Бюджет: <b>₽{budget_launched:,.0f}</b>
+📍 Площадок: <b>{platforms_launched}</b>
+📝 Объявлений: <b>{ads_count}</b>
+🖼 Изображений: <b>{images_count}</b>
+
+<b>Ваша реклама уже работает!</b>
+
+🎯 Ожидаемые результаты появятся в течение часа.
+"""
+        return await self.send_message(chat_id, text.strip())
+
+    async def send_magic_launch_failed(
+        self,
+        chat_id: str,
+        business_name: str,
+        error: str,
+    ):
+        """Notify that Magic Launch failed."""
+        text = f"""
+❌ <b>Ошибка запуска</b>
+
+🏢 Бизнес: {business_name}
+⚠️ Ошибка: {error}
+
+<i>Попробуйте снова или обратитесь в поддержку.</i>
+"""
+        return await self.send_message(chat_id, text.strip())
+
+    async def send_new_lead_notification(
+        self,
+        chat_id: str,
+        lead_source: str,
+        campaign_name: str,
+        contact_info: str = None,
+    ):
+        """Notify about a new lead from advertising."""
+        contact_text = f"\n📞 Контакт: {contact_info}" if contact_info else ""
+
+        text = f"""
+🎯 <b>Новая заявка!</b>
+
+📊 Кампания: <b>{campaign_name}</b>
+📍 Источник: {lead_source}{contact_text}
+
+<i>Свяжитесь с клиентом как можно скорее!</i>
+"""
+        return await self.send_message(chat_id, text.strip())
+
+    async def send_ai_generation_complete(
+        self,
+        chat_id: str,
+        ads_count: int,
+        images_count: int,
+        voiceovers_count: int = 0,
+        videos_count: int = 0,
+        ai_provider: str = None,
+    ):
+        """Notify that AI generation is complete."""
+        extras = []
+        if voiceovers_count > 0:
+            extras.append(f"🎙 {voiceovers_count} озвучек")
+        if videos_count > 0:
+            extras.append(f"🎬 {videos_count} видео")
+
+        extras_text = "\n".join(extras) if extras else ""
+        provider_text = f"\n\n<i>AI: {ai_provider}</i>" if ai_provider else ""
+
+        text = f"""
+✨ <b>AI-генерация завершена!</b>
+
+📝 Объявлений: <b>{ads_count}</b>
+🖼 Изображений: <b>{images_count}</b>
+{extras_text}{provider_text}
+
+<i>Креативы готовы к запуску.</i>
+"""
+        return await self.send_message(chat_id, text.strip())
     
     async def close(self):
         """Close HTTP client."""

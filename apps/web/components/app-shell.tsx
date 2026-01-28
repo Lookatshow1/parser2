@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   BarChart3, Megaphone, Cog, Sparkles, CreditCard,
-  ChevronDown, LogOut, UserCircle2, Menu, X, Activity
+  ChevronDown, LogOut, UserCircle2, Menu, X, Activity, Rocket
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -15,6 +15,7 @@ import { getMe, listOrgs, getActiveOrg, switchOrg } from "../lib/api";
 import { STR } from "../lib/strings";
 
 const navItems = [
+  { href: "/magic-launch", label: "ЗАПУСК", icon: Rocket, highlight: true },
   { href: "/dashboard", label: "Дашборд", icon: BarChart3 },
   { href: "/magic", label: "Магия", icon: Sparkles },
   { href: "/campaigns", label: STR.nav.campaigns, icon: Megaphone },
@@ -165,14 +166,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = pathname === item.href;
+                const isHighlight = (item as any).highlight;
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
                     onClick={() => setMobileMenuOpen(false)}
-                    className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${isActive
-                      ? "bg-accent text-text"
-                      : "text-muted hover:bg-panel-strong hover:text-text"
+                    className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+                      isHighlight
+                        ? "bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-bold shadow-lg shadow-orange-500/20"
+                        : isActive
+                          ? "bg-accent text-text"
+                          : "text-muted hover:bg-panel-strong hover:text-text"
                       }`}
                   >
                     <Icon className="h-4 w-4" />
@@ -197,13 +202,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
+            const isHighlight = (item as any).highlight;
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${isActive
-                  ? "bg-accent text-text"
-                  : "text-muted hover:bg-panel-strong hover:text-text"
+                className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+                  isHighlight
+                    ? "bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-bold shadow-lg shadow-orange-500/20 hover:from-yellow-400 hover:to-orange-400"
+                    : isActive
+                      ? "bg-accent text-text"
+                      : "text-muted hover:bg-panel-strong hover:text-text"
                   }`}
               >
                 <Icon className="h-4 w-4" />
