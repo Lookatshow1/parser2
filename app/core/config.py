@@ -182,6 +182,72 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("YOOKASSA_SECRET_KEY"),
     )
 
+    # OpenRouter (universal AI access with proxy support)
+    openrouter_api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("OPENROUTER_API_KEY"),
+    )
+    openrouter_proxy_url: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("OPENROUTER_PROXY_URL", "AI_PROXY_URL"),
+    )
+    openrouter_default_model: str = Field(
+        default="gpt-4o-mini",
+        validation_alias=AliasChoices("OPENROUTER_DEFAULT_MODEL"),
+    )
+
+    # ElevenLabs Voice AI
+    elevenlabs_api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("ELEVENLABS_API_KEY"),
+    )
+    elevenlabs_default_voice: str = Field(
+        default="ru_female_pro",
+        validation_alias=AliasChoices("ELEVENLABS_DEFAULT_VOICE"),
+    )
+
+    # HeyGen Video AI
+    heygen_api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("HEYGEN_API_KEY"),
+    )
+    heygen_default_avatar: str = Field(
+        default="anna_professional",
+        validation_alias=AliasChoices("HEYGEN_DEFAULT_AVATAR"),
+    )
+
+    # AI Orchestrator settings
+    ai_optimize_for: str = Field(
+        default="quality",  # quality, speed, cost
+        validation_alias=AliasChoices("AI_OPTIMIZE_FOR"),
+    )
+    ai_enable_parallel: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("AI_ENABLE_PARALLEL"),
+    )
+    ai_enable_fallback: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("AI_ENABLE_FALLBACK"),
+    )
+
+    # Magic Launch settings
+    magic_auto_generate_images: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("MAGIC_AUTO_GENERATE_IMAGES"),
+    )
+    magic_auto_generate_voice: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("MAGIC_AUTO_GENERATE_VOICE"),
+    )
+    magic_auto_generate_video: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("MAGIC_AUTO_GENERATE_VIDEO"),
+    )
+    magic_default_platforms: str = Field(
+        default="yandex,vk",
+        validation_alias=AliasChoices("MAGIC_DEFAULT_PLATFORMS"),
+    )
+
 
 @lru_cache
 def get_settings() -> Settings:
