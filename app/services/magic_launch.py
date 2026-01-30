@@ -15,8 +15,8 @@ from app.core.config import get_settings
 from app.db.models import Platform, Connection
 from app.db.models_drafts import DraftCampaign, DraftAdGroup, DraftAd
 from app.connectors.yandex_direct import YandexDirectConnector
-from app.connectors.vk_ads import VKAdsConnector
-from app.connectors.ozon_performance import OzonConnector
+from app.connectors.vk_ads import VkAdsConnector
+from app.connectors.ozon_performance import OzonPerformanceConnector
 
 logger = logging.getLogger(__name__)
 
@@ -290,8 +290,8 @@ class MagicLaunchService:
 
         connectors = {
             "yandex": YandexDirectConnector,
-            "vk": VKAdsConnector,
-            "ozon": OzonConnector
+            "vk": VkAdsConnector,
+            "ozon": OzonPerformanceConnector
         }
 
         connector_class = connectors.get(platform)

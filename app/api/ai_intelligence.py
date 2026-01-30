@@ -74,6 +74,12 @@ class VoiceCommandRequest(BaseModel):
     context: Optional[Dict[str, Any]] = None
 
 
+class FullAnalysisRequest(BaseModel):
+    business_description: str = Field(..., description="Description of your business")
+    competitor_urls: Optional[List[str]] = Field(default=None, max_length=5)
+    budget: float = Field(default=50000, ge=1000)
+
+
 # =============================================================================
 # COMPETITOR ANALYSIS
 # =============================================================================
@@ -394,9 +400,7 @@ async def process_voice_command(
 
 @router.post("/full-analysis")
 async def full_business_analysis(
-    business_description: str,
-    competitor_urls: Optional[List[str]] = None,
-    budget: float = 50000,
+    payload: FullAnalysisRequest,
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -418,23 +422,23 @@ async def full_business_analysis(
     # ROI Prediction
     predictor = get_roi_predictor()
     tasks.append(predictor.predict_roi(
-        budget=budget,
+        budget=payload.budget,
         industry="default",
-        business_description=business_description
+        business_description=payload.business_description
     ))
 
     # Audience Discovery
     finder = get_audience_finder()
     tasks.append(finder.find_audiences(
-        business_description=business_description
+        business_description=payload.business_description
     ))
 
     # Competitor Analysis (if URLs provided)
-    if competitor_urls:
+    if payload.competitor_urls:
         analyzer = get_competitor_analyzer()
         tasks.append(analyzer.analyze_multiple(
-            competitor_urls=competitor_urls[:3],
-            your_business=business_description
+            competitor_urls=payload.competitor_urls[:3],
+            your_business=payload.business_description
         ))
 
     # Execute all
@@ -446,8 +450,8 @@ async def full_business_analysis(
         results["competitor_analysis"] = all_results[2] if not isinstance(all_results[2], Exception) else None
 
     return {
-        "business": business_description,
-        "budget": budget,
+        "business": payload.business_description,
+        "budget": payload.budget,
         "analysis": results,
         "status": "complete"
     }
