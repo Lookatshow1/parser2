@@ -243,18 +243,18 @@ export default function DashboardPage() {
 
                 {/* Quick actions */}
                 <div className="grid md:grid-cols-3 gap-4">
-                    <Card className="hover:border-accent/50 transition-colors cursor-pointer" onClick={() => window.location.href = "/magic"}>
+                    <Card className="hover:border-accent/50 transition-colors cursor-pointer" onClick={() => window.location.href = "/magic-launch"}>
                         <CardContent className="py-6 text-center">
                             <Sparkles className="h-8 w-8 text-accent mx-auto mb-3" />
-                            <h3 className="font-medium text-text">Magic AI</h3>
-                            <p className="text-sm text-muted mt-1">Сгенерировать объявления</p>
+                            <h3 className="font-medium text-text">🚀 Запуск рекламы</h3>
+                            <p className="text-sm text-muted mt-1">Один клик — реклама работает</p>
                         </CardContent>
                     </Card>
-                    <Card className="hover:border-accent/50 transition-colors cursor-pointer" onClick={() => window.location.href = "/templates"}>
+                    <Card className="hover:border-accent/50 transition-colors cursor-pointer" onClick={() => window.location.href = "/campaigns"}>
                         <CardContent className="py-6 text-center">
                             <Target className="h-8 w-8 text-accent mx-auto mb-3" />
-                            <h3 className="font-medium text-text">Шаблоны</h3>
-                            <p className="text-sm text-muted mt-1">Готовые кампании по нишам</p>
+                            <h3 className="font-medium text-text">Кампании</h3>
+                            <p className="text-sm text-muted mt-1">Управление рекламой</p>
                         </CardContent>
                     </Card>
                     <Card className="hover:border-accent/50 transition-colors cursor-pointer" onClick={() => window.location.href = "/billing"}>
@@ -363,14 +363,14 @@ export default function DashboardPage() {
             {/* Quick Actions */}
             <div className="grid md:grid-cols-4 gap-4">
                 <Card className="hover:border-accent/50 transition-colors">
-                    <Link href="/magic" className="block">
+                    <Link href="/magic-launch" className="block">
                         <CardContent className="py-4 flex items-center gap-3">
-                            <div className="p-2 bg-accent/10 rounded-lg">
-                                <Sparkles className="h-5 w-5 text-accent" />
+                            <div className="p-2 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 rounded-lg">
+                                <Sparkles className="h-5 w-5 text-yellow-500" />
                             </div>
                             <div>
-                                <div className="font-medium text-text">Магия AI</div>
-                                <div className="text-xs text-muted">Создать объявления</div>
+                                <div className="font-medium text-text">🚀 Запустить</div>
+                                <div className="text-xs text-muted">Новая кампания</div>
                             </div>
                         </CardContent>
                     </Link>
@@ -389,27 +389,27 @@ export default function DashboardPage() {
                     </Link>
                 </Card>
                 <Card className="hover:border-accent/50 transition-colors">
-                    <Link href="/recommendations" className="block">
+                    <Link href="/drafts" className="block">
                         <CardContent className="py-4 flex items-center gap-3">
                             <div className="p-2 bg-accent/10 rounded-lg">
                                 <AlertCircle className="h-5 w-5 text-accent" />
                             </div>
                             <div>
-                                <div className="font-medium text-text">Рекомендации</div>
-                                <div className="text-xs text-muted">AI-советы</div>
+                                <div className="font-medium text-text">Черновики</div>
+                                <div className="text-xs text-muted">Незапущенные</div>
                             </div>
                         </CardContent>
                     </Link>
                 </Card>
                 <Card className="hover:border-accent/50 transition-colors">
-                    <Link href="/analytics" className="block">
+                    <Link href="/connections" className="block">
                         <CardContent className="py-4 flex items-center gap-3">
                             <div className="p-2 bg-accent/10 rounded-lg">
                                 <TrendingUp className="h-5 w-5 text-accent" />
                             </div>
                             <div>
-                                <div className="font-medium text-text">Аналитика</div>
-                                <div className="text-xs text-muted">Подробные отчёты</div>
+                                <div className="font-medium text-text">Подключения</div>
+                                <div className="text-xs text-muted">Рекламные площадки</div>
                             </div>
                         </CardContent>
                     </Link>

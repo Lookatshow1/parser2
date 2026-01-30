@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   BarChart3, Megaphone, Cog, Sparkles, CreditCard,
-  ChevronDown, LogOut, UserCircle2, Menu, X, Activity, Rocket, Brain
+  ChevronDown, LogOut, UserCircle2, Menu, X, Rocket
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -15,19 +15,12 @@ import { getMe, listOrgs, getActiveOrg, switchOrg } from "../lib/api";
 import { STR } from "../lib/strings";
 
 const navItems = [
-  { href: "/magic-launch", label: "ЗАПУСК", icon: Rocket, highlight: true },
-  { href: "/ai-studio", label: "AI Studio", icon: Brain },
+  { href: "/magic-launch", label: "🚀 Запуск рекламы", icon: Rocket, highlight: true },
   { href: "/dashboard", label: "Дашборд", icon: BarChart3 },
-  { href: "/magic", label: "Магия", icon: Sparkles },
   { href: "/campaigns", label: STR.nav.campaigns, icon: Megaphone },
-  { href: "/templates", label: "Шаблоны", icon: Sparkles },
-  { href: "/analytics", label: "Аналитика", icon: Activity },
-  { href: "/ads-manager", label: "Управление", icon: Megaphone },
-  { href: "/competitors", label: "Конкуренты", icon: Activity },
-  { href: "/metrica", label: "Метрика", icon: Activity },
-  { href: "/notifications", label: "Уведомления", icon: Activity },
+  { href: "/drafts", label: "Черновики", icon: Sparkles },
   { href: "/connections", label: STR.nav.connections, icon: Cog },
-  { href: "/billing", label: "Оплата", icon: CreditCard },
+  { href: "/billing", label: "Баланс", icon: CreditCard },
   { href: "/settings", label: STR.nav.settings, icon: Cog },
 ];
 
