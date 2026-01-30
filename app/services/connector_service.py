@@ -3,7 +3,7 @@ from app.db.models import Platform
 from app.connectors.base import AdsConnector
 from app.connectors.yandex_direct import YandexDirectConnector
 from app.connectors.ozon_performance import OzonPerformanceConnector
-from app.connectors.vk_ads import VkAdsConnector
+from app.connectors.vk_ads import VKAdsConnector
 from app.connectors.stub import StubConnector
 from app.security.credentials_crypto import maybe_decrypt
 
@@ -14,7 +14,7 @@ def get_connector(platform: Platform, credentials: Dict[str, Any]) -> AdsConnect
     elif platform == Platform.ozon:
         return OzonPerformanceConnector(decrypted)
     elif platform == Platform.vk:
-        return VkAdsConnector(decrypted)
+        return VKAdsConnector(decrypted)
     elif platform == Platform.stub:
         return StubConnector(decrypted)
     else:

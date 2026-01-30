@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.connectors.vk_ads import VkAdsConnector
+from app.connectors.vk_ads import VKAdsConnector
 from app.connectors.stub import StubConnector
 from app.core.config import get_settings
 from app.db.models import Connection, Platform
@@ -41,7 +41,7 @@ def fetch_vk_raw(payload: VkFetchRawRequest, session: Session = Depends(get_db))
         raise HTTPException(status_code=404, detail="Connection not found")
 
     decrypted = maybe_decrypt(connection.credentials_json)
-    connector = VkAdsConnector(decrypted)
+    connector = VKAdsConnector(decrypted)
     try:
         data = connector.fetch_raw(payload.method, decrypted, payload.params)
     except ValueError as exc:

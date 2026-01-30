@@ -12,7 +12,7 @@ from app.api.schemas import (
     YandexSyncMetricsRequest,
     YandexSyncMetricsResponse,
 )
-from app.connectors.vk_ads import VkAdsConnector
+from app.connectors.vk_ads import VKAdsConnector
 from app.connectors.vk_ads_client import VkApiError
 from app.connectors.yandex_direct_reports import (
     YandexDirectReportsClient,
@@ -90,7 +90,7 @@ def sync_vk_stats(payload: VkStatsSyncRequest, session: Session = Depends(get_db
             "ids_type": payload.ids_type,
         }
     )
-    connector = VkAdsConnector(credentials)
+    connector = VKAdsConnector(credentials)
     try:
         metrics = connector.fetch_metrics(payload.date_from.date(), payload.date_to.date())
     except ValueError as exc:

@@ -14,7 +14,7 @@ from app.core.config import get_settings
 from app.db.models import MetricSnapshot, Platform
 
 
-class VkAdsConnector(AdsConnector):
+class VKAdsConnector(AdsConnector):
     def __init__(self, credentials_json: dict | None = None) -> None:
         self._credentials = credentials_json or {}
         self.is_mock = os.getenv("VK_ADS_MOCK", "0") == "1"
