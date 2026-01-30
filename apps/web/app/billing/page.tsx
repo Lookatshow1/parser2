@@ -99,7 +99,7 @@ export default function BillingPage() {
                                 onClick={async () => {
                                     try {
                                         const token = localStorage.getItem("ads_access_token");
-                                        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/payments/create`, {
+                                        const res = await fetch(`/api/payments/create`, {
                                             method: "POST",
                                             headers: {
                                                 "Content-Type": "application/json",

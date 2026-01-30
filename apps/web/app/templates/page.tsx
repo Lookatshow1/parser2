@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE = ""; // Use relative path for proxying
 
 interface Industry {
     id: string;
@@ -136,8 +136,8 @@ export default function TemplatesPage() {
                                 key={ind.id}
                                 onClick={() => setSelectedIndustry(ind.id)}
                                 className={`p-4 rounded-lg border text-left transition-all ${selectedIndustry === ind.id
-                                        ? "border-accent bg-accent/10"
-                                        : "border-border hover:border-accent/50"
+                                    ? "border-accent bg-accent/10"
+                                    : "border-border hover:border-accent/50"
                                     }`}
                             >
                                 <span className="text-text font-medium">{ind.name}</span>

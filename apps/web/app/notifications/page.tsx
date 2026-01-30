@@ -14,7 +14,7 @@ import {
 import { toast } from "sonner";
 import { getOrgId, getToken } from "@/lib/session";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE = ""; // Use relative path for proxying
 
 interface TelegramSettings {
     connected: boolean;

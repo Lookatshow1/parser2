@@ -12,7 +12,7 @@ import {
 import { toast } from "sonner";
 import { getOrgId, getToken } from "@/lib/session";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE = ""; // Use relative path for proxying
 
 interface Counter {
     id: number;
@@ -222,8 +222,8 @@ export default function MetricaPage() {
                                 <div
                                     key={counter.id}
                                     className={`p-4 rounded-lg border cursor-pointer transition-all ${selectedCounter === counter.id
-                                            ? "border-accent bg-accent/10"
-                                            : "border-border hover:border-accent/50"
+                                        ? "border-accent bg-accent/10"
+                                        : "border-border hover:border-accent/50"
                                         }`}
                                     onClick={() => selectCounter(counter.id)}
                                 >
