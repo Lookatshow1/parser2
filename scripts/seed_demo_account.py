@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from sqlalchemy.orm import Session
 from app.db.session import SessionLocal
-from app.db.models import User, Organization, Membership, MembershipRole
+from app.db.models import User, Organization, Membership, MembershipRole, Campaign, CampaignAdGroup, CampaignAd, CampaignStatus, Platform
 from app.db.models_billing import BillingAccount, BillingTransaction, TransactionType, TransactionStatus
 from app.db.models_drafts import DraftCampaign, DraftAdGroup, DraftAd
 from app.db import models_magic  # Import to resolve relationships
@@ -74,7 +74,7 @@ def create_demo_user(db: Session) -> tuple:
     return user, org
 
 
-def create_demo_campaigns(db: Session, org: Organization):
+def create_demo_campaigns(db: Session, org: Organization, user: User):
     """Create realistic demo campaigns."""
     
     campaigns_data = [
@@ -127,50 +127,91 @@ def create_demo_campaigns(db: Session, org: Organization):
     ]
     
     for camp_data in campaigns_data:
-        # Check if campaign exists
-        existing = db.query(DraftCampaign).filter(
+        # Check if draft exists
+        draft_exists = db.query(DraftCampaign).filter(
             DraftCampaign.organization_id == org.id,
             DraftCampaign.name == camp_data["name"],
         ).first()
-        
-        if existing:
-            print(f"  Campaign '{camp_data['name']}' already exists")
+
+        # Check if real campaign exists
+        real_exists = db.query(Campaign).filter(
+            Campaign.organization_id == org.id,
+            Campaign.name == camp_data["name"],
+        ).first()
+
+        if draft_exists and real_exists:
+            print(f"  Campaign '{camp_data['name']}' (both draft & real) already exists")
             continue
-        
-        # Create campaign
-        campaign = DraftCampaign(
-            organization_id=org.id,
-            name=camp_data["name"],
-            platform=camp_data["platform"],
-            status=camp_data["status"],
-            payload_json={
-                "budget": random.randint(5000, 50000),
-                "landing_url": "https://lookatshow.ru",
-            },
-            created_at=datetime.utcnow() - timedelta(days=random.randint(1, 60)),
-        )
-        db.add(campaign)
-        db.flush()
-        
-        # Create ad group
-        ad_group = DraftAdGroup(
-            campaign_id=campaign.id,
-            name="Основная группа",
-        )
-        db.add(ad_group)
-        db.flush()
-        
-        # Create ads
-        for ad_data in camp_data["ads"]:
-            ad = DraftAd(
-                ad_group_id=ad_group.id,
-                title=ad_data["title"],
-                text=ad_data["text"],
-                landing_url="https://lookatshow.ru",
+
+        if not draft_exists:
+            # Create draft campaign
+            campaign = DraftCampaign(
+                organization_id=org.id,
+                name=camp_data["name"],
+                platform=camp_data["platform"],
+                status=camp_data["status"],
+                payload_json={
+                    "budget": random.randint(5000, 50000),
+                    "landing_url": "https://lookatshow.ru",
+                },
+                created_at=datetime.utcnow() - timedelta(days=random.randint(1, 60)),
             )
-            db.add(ad)
-        
-        print(f"  Created campaign '{camp_data['name']}' with {len(camp_data['ads'])} ads")
+            db.add(campaign)
+            db.flush()
+            
+            # Create draft ad group
+            ad_group = DraftAdGroup(
+                campaign_id=campaign.id,
+                name="Основная группа",
+            )
+            db.add(ad_group)
+            db.flush()
+            
+            # Create draft ads
+            for ad_data in camp_data["ads"]:
+                ad = DraftAd(
+                    ad_group_id=ad_group.id,
+                    title=ad_data["title"],
+                    text=ad_data["text"],
+                    landing_url="https://lookatshow.ru",
+                )
+                db.add(ad)
+            print(f"  Created draft campaign '{camp_data['name']}'")
+
+        if not real_exists:
+            # Create Campaign
+            real_campaign = Campaign(
+                organization_id=org.id,
+                name=camp_data["name"],
+                platform=camp_data["platform"],
+                status=camp_data["status"],
+                budget_total=Decimal(str(random.randint(5000, 50000))),
+                created_by_user_id=user.id,
+                created_at=datetime.utcnow() - timedelta(days=random.randint(1, 60)),
+            )
+            db.add(real_campaign)
+            db.flush()
+
+            # Create real ad group
+            real_group = CampaignAdGroup(
+                campaign_id=real_campaign.id,
+                name="Основная группа",
+                status=camp_data["status"],
+            )
+            db.add(real_group)
+            db.flush()
+
+            # Create real ads
+            for ad_data in camp_data["ads"]:
+                real_ad = CampaignAd(
+                    ad_group_id=real_group.id,
+                    name=ad_data["title"],
+                    status=camp_data["status"],
+                    creative_json={"title": ad_data["title"], "text": ad_data["text"]},
+                    landing_url="https://lookatshow.ru",
+                )
+                db.add(real_ad)
+            print(f"  Created real campaign '{camp_data['name']}' with {len(camp_data['ads'])} ads")
     
     db.flush()
 
@@ -229,16 +270,27 @@ def main():
     """Main seeder function."""
     print("=" * 60)
     print("🌱 Seeding Demo Account")
+    from app.core.config import get_settings
+    settings = get_settings()
+    from sqlalchemy import inspect
+    print(f"🔗 Database URL: {settings.database_url}")
     print("=" * 60)
     
     db = SessionLocal()
     
     try:
+        # Check tables
+        inspector = inspect(db.bind)
+        tables = inspector.get_table_names()
+        print(f"📊 Tables in DB: {', '.join(tables[:20])}...")
+        if "ads" not in tables:
+            print("⚠️ WARNING: 'ads' table not found in current database!")
+        
         # Create user and org
         user, org = create_demo_user(db)
         
         print("\n📦 Creating campaigns...")
-        create_demo_campaigns(db, org)
+        create_demo_campaigns(db, org, user)
         
         print("\n💰 Creating billing data...")
         create_demo_billing(db, org)

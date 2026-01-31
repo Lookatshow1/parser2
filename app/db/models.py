@@ -56,7 +56,7 @@ class Organization(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
-
+    metadata_json: Mapped[dict] = mapped_column(JSONType, nullable=False, server_default="{}")
 
 class OrgProfile(Base):
     __tablename__ = "org_profiles"
@@ -447,7 +447,7 @@ class Campaign(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     objective: Mapped[str | None] = mapped_column(String(255), nullable=True)
     status: Mapped[CampaignStatus] = mapped_column(
-        Enum(CampaignStatus, name="campaign_status_enum", native_enum=False),
+        Enum(CampaignStatus, name="campaign_status_enum", native_enum=True),
         default=CampaignStatus.draft,
         nullable=False,
     )
@@ -475,7 +475,7 @@ class CampaignAdGroup(Base):
     campaign_id: Mapped[int] = mapped_column(ForeignKey("campaigns.id", ondelete="CASCADE"), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     status: Mapped[CampaignStatus] = mapped_column(
-        Enum(CampaignStatus, name="campaign_status_enum", native_enum=False),
+        Enum(CampaignStatus, name="campaign_status_enum", native_enum=True),
         default=CampaignStatus.draft,
         nullable=False,
     )
@@ -502,7 +502,7 @@ class CampaignAd(Base):
     ad_group_id: Mapped[int] = mapped_column(ForeignKey("ad_groups.id", ondelete="CASCADE"), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     status: Mapped[CampaignStatus] = mapped_column(
-        Enum(CampaignStatus, name="campaign_status_enum", native_enum=False),
+        Enum(CampaignStatus, name="campaign_status_enum", native_enum=True),
         default=CampaignStatus.draft,
         nullable=False,
     )
