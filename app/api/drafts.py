@@ -40,6 +40,7 @@ def delete_draft(
     draft = db.query(DraftCampaign).filter(DraftCampaign.id == id).first()
     if not draft:
         raise HTTPException(status_code=404, detail="Draft not found")
+    db.delete(draft)
     db.commit()
     return {"ok": True}
 
