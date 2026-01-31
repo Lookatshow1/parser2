@@ -6,6 +6,7 @@ The "Money Button" - from idea to running ads in seconds.
 """
 import logging
 import asyncio
+import uuid
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
@@ -19,6 +20,27 @@ from app.connectors.vk_ads import VkAdsConnector
 from app.connectors.ozon_performance import OzonPerformanceConnector
 
 logger = logging.getLogger(__name__)
+
+
+def generate_erid() -> str:
+    """
+    Generate ERID token for ad compliance.
+    Format: erid:O2M8AgXXXXXXXX (O + alphanumeric)
+    
+    Note: In production, this should be obtained from ОРД (Оператор Рекламных Данных)
+    like Яндекс ОРД, ВК ОРД, OZONE ОРД, МедиаСкаут, etc.
+    """
+    random_part = uuid.uuid4().hex[:10].upper()
+    return f"erid:O2M8Ag{random_part}"
+
+
+def add_erid_disclaimer(text: str, erid: str, advertiser_name: str = "Рекламодатель") -> str:
+    """
+    Add ERID disclaimer to ad text per FZ "O Reklame".
+    Required since September 1, 2023.
+    """
+    disclaimer = f"\n\nРеклама. {advertiser_name}. {erid}"
+    return text + disclaimer
 
 
 class MagicLaunchService:
@@ -211,21 +233,26 @@ class MagicLaunchService:
         self.db.add(group)
         self.db.flush()
 
-        # Create ads
+        # Create ads with ERID compliance
         ads = creatives.get("ads", [])
         images = creatives.get("images", [])
 
         for i, ad_data in enumerate(ads):
             image_url = images[i]["url"] if i < len(images) else None
+            
+            # Generate ERID for each ad (ФЗ "О рекламе")
+            erid = generate_erid()
 
             ad = DraftAd(
                 ad_group_id=group.id,
                 title=ad_data.get("title", ""),
                 text=ad_data.get("text", ""),
+                erid=erid,
                 landing_url=campaign_data.get("landing_url", ""),
                 payload_json={
                     "approach": ad_data.get("approach", ""),
-                    "image_url": image_url
+                    "image_url": image_url,
+                    "erid": erid  # Store in payload too for easy access
                 }
             )
             self.db.add(ad)

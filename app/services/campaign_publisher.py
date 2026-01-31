@@ -16,6 +16,17 @@ from app.services.platforms import YandexDirectClient, VKAdsClient, OzonPerforma
 logger = logging.getLogger(__name__)
 
 
+def get_ad_text_with_disclaimer(ad: DraftAd, advertiser_name: str = "Рекламодатель") -> str:
+    """
+    Get ad text with ERID disclaimer for compliance.
+    If ERID is not set, returns original text.
+    """
+    if ad.erid:
+        disclaimer = f"\n\nРеклама. {advertiser_name}. {ad.erid}"
+        return (ad.text or "") + disclaimer
+    return ad.text or ""
+
+
 @dataclass
 class PublishResult:
     """Result of publishing a campaign."""
@@ -134,7 +145,7 @@ class CampaignPublisher:
                     "external_id": ag_result.get("Id"),
                 })
             
-            # 3. Create ads
+            # 3. Create ads with ERID compliance
             ads_created = 0
             for ag_map in external_ad_groups:
                 ads = self.db.query(DraftAd).filter(
@@ -142,11 +153,14 @@ class CampaignPublisher:
                 ).all()
                 
                 for ad in ads:
+                    # Note: Yandex Direct has separate field for ERID (erid parameter in API)
+                    # For now we pass text as-is, ERID stored for reporting
                     await client.create_text_ad(
                         ad_group_id=ag_map["external_id"],
                         title=ad.title[:35],
                         text=ad.text[:81],
                         href=ad.landing_url or campaign.payload_json.get("landing_url", ""),
+                        # erid=ad.erid  # TODO: Add when Yandex API client supports it
                     )
                     ads_created += 1
             

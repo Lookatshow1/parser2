@@ -62,6 +62,9 @@ class DraftAd(Base):
     title: Mapped[str | None] = mapped_column(String, nullable=True)
     text: Mapped[str | None] = mapped_column(Text, nullable=True)
     
+    # ERID - ЕРИ Р маркировка рекламы (ФЗ "О рекламе")
+    erid: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    
     landing_url: Mapped[str | None] = mapped_column(String, nullable=True)
     final_url: Mapped[str | None] = mapped_column(String, nullable=True) # UTM calculated
 

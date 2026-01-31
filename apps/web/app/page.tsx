@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   Sparkles, ArrowRight, Check, Loader2, Globe, FileText,
   Image as ImageIcon, Play, Star, Clock, Zap, X,
-  MessageSquare, TrendingUp, Users, Shield, ChevronDown
+  MessageSquare, TrendingUp, Users, Shield, ChevronDown, Mic, MicOff
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -113,9 +113,86 @@ export default function LandingPage() {
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
   const [creatives, setCreatives] = useState<GeneratedCreatives | null>(null);
-  const [inputMode, setInputMode] = useState<"url" | "text">("url");
+  const [inputMode, setInputMode] = useState<"url" | "text" | "voice">("url");
   const [activeTestimonial, setActiveTestimonial] = useState(0);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+
+  // Voice input state
+  const [isRecording, setIsRecording] = useState(false);
+  const [voiceSupported, setVoiceSupported] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
+  // Check for voice support on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setVoiceSupported('webkitSpeechRecognition' in window || 'SpeechRecognition' in window);
+    }
+  }, []);
+
+  // Voice recording handler
+  const toggleVoiceRecording = () => {
+    if (!voiceSupported) {
+      toast.error("Голосовой ввод не поддерживается в вашем браузере");
+      return;
+    }
+
+    if (isRecording) {
+      // Stop recording
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+      setIsRecording(false);
+      return;
+    }
+
+    // Start recording
+    const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognitionRef.current = recognition;
+
+    recognition.lang = 'ru-RU';
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    recognition.onstart = () => {
+      setIsRecording(true);
+      setInputMode("voice");
+      toast.info("🎤 Говорите... Расскажите про свой бизнес");
+    };
+
+    recognition.onresult = (event: any) => {
+      let finalTranscript = '';
+      let interimTranscript = '';
+
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += transcript + ' ';
+        } else {
+          interimTranscript += transcript;
+        }
+      }
+
+      if (finalTranscript) {
+        setDescription(prev => prev + finalTranscript);
+      }
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error('Speech recognition error:', event.error);
+      setIsRecording(false);
+      toast.error("Ошибка распознавания голоса");
+    };
+
+    recognition.onend = () => {
+      setIsRecording(false);
+      if (description.trim()) {
+        toast.success("✅ Голос распознан! Нажмите 'Создать рекламу'");
+      }
+    };
+
+    recognition.start();
+  };
 
   const handleGenerate = async () => {
     if (!landingUrl && !description) {
@@ -274,26 +351,45 @@ export default function LandingPage() {
               <div className="flex justify-center gap-2 mb-4">
                 <button
                   onClick={() => setInputMode("url")}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-all ${
-                    inputMode === "url"
-                      ? "bg-white text-black font-medium"
-                      : "text-zinc-400 hover:text-white"
-                  }`}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-all ${inputMode === "url"
+                    ? "bg-white text-black font-medium"
+                    : "text-zinc-400 hover:text-white"
+                    }`}
                 >
                   <Globe className="h-4 w-4" />
                   URL сайта
                 </button>
                 <button
                   onClick={() => setInputMode("text")}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-all ${
-                    inputMode === "text"
-                      ? "bg-white text-black font-medium"
-                      : "text-zinc-400 hover:text-white"
-                  }`}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-all ${inputMode === "text"
+                    ? "bg-white text-black font-medium"
+                    : "text-zinc-400 hover:text-white"
+                    }`}
                 >
                   <FileText className="h-4 w-4" />
                   Описание
                 </button>
+                {voiceSupported && (
+                  <button
+                    onClick={toggleVoiceRecording}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-all ${inputMode === "voice" || isRecording
+                        ? "bg-gradient-to-r from-red-500 to-orange-500 text-white font-medium"
+                        : "text-zinc-400 hover:text-white"
+                      }`}
+                  >
+                    {isRecording ? (
+                      <>
+                        <MicOff className="h-4 w-4 animate-pulse" />
+                        Стоп
+                      </>
+                    ) : (
+                      <>
+                        <Mic className="h-4 w-4" />
+                        Голосом
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
 
               {/* Input form */}
@@ -305,6 +401,30 @@ export default function LandingPage() {
                     onChange={(e) => setLandingUrl(e.target.value)}
                     className="h-14 text-lg bg-white/5 border-white/10 text-white placeholder:text-zinc-500 rounded-xl mb-4"
                   />
+                ) : inputMode === "voice" ? (
+                  <div className="mb-4">
+                    {/* Voice recording animation */}
+                    {isRecording && (
+                      <div className="flex items-center justify-center gap-3 mb-4 py-4">
+                        <div className="relative">
+                          <div className="w-16 h-16 rounded-full bg-gradient-to-r from-red-500 to-orange-500 flex items-center justify-center animate-pulse">
+                            <Mic className="h-8 w-8 text-white" />
+                          </div>
+                          <div className="absolute inset-0 w-16 h-16 rounded-full bg-red-500/30 animate-ping" />
+                        </div>
+                        <span className="text-white font-medium">Слушаю... Расскажите о бизнесе</span>
+                      </div>
+                    )}
+                    <Textarea
+                      placeholder={isRecording ? "🎤 Ваша речь появится здесь..." : "Надиктуйте или введите текст вручную"}
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      className="min-h-[100px] bg-white/5 border-white/10 text-white placeholder:text-zinc-500 rounded-xl"
+                    />
+                    {!isRecording && description && (
+                      <div className="text-xs text-green-400 mt-2">✓ Текст записан. Нажмите "Создать рекламу"</div>
+                    )}
+                  </div>
                 ) : (
                   <Textarea
                     placeholder="Опишите бизнес: что продаёте, кто клиенты..."
@@ -382,7 +502,7 @@ export default function LandingPage() {
 
               {/* CTA to continue */}
               <Button
-                onClick={() => router.push("/signup?from=demo")}
+                onClick={() => router.push("/signup?from=magic")}
                 size="lg"
                 className="bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500"
               >
@@ -548,9 +668,8 @@ export default function LandingPage() {
             {testimonials.map((t, idx) => (
               <div
                 key={idx}
-                className={`transition-all duration-500 ${
-                  idx === activeTestimonial ? 'opacity-100' : 'opacity-0 absolute inset-0'
-                }`}
+                className={`transition-all duration-500 ${idx === activeTestimonial ? 'opacity-100' : 'opacity-0 absolute inset-0'
+                  }`}
               >
                 <div className="bg-white/5 rounded-2xl p-8 border border-white/10">
                   <div className="flex items-center gap-1 mb-4">
@@ -583,9 +702,8 @@ export default function LandingPage() {
                 <button
                   key={idx}
                   onClick={() => setActiveTestimonial(idx)}
-                  className={`h-2 rounded-full transition-all ${
-                    idx === activeTestimonial ? 'w-8 bg-violet-500' : 'w-2 bg-white/20'
-                  }`}
+                  className={`h-2 rounded-full transition-all ${idx === activeTestimonial ? 'w-8 bg-violet-500' : 'w-2 bg-white/20'
+                    }`}
                 />
               ))}
             </div>

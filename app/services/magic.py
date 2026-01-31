@@ -16,6 +16,7 @@ from app.core.ai.interfaces import TextProvider, ImageProvider
 from app.core.ai.openai_provider import get_text_provider
 from app.core.ai.dalle_provider import DalleProvider, get_dalle_provider
 from app.core.ai.mock_provider import MockImageProvider
+from app.core.ai.nanobanana_provider import NanoBananaProvider, get_nanobanana_provider
 
 logger = logging.getLogger(__name__)
 
@@ -129,12 +130,15 @@ class MagicService:
     def __init__(self, db: Session, text_provider: TextProvider = None, image_provider: ImageProvider = None):
         self.db = db
         self.text_ai = text_provider or get_text_provider()
-        # Use DALL-E if API key available, otherwise mock
+        # Image provider priority: NanoBanana > DALL-E > Mock
         if image_provider:
             self.image_ai = image_provider
         else:
             import os
-            if os.getenv("OPENAI_API_KEY"):
+            # Prefer NanoBanana for marketing banners with text
+            if os.getenv("GOOGLE_AI_API_KEY") or os.getenv("GEMINI_API_KEY"):
+                self.image_ai = get_nanobanana_provider()
+            elif os.getenv("OPENAI_API_KEY"):
                 self.image_ai = get_dalle_provider()
             else:
                 self.image_ai = MockImageProvider()
@@ -257,42 +261,61 @@ class MagicService:
         }
     
     async def _generate_images(self, business_type: str, ads: List[Dict]) -> List[Dict[str, str]]:
-        """Generate 10 image creatives."""
+        """Generate marketing banners with ad headlines."""
         images = []
         
-        themes = [
-            "главный продукт или услуга",
-            "довольный клиент",
-            "команда профессионалов",
-            "процесс работы",
-            "результат услуги",
-            "офис или магазин",
-            "акция и скидки",
-            "качество и надёжность",
-            "быстрая доставка",
-            "контакты и связь"
-        ]
-        
-        for i, theme in enumerate(themes):
-            prompt = IMAGE_PROMPT_TEMPLATE.format(
-                business_type=business_type,
-                theme=theme
-            )
+        # Generate banners for each ad, using headlines for text
+        for i, ad in enumerate(ads[:10]):  # Limit to 10 banners
+            headline = ad.get("title", "")
+            subline = ad.get("text", "")[:40] + "..." if len(ad.get("text", "")) > 40 else ad.get("text", "")
+            approach = ad.get("approach", "modern")
+            
+            # Map approach to visual style
+            style_map = {
+                "emotional": "bold",
+                "rational": "minimal",
+                "usp": "tech",
+                "скидка": "bold",
+                "срочность": "bold",
+                "уникальность": "premium",
+                "доверие": "minimal",
+                "выгода": "modern"
+            }
+            style = style_map.get(approach, "modern")
             
             try:
-                image_url = await self.image_ai.generate_image(prompt)
+                # Try NanoBanana for marketing banners
+                if hasattr(self.image_ai, 'generate_banner'):
+                    image_url = await self.image_ai.generate_banner(
+                        headline=headline,
+                        subline=subline,
+                        business_type=business_type,
+                        style=style
+                    )
+                else:
+                    # Fallback to regular image generation
+                    prompt = IMAGE_PROMPT_TEMPLATE.format(
+                        business_type=business_type,
+                        theme=headline
+                    )
+                    image_url = await self.image_ai.generate_image(prompt)
+                
                 images.append({
                     "url": image_url,
-                    "prompt": prompt,
-                    "theme": theme
+                    "headline": headline,
+                    "subline": subline,
+                    "theme": approach,
+                    "prompt": f"Banner for {business_type}: {headline}"
                 })
             except Exception as e:
-                logger.warning(f"Image generation failed for theme {theme}: {e}")
-                # Placeholder image
+                logger.warning(f"Image generation failed for ad {i}: {e}")
+                # Placeholder with business-related seed
                 images.append({
-                    "url": f"https://picsum.photos/seed/{i+1}/400/400",
-                    "prompt": prompt,
-                    "theme": theme
+                    "url": f"https://picsum.photos/seed/{hash(headline) % 1000}/400/400",
+                    "headline": headline,
+                    "subline": subline,
+                    "theme": approach,
+                    "prompt": f"Placeholder for: {headline}"
                 })
         
         return images
@@ -329,6 +352,8 @@ class MagicService:
     
     def _create_drafts(self, run: MagicRun, result: Dict[str, Any]):
         """Create DraftCampaign with ads from generation result."""
+        from app.services.magic_launch import generate_erid
+        
         ads = result.get("ads", [])
         images = result.get("images", [])
         
@@ -353,20 +378,24 @@ class MagicService:
         self.db.add(group)
         self.db.flush()
         
-        # Create ads
+        # Create ads with ERID
         landing_url = run.input_json.get("landing_url", "")
         
         for i, ad_data in enumerate(ads):
             image_url = images[i]["url"] if i < len(images) else None
+            # Generate ERID for each ad (ФЗ "О рекламе")
+            erid = generate_erid()
             
             ad = DraftAd(
                 ad_group_id=group.id,
                 title=ad_data.get("title", ""),
                 text=ad_data.get("text", ""),
+                erid=erid,
                 landing_url=landing_url,
                 payload_json={
                     "approach": ad_data.get("approach", ""),
-                    "image_url": image_url
+                    "image_url": image_url,
+                    "erid": erid
                 }
             )
             self.db.add(ad)
@@ -376,6 +405,8 @@ class MagicService:
         Create draft campaign from publicly generated creatives.
         Called after user registration.
         """
+        from app.services.magic_launch import generate_erid
+        
         ads = creatives.get("ads", [])
         images = creatives.get("images", [])
         
@@ -399,15 +430,19 @@ class MagicService:
         
         for i, ad_data in enumerate(ads):
             image_url = images[i]["url"] if i < len(images) else None
+            # Generate ERID for compliance (ФЗ "О рекламе")
+            erid = generate_erid()
             
             ad = DraftAd(
                 ad_group_id=group.id,
                 title=ad_data.get("title", ""),
                 text=ad_data.get("text", ""),
+                erid=erid,
                 landing_url=landing_url,
                 payload_json={
                     "approach": ad_data.get("approach", ""),
-                    "image_url": image_url
+                    "image_url": image_url,
+                    "erid": erid
                 }
             )
             self.db.add(ad)
@@ -415,3 +450,4 @@ class MagicService:
         self.db.commit()
         self.db.refresh(campaign)
         return campaign
+

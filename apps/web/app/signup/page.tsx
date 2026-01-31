@@ -1,8 +1,8 @@
 "use client";
 export const dynamic = "force-dynamic";
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState, Suspense } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import Link from "next/link";
 import { Sparkles, ArrowLeft, Rocket, Loader2 } from "lucide-react";
@@ -14,9 +14,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/ca
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 
-export default function SignupPage() {
+function SignupContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [inviteToken, setInviteToken] = useState<string | null>(null);
   const [fromMagic, setFromMagic] = useState(false);
   const [email, setEmail] = useState("");
@@ -30,7 +29,9 @@ export default function SignupPage() {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
     setInviteToken(params.get("invite"));
-    setFromMagic(params.get("from") === "magic");
+    // Support both "magic" and "demo" for backward compatibility
+    const fromParam = params.get("from");
+    setFromMagic(fromParam === "magic" || fromParam === "demo");
   }, []);
 
   const handleSignup = async () => {
@@ -195,5 +196,17 @@ export default function SignupPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-[#0a0a0f] via-[#0f0f1a] to-[#1a0a20] flex items-center justify-center p-4">
+        <Loader2 className="h-8 w-8 animate-spin text-violet-500" />
+      </div>
+    }>
+      <SignupContent />
+    </Suspense>
   );
 }
