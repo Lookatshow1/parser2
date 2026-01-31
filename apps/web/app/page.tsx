@@ -1,23 +1,22 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Sparkles, Rocket, BarChart3, Zap, ArrowRight, Check,
-  Loader2, Globe, FileText, Image as ImageIcon, ChevronRight,
-  Target, TrendingUp, Shield, Play, Star, Users, Clock,
-  MousePointer, DollarSign, Flame, Award, CheckCircle,
-  Settings, Brain, Bot, LineChart, Gauge, Bell, Layers,
-  PieChart, Activity, CreditCard
+  Sparkles, ArrowRight, Check, Loader2, Globe, FileText,
+  Image as ImageIcon, Play, Star, Clock, Zap, X,
+  MessageSquare, TrendingUp, Users, Shield, ChevronDown
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
 
-// Types
+// =============================================================================
+// TYPES
+// =============================================================================
+
 interface AdCreative {
   title: string;
   text: string;
@@ -37,7 +36,10 @@ interface GeneratedCreatives {
   images: ImageCreative[];
 }
 
-// API call
+// =============================================================================
+// API
+// =============================================================================
+
 async function generateCreatives(landingUrl: string, description: string): Promise<GeneratedCreatives> {
   const response = await fetch("/api/magic/generate-public", {
     method: "POST",
@@ -52,32 +54,35 @@ async function generateCreatives(landingUrl: string, description: string): Promi
   return response.json();
 }
 
-// Floating particles component
-function FloatingParticles() {
-  return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      {[...Array(20)].map((_, i) => (
-        <div
-          key={i}
-          className="absolute w-1 h-1 bg-violet-500/30 rounded-full animate-float"
-          style={{
-            left: `${Math.random() * 100}%`,
-            top: `${Math.random() * 100}%`,
-            animationDelay: `${Math.random() * 5}s`,
-            animationDuration: `${5 + Math.random() * 10}s`
-          }}
-        />
-      ))}
-    </div>
-  );
-}
+// =============================================================================
+// ANIMATED COUNTER
+// =============================================================================
 
-// Animated counter
-function AnimatedCounter({ value, suffix = "" }: { value: number; suffix?: string }) {
+function AnimatedCounter({ value, suffix = "", duration = 2000 }: { value: number; suffix?: string; duration?: number }) {
   const [count, setCount] = useState(0);
+  const [isVisible, setIsVisible] = useState(false);
+  const ref = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
-    const duration = 2000;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (ref.current) {
+      observer.observe(ref.current);
+    }
+
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!isVisible) return;
+
     const steps = 60;
     const increment = value / steps;
     let current = 0;
@@ -93,10 +98,14 @@ function AnimatedCounter({ value, suffix = "" }: { value: number; suffix?: strin
     }, duration / steps);
 
     return () => clearInterval(timer);
-  }, [value]);
+  }, [value, isVisible, duration]);
 
-  return <span>{count.toLocaleString('ru-RU')}{suffix}</span>;
+  return <span ref={ref}>{count.toLocaleString('ru-RU')}{suffix}</span>;
 }
+
+// =============================================================================
+// MAIN LANDING PAGE
+// =============================================================================
 
 export default function LandingPage() {
   const router = useRouter();
@@ -104,8 +113,9 @@ export default function LandingPage() {
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
   const [creatives, setCreatives] = useState<GeneratedCreatives | null>(null);
-  const [showInput, setShowInput] = useState<"url" | "text">("url");
+  const [inputMode, setInputMode] = useState<"url" | "text">("url");
   const [activeTestimonial, setActiveTestimonial] = useState(0);
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   const handleGenerate = async () => {
     if (!landingUrl && !description) {
@@ -123,7 +133,7 @@ export default function LandingPage() {
         landing_url: landingUrl
       }));
 
-      toast.success("🎉 Креативы готовы!");
+      toast.success("Готово! AI создал вашу рекламу");
     } catch (error) {
       toast.error("Произошла ошибка. Попробуйте ещё раз.");
     } finally {
@@ -131,635 +141,594 @@ export default function LandingPage() {
     }
   };
 
-  const handleLaunch = () => {
-    router.push("/signup?from=magic");
-  };
-
   const testimonials = [
-    { name: "Александр К.", company: "Интернет-магазин", text: "Автопилот сэкономил 15 часов в неделю. ROAS вырос в 3 раза!", avatar: "А" },
-    { name: "Мария С.", company: "Салон красоты", text: "Ставки оптимизируются сами. Наконец-то реклама работает без меня!", avatar: "М" },
-    { name: "Дмитрий В.", company: "Автосервис", text: "AI создал стратегию за 5 минут. Маркетолог просил 2 недели.", avatar: "Д" }
+    {
+      name: "Алексей Морозов",
+      role: "Основатель интернет-магазина",
+      text: "Раньше тратил 20 часов в неделю на рекламу. Теперь — 20 минут. Effecto делает всё сам.",
+      result: "ROAS вырос с 2x до 5x",
+      avatar: "А"
+    },
+    {
+      name: "Екатерина Волкова",
+      role: "Владелец салона красоты",
+      text: "Я ничего не понимала в рекламе. Просто ввела сайт — и через час пошли заявки.",
+      result: "+47 заявок за первую неделю",
+      avatar: "Е"
+    },
+    {
+      name: "Дмитрий Соколов",
+      role: "Руководитель B2B компании",
+      text: "Уволил агентство. Effecto работает лучше и стоит в 10 раз дешевле.",
+      result: "Экономия 150 000₽/мес",
+      avatar: "Д"
+    }
+  ];
+
+  const faqs = [
+    {
+      q: "Как это работает без моего участия?",
+      a: "Effecto AI анализирует ваш сайт, создаёт рекламные объявления, запускает их на Яндекс.Директ, VK и Ozon, а затем автоматически оптимизирует: отключает неэффективные, усиливает работающие, корректирует ставки 24/7."
+    },
+    {
+      q: "Нужно ли разбираться в рекламе?",
+      a: "Нет. Вся сложность скрыта под капотом. Вы просто указываете сайт или описываете бизнес — дальше AI делает всё сам. Это как нанять маркетолога, который никогда не спит и не ошибается."
+    },
+    {
+      q: "Сколько стоит?",
+      a: "Базовый тариф — 2 990₽/мес. Это в 10-50 раз дешевле агентства. Есть бесплатный период для тестирования."
+    },
+    {
+      q: "Какие площадки поддерживаются?",
+      a: "Яндекс.Директ, VK Реклама, Ozon Performance. Скоро добавим Google Ads и myTarget."
+    },
+    {
+      q: "Что если реклама не сработает?",
+      a: "AI постоянно тестирует разные подходы и находит то, что работает для вашего бизнеса. Если через 2 недели результатов нет — вернём деньги."
+    }
   ];
 
   useEffect(() => {
     const timer = setInterval(() => {
       setActiveTestimonial((prev) => (prev + 1) % testimonials.length);
-    }, 5000);
+    }, 6000);
     return () => clearInterval(timer);
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#030014] text-white overflow-hidden">
-      {/* Animated Background */}
-      <div className="fixed inset-0 z-0">
-        <div className="absolute inset-0 bg-gradient-to-br from-violet-950/50 via-[#030014] to-fuchsia-950/30" />
-        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-violet-600/20 rounded-full blur-[120px] animate-pulse" />
-        <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-fuchsia-600/20 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: '1s' }} />
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-indigo-600/10 rounded-full blur-[150px]" />
-        <FloatingParticles />
-      </div>
-
-      {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-black/20 backdrop-blur-2xl border-b border-white/5">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 flex items-center justify-center">
+    <div className="min-h-screen bg-[#09090b] text-white">
+      {/* ================================================================= */}
+      {/* HEADER */}
+      {/* ================================================================= */}
+      <header className="fixed top-0 left-0 right-0 z-50 bg-[#09090b]/80 backdrop-blur-xl border-b border-white/5">
+        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-lg shadow-violet-500/20">
               <Sparkles className="h-5 w-5 text-white" />
             </div>
-            <span className="text-2xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
-              Effecto
-            </span>
+            <span className="text-xl font-bold">Effecto</span>
           </Link>
-          <div className="hidden md:flex gap-8 text-sm text-gray-400">
-            <a href="#features" className="hover:text-white transition-colors">Возможности</a>
-            <a href="#autopilot" className="hover:text-white transition-colors">Автопилот</a>
-            <a href="#pricing" className="hover:text-white transition-colors">Тарифы</a>
-          </div>
-          <div className="flex gap-3">
+
+          <nav className="hidden md:flex items-center gap-8 text-sm text-zinc-400">
+            <a href="#how" className="hover:text-white transition-colors">Как работает</a>
+            <a href="#pricing" className="hover:text-white transition-colors">Цены</a>
+            <a href="#faq" className="hover:text-white transition-colors">FAQ</a>
+          </nav>
+
+          <div className="flex items-center gap-3">
             <Link href="/login">
-              <Button variant="ghost" className="text-gray-300 hover:text-white hover:bg-white/10">
+              <Button variant="ghost" size="sm" className="text-zinc-400 hover:text-white">
                 Войти
               </Button>
             </Link>
             <Link href="/signup">
-              <Button className="bg-white/10 hover:bg-white/20 backdrop-blur-xl border border-white/20">
-                Регистрация
+              <Button size="sm" className="bg-white text-black hover:bg-zinc-200">
+                Начать бесплатно
               </Button>
             </Link>
           </div>
         </div>
       </header>
 
-      {/* Hero Section */}
-      <section className="relative z-10 pt-32 pb-20 px-4">
-        <div className="container mx-auto text-center max-w-5xl">
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 bg-gradient-to-r from-violet-600/20 to-fuchsia-600/20 border border-violet-500/30 rounded-full px-5 py-2.5 mb-8 backdrop-blur-xl">
-            <Bot className="h-4 w-4 text-violet-400" />
-            <span className="text-sm font-medium bg-gradient-to-r from-violet-300 to-fuchsia-300 bg-clip-text text-transparent">
-              Полная автоматизация рекламы с AI
-            </span>
+      {/* ================================================================= */}
+      {/* HERO SECTION */}
+      {/* ================================================================= */}
+      <section className="relative pt-32 pb-20 px-4 overflow-hidden">
+        {/* Background gradients */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-20 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-violet-600/20 rounded-full blur-[120px]" />
+          <div className="absolute top-40 left-1/4 w-[400px] h-[400px] bg-fuchsia-600/10 rounded-full blur-[100px]" />
+        </div>
+
+        <div className="relative z-10 max-w-4xl mx-auto text-center">
+          {/* Trust badge */}
+          <div className="inline-flex items-center gap-2 bg-white/5 border border-white/10 rounded-full px-4 py-2 mb-8">
+            <div className="flex -space-x-1">
+              {["А", "М", "Д"].map((letter, i) => (
+                <div key={i} className="w-6 h-6 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-[10px] font-medium border-2 border-[#09090b]">
+                  {letter}
+                </div>
+              ))}
+            </div>
+            <span className="text-sm text-zinc-400">127+ бизнесов уже на автопилоте</span>
           </div>
 
-          {/* Main Headline */}
-          <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold mb-6 leading-[1.1] tracking-tight">
-            <span className="block bg-gradient-to-r from-white via-white to-gray-400 bg-clip-text text-transparent">
-              Реклама на
-            </span>
-            <span className="block mt-2 bg-gradient-to-r from-violet-400 via-fuchsia-400 to-pink-400 bg-clip-text text-transparent animate-gradient">
-              полном автопилоте
+          {/* Main headline - JTBD focused */}
+          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6">
+            <span className="block text-white">От сайта до клиентов</span>
+            <span className="block mt-2 bg-gradient-to-r from-violet-400 via-fuchsia-400 to-violet-400 bg-clip-text text-transparent">
+              за 60 секунд
             </span>
           </h1>
 
-          {/* NEW Subtitle - Full Offer */}
-          <p className="text-xl md:text-2xl text-gray-400 mb-6 max-w-3xl mx-auto leading-relaxed">
-            <span className="text-white font-medium">AI создаёт объявления</span>, настраивает ставки,
-            оптимизирует бюджет и <span className="text-white font-medium">ведёт кампании 24/7</span>
+          {/* Value proposition - clear JTBD */}
+          <p className="text-lg sm:text-xl text-zinc-400 max-w-2xl mx-auto mb-10 leading-relaxed">
+            <span className="text-white">Effecto AI</span> создаёт рекламу, запускает на всех площадках
+            и оптимизирует 24/7. <span className="text-white">Вы получаете клиентов — без маркетолога и агентства.</span>
           </p>
 
-          {/* Feature Pills */}
-          <div className="flex flex-wrap justify-center gap-3 mb-12">
-            {[
-              { icon: Brain, text: "AI-генерация креативов" },
-              { icon: Gauge, text: "Автоуправление ставками" },
-              { icon: Bot, text: "Автопилот 24/7" },
-              { icon: LineChart, text: "Умные стратегии" },
-              { icon: Bell, text: "Алерты в Telegram" }
-            ].map((item, idx) => (
-              <div
-                key={idx}
-                className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-full px-4 py-2 text-sm text-gray-300"
-              >
-                <item.icon className="h-4 w-4 text-violet-400" />
-                {item.text}
-              </div>
-            ))}
-          </div>
-
-          {/* Main Generator Card */}
+          {/* Main CTA - Interactive demo */}
           {!creatives ? (
-            <div className="max-w-2xl mx-auto">
-              {/* Input Type Selector */}
-              <div className="flex gap-2 mb-6 justify-center">
+            <div className="max-w-xl mx-auto">
+              {/* Input toggle */}
+              <div className="flex justify-center gap-2 mb-4">
                 <button
-                  onClick={() => setShowInput("url")}
-                  className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all ${showInput === "url"
-                    ? "bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg shadow-violet-500/25"
-                    : "bg-white/5 text-gray-400 hover:bg-white/10"
-                    }`}
+                  onClick={() => setInputMode("url")}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-all ${
+                    inputMode === "url"
+                      ? "bg-white text-black font-medium"
+                      : "text-zinc-400 hover:text-white"
+                  }`}
                 >
                   <Globe className="h-4 w-4" />
                   URL сайта
                 </button>
                 <button
-                  onClick={() => setShowInput("text")}
-                  className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all ${showInput === "text"
-                    ? "bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg shadow-violet-500/25"
-                    : "bg-white/5 text-gray-400 hover:bg-white/10"
-                    }`}
+                  onClick={() => setInputMode("text")}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-all ${
+                    inputMode === "text"
+                      ? "bg-white text-black font-medium"
+                      : "text-zinc-400 hover:text-white"
+                  }`}
                 >
                   <FileText className="h-4 w-4" />
                   Описание
                 </button>
               </div>
 
-              {/* Input Card */}
-              <div className="relative group">
-                <div className="absolute -inset-1 bg-gradient-to-r from-violet-600 to-fuchsia-600 rounded-3xl blur-xl opacity-30 group-hover:opacity-50 transition-opacity" />
-                <div className="relative bg-white/5 backdrop-blur-2xl rounded-2xl p-8 border border-white/10">
-                  {showInput === "url" ? (
-                    <Input
-                      placeholder="https://ваш-сайт.ru"
-                      value={landingUrl}
-                      onChange={(e) => setLandingUrl(e.target.value)}
-                      className="text-lg h-14 bg-white/5 border-white/10 text-white placeholder:text-gray-500 rounded-xl focus:ring-2 focus:ring-violet-500 mb-6"
-                    />
-                  ) : (
-                    <Textarea
-                      placeholder="Опишите ваш бизнес: чем занимаетесь, что продаёте, кто клиенты..."
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                      className="min-h-[120px] bg-white/5 border-white/10 text-white placeholder:text-gray-500 rounded-xl focus:ring-2 focus:ring-violet-500 mb-6"
-                    />
-                  )}
+              {/* Input form */}
+              <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-6 border border-white/10">
+                {inputMode === "url" ? (
+                  <Input
+                    placeholder="https://ваш-сайт.ru"
+                    value={landingUrl}
+                    onChange={(e) => setLandingUrl(e.target.value)}
+                    className="h-14 text-lg bg-white/5 border-white/10 text-white placeholder:text-zinc-500 rounded-xl mb-4"
+                  />
+                ) : (
+                  <Textarea
+                    placeholder="Опишите бизнес: что продаёте, кто клиенты..."
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    className="min-h-[100px] bg-white/5 border-white/10 text-white placeholder:text-zinc-500 rounded-xl mb-4"
+                  />
+                )}
 
-                  <Button
-                    onClick={handleGenerate}
-                    disabled={loading}
-                    className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-violet-600 via-fuchsia-600 to-pink-600 hover:from-violet-500 hover:via-fuchsia-500 hover:to-pink-500 rounded-xl shadow-lg shadow-violet-500/25 transition-all hover:shadow-xl hover:shadow-violet-500/30 hover:scale-[1.02]"
-                  >
-                    {loading ? (
-                      <>
-                        <Loader2 className="mr-3 h-5 w-5 animate-spin" />
-                        AI анализирует бизнес...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="mr-3 h-5 w-5" />
-                        Попробовать бесплатно
-                        <ArrowRight className="ml-3 h-5 w-5" />
-                      </>
-                    )}
-                  </Button>
-                </div>
+                <Button
+                  onClick={handleGenerate}
+                  disabled={loading}
+                  className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 rounded-xl"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      AI создаёт рекламу...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="mr-2 h-5 w-5" />
+                      Создать рекламу бесплатно
+                      <ArrowRight className="ml-2 h-5 w-5" />
+                    </>
+                  )}
+                </Button>
               </div>
 
-              {/* Trust Badges */}
-              <div className="flex flex-wrap items-center justify-center gap-6 mt-8 text-sm text-gray-500">
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-green-500" />
+              {/* Trust indicators */}
+              <div className="flex flex-wrap justify-center gap-6 mt-6 text-sm text-zinc-500">
+                <span className="flex items-center gap-1.5">
+                  <Check className="h-4 w-4 text-green-500" />
                   Без регистрации
-                </div>
-                <div className="flex items-center gap-2">
+                </span>
+                <span className="flex items-center gap-1.5">
                   <Clock className="h-4 w-4 text-violet-400" />
                   60 секунд
-                </div>
-                <div className="flex items-center gap-2">
+                </span>
+                <span className="flex items-center gap-1.5">
                   <Shield className="h-4 w-4 text-blue-400" />
                   Бесплатно
-                </div>
+                </span>
               </div>
             </div>
           ) : (
-            /* Results Section */
-            <div className="max-w-6xl mx-auto">
-              <div className="inline-flex items-center gap-2 bg-green-500/20 border border-green-500/30 rounded-full px-5 py-2.5 mb-8">
+            /* Results */
+            <div className="max-w-4xl mx-auto">
+              <div className="inline-flex items-center gap-2 bg-green-500/10 border border-green-500/30 rounded-full px-4 py-2 mb-8">
                 <Check className="h-5 w-5 text-green-400" />
-                <span className="text-green-300 font-medium">Ваши креативы готовы!</span>
+                <span className="text-green-400 font-medium">AI создал вашу рекламу</span>
               </div>
 
-              {/* Ads Grid */}
-              <h3 className="text-2xl font-bold mb-6 text-left flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-violet-500/20 flex items-center justify-center">
-                  <FileText className="h-5 w-5 text-violet-400" />
-                </div>
-                Текстовые объявления
-              </h3>
-              <div className="grid md:grid-cols-2 gap-4 mb-12">
-                {creatives.ads.slice(0, 6).map((ad, idx) => (
-                  <div
-                    key={idx}
-                    className="group relative bg-white/5 backdrop-blur-xl rounded-xl p-5 border border-white/10 text-left hover:border-violet-500/50 transition-all hover:bg-white/10"
-                  >
-                    <div className="absolute top-3 right-3 px-2 py-1 rounded-md bg-violet-500/20 text-xs text-violet-300 font-medium">
-                      {ad.approach}
+              {/* Ads preview */}
+              <div className="grid sm:grid-cols-2 gap-4 mb-8 text-left">
+                {creatives.ads.slice(0, 4).map((ad, idx) => (
+                  <div key={idx} className="bg-white/5 rounded-xl p-5 border border-white/10">
+                    <div className="text-xs text-violet-400 mb-2">{ad.approach}</div>
+                    <div className="font-semibold text-white mb-1">{ad.title}</div>
+                    <div className="text-sm text-zinc-400">{ad.text}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Images preview */}
+              {creatives.images.length > 0 && (
+                <div className="flex justify-center gap-3 mb-8">
+                  {creatives.images.slice(0, 4).map((img, idx) => (
+                    <div key={idx} className="w-20 h-20 rounded-lg overflow-hidden bg-white/5 border border-white/10">
+                      <img src={img.url} alt="" className="w-full h-full object-cover" />
                     </div>
-                    <div className="font-semibold text-white mb-2 pr-20">{ad.title}</div>
-                    <div className="text-gray-400 text-sm">{ad.text}</div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Images Grid */}
-              <h3 className="text-2xl font-bold mb-6 text-left flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-fuchsia-500/20 flex items-center justify-center">
-                  <ImageIcon className="h-5 w-5 text-fuchsia-400" />
+                  ))}
                 </div>
-                Рекламные креативы
-              </h3>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-12">
-                {creatives.images.slice(0, 5).map((img, idx) => (
-                  <div
-                    key={idx}
-                    className="aspect-square rounded-xl overflow-hidden bg-white/5 border border-white/10 group hover:border-fuchsia-500/50 transition-all"
-                  >
-                    <img
-                      src={img.url}
-                      alt={img.theme}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                    />
-                  </div>
-                ))}
-              </div>
+              )}
 
-              {/* CTA */}
-              <div className="relative group">
-                <div className="absolute -inset-1 bg-gradient-to-r from-violet-600 to-fuchsia-600 rounded-3xl blur-xl opacity-40" />
-                <div className="relative bg-gradient-to-r from-violet-900/50 to-fuchsia-900/50 backdrop-blur-xl border border-violet-500/30 rounded-2xl p-10">
-                  <div className="flex items-center justify-center gap-2 mb-4">
-                    <Rocket className="h-8 w-8 text-fuchsia-400" />
-                  </div>
-                  <h3 className="text-3xl font-bold mb-4">Запустите Автопилот</h3>
-                  <p className="text-gray-400 mb-8 max-w-lg mx-auto">
-                    AI будет управлять ставками, оптимизировать бюджет и отключать неэффективные объявления автоматически
-                  </p>
-                  <Button
-                    onClick={handleLaunch}
-                    size="lg"
-                    className="bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-lg px-10 h-14 rounded-xl shadow-lg shadow-violet-500/25"
-                  >
-                    <Rocket className="mr-3 h-5 w-5" />
-                    Включить Автопилот
-                    <ChevronRight className="ml-2 h-5 w-5" />
-                  </Button>
-                </div>
-              </div>
+              {/* CTA to continue */}
+              <Button
+                onClick={() => router.push("/signup?from=demo")}
+                size="lg"
+                className="bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500"
+              >
+                Запустить эту рекламу
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+              <p className="text-sm text-zinc-500 mt-3">
+                Реклама запустится на Яндекс, VK и Ozon автоматически
+              </p>
             </div>
           )}
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section className="relative z-10 py-20 px-4 border-t border-white/5">
-        <div className="container mx-auto max-w-6xl">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {[
-              { value: 127, suffix: "+", label: "Бизнесов на автопилоте", icon: Bot },
-              { value: 15, suffix: " млн", label: "Оптимизированных показов", icon: Target },
-              { value: 4.7, suffix: "x", label: "Средний ROAS", icon: TrendingUp },
-              { value: 23, suffix: "%", label: "Экономия бюджета", icon: DollarSign }
-            ].map((stat, idx) => (
-              <div key={idx} className="text-center group">
-                <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <stat.icon className="h-6 w-6 text-violet-400" />
-                </div>
-                <div className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
-                  <AnimatedCounter value={stat.value} suffix={stat.suffix} />
-                </div>
-                <div className="text-gray-500 mt-2">{stat.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* FEATURES SECTION - EXPANDED */}
-      <section id="features" className="relative z-10 py-24 px-4 border-t border-white/5">
-        <div className="container mx-auto max-w-6xl">
+      {/* ================================================================= */}
+      {/* PROBLEM SECTION - Agitation */}
+      {/* ================================================================= */}
+      <section className="py-20 px-4 border-t border-white/5">
+        <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 bg-violet-500/10 border border-violet-500/30 rounded-full px-4 py-2 mb-6">
-              <Layers className="h-4 w-4 text-violet-400" />
-              <span className="text-sm text-violet-300">Полный набор инструментов</span>
-            </div>
-            <h2 className="text-4xl md:text-5xl font-bold mb-4">
-              Всё для <span className="bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">умной рекламы</span>
+            <h2 className="text-3xl sm:text-4xl font-bold mb-4">
+              Реклама отнимает <span className="text-red-400">слишком много</span>
             </h2>
-            <p className="text-gray-400 text-lg max-w-2xl mx-auto">
-              Не просто генератор объявлений — полноценная платформа управления рекламой
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[
-              {
-                icon: Brain,
-                color: "from-violet-600 to-violet-400",
-                title: "AI-генерация",
-                description: "Нейросеть анализирует ваш сайт и создаёт тексты, заголовки и креативы, которые продают"
-              },
-              {
-                icon: Bot,
-                color: "from-fuchsia-600 to-fuchsia-400",
-                title: "Автопилот",
-                description: "AI работает 24/7: отключает неэффективное, масштабирует работающее, экономит бюджет"
-              },
-              {
-                icon: Gauge,
-                color: "from-cyan-600 to-cyan-400",
-                title: "Умные ставки",
-                description: "Автоматически повышает ставки на конверсионные объявления и снижает на неэффективные"
-              },
-              {
-                icon: Target,
-                color: "from-pink-600 to-pink-400",
-                title: "A/B тестирование",
-                description: "Запускает эксперименты, анализирует статистику, выбирает победителей автоматически"
-              },
-              {
-                icon: LineChart,
-                color: "from-emerald-600 to-emerald-400",
-                title: "Стратегии по нишам",
-                description: "Готовые шаблоны кампаний для 12 отраслей с бенчмарками CTR, CPA и ROAS"
-              },
-              {
-                icon: Bell,
-                color: "from-amber-600 to-amber-400",
-                title: "Telegram-алерты",
-                description: "Мгновенные уведомления о критических событиях: бюджет, CTR падает, аномалии"
-              }
-            ].map((feature, idx) => (
-              <div key={idx} className="group relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-violet-600/10 to-fuchsia-600/10 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className="relative bg-white/5 backdrop-blur-xl rounded-2xl p-8 border border-white/10 hover:border-white/20 transition-all h-full">
-                  <div className={`w-14 h-14 rounded-2xl bg-gradient-to-r ${feature.color} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
-                    <feature.icon className="h-7 w-7 text-white" />
-                  </div>
-                  <h3 className="text-xl font-bold mb-3 text-white">{feature.title}</h3>
-                  <p className="text-gray-400 leading-relaxed">{feature.description}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* AUTOPILOT SECTION - NEW */}
-      <section id="autopilot" className="relative z-10 py-24 px-4 border-t border-white/5">
-        <div className="container mx-auto max-w-6xl">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div>
-              <div className="inline-flex items-center gap-2 bg-fuchsia-500/10 border border-fuchsia-500/30 rounded-full px-4 py-2 mb-6">
-                <Bot className="h-4 w-4 text-fuchsia-400" />
-                <span className="text-sm text-fuchsia-300">Автопилот</span>
-              </div>
-              <h2 className="text-4xl md:text-5xl font-bold mb-6">
-                Реклама работает, <br />
-                <span className="bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">пока вы спите</span>
-              </h2>
-              <p className="text-gray-400 text-lg mb-8">
-                Включите Автопилот и AI возьмёт на себя рутину: анализ, оптимизация, управление ставками,
-                отключение неэффективных объявлений — всё автоматически.
-              </p>
-
-              <div className="space-y-4">
-                {[
-                  { icon: Gauge, text: "Автоматическая корректировка ставок каждый час" },
-                  { icon: Target, text: "Пауза объявлений с CTR ниже порога" },
-                  { icon: DollarSign, text: "Перераспределение бюджета на работающие кампании" },
-                  { icon: Bell, text: "Уведомления в Telegram о важных событиях" }
-                ].map((item, idx) => (
-                  <div key={idx} className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-fuchsia-500/20 flex items-center justify-center">
-                      <item.icon className="h-5 w-5 text-fuchsia-400" />
-                    </div>
-                    <span className="text-white">{item.text}</span>
-                  </div>
-                ))}
-              </div>
-
-              <Button
-                onClick={() => router.push("/signup")}
-                className="mt-8 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500"
-              >
-                <Bot className="mr-2 h-5 w-5" />
-                Включить Автопилот
-              </Button>
-            </div>
-
-            <div className="relative">
-              <div className="absolute -inset-4 bg-gradient-to-r from-violet-600/20 to-fuchsia-600/20 rounded-3xl blur-2xl" />
-              <div className="relative bg-white/5 backdrop-blur-xl rounded-2xl p-8 border border-white/10">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center">
-                      <Zap className="h-6 w-6 text-green-400" />
-                    </div>
-                    <div>
-                      <div className="text-white font-medium">Автопилот активен</div>
-                      <div className="text-gray-500 text-sm">Оптимизация каждый час</div>
-                    </div>
-                  </div>
-                  <div className="w-4 h-4 rounded-full bg-green-500 animate-pulse" />
-                </div>
-
-                <div className="space-y-3">
-                  {[
-                    { action: "Повышена ставка +15%", target: "Кампания 'Зимняя распродажа'", time: "2 мин назад", status: "success" },
-                    { action: "Пауза объявления", target: "CTR 0.2% < порога 0.5%", time: "15 мин назад", status: "warning" },
-                    { action: "Бюджет перенесён", target: "+5000₽ на 'Акция декабрь'", time: "1 час назад", status: "info" }
-                  ].map((log, idx) => (
-                    <div key={idx} className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
-                      <div className={`w-2 h-2 rounded-full mt-2 ${log.status === 'success' ? 'bg-green-500' :
-                          log.status === 'warning' ? 'bg-amber-500' : 'bg-blue-500'
-                        }`} />
-                      <div className="flex-1">
-                        <div className="text-white text-sm font-medium">{log.action}</div>
-                        <div className="text-gray-500 text-xs">{log.target}</div>
-                      </div>
-                      <div className="text-gray-600 text-xs">{log.time}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* PRICING SECTION - NEW */}
-      <section id="pricing" className="relative z-10 py-24 px-4 border-t border-white/5">
-        <div className="container mx-auto max-w-5xl">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold mb-4">
-              Простые <span className="bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">тарифы</span>
-            </h2>
-            <p className="text-gray-400 text-lg">
-              Начните бесплатно, масштабируйтесь по мере роста
+            <p className="text-zinc-400 text-lg max-w-2xl mx-auto">
+              Знакомо? Вы хотите клиентов, но...
             </p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-6">
             {[
               {
-                name: "Старт",
-                price: "0",
-                period: "бесплатно",
-                description: "Для тестирования платформы",
-                features: [
-                  "1 рекламный кабинет",
-                  "AI-генерация (10 запросов)",
-                  "Базовая аналитика",
-                  "Email-поддержка"
-                ],
-                cta: "Начать бесплатно",
-                popular: false
+                problem: "Агентства берут 50-150К/мес",
+                pain: "И всё равно нужно контролировать и объяснять",
+                icon: "💸"
               },
               {
-                name: "Бизнес",
-                price: "2 990",
-                period: "/мес",
-                description: "Для растущего бизнеса",
-                features: [
-                  "5 рекламных кабинетов",
-                  "Безлимитная AI-генерация",
-                  "Автопилот",
-                  "Умные ставки",
-                  "Telegram-алерты",
-                  "Приоритетная поддержка"
-                ],
-                cta: "Выбрать план",
-                popular: true
+                problem: "Самому разбираться — это недели",
+                pain: "Пока учишься — конкуренты уже продают",
+                icon: "⏰"
               },
               {
-                name: "Агентство",
-                price: "9 990",
-                period: "/мес",
-                description: "Для агентств и команд",
-                features: [
-                  "50 рекламных кабинетов",
-                  "White-label",
-                  "API доступ",
-                  "Мультиаккаунт",
-                  "Персональный менеджер",
-                  "SLA 99.9%"
-                ],
-                cta: "Связаться",
-                popular: false
+                problem: "Фрилансеры пропадают",
+                pain: "Или делают 'как у всех', без понимания вашего бизнеса",
+                icon: "🤷"
               }
-            ].map((plan, idx) => (
-              <div
-                key={idx}
-                className={`relative rounded-2xl p-8 ${plan.popular
-                    ? 'bg-gradient-to-b from-violet-600/20 to-fuchsia-600/20 border-2 border-violet-500/50'
-                    : 'bg-white/5 border border-white/10'
-                  }`}
-              >
-                {plan.popular && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white text-sm font-medium px-4 py-1 rounded-full">
-                    Популярный
-                  </div>
-                )}
-                <div className="text-lg font-medium text-white mb-2">{plan.name}</div>
-                <div className="flex items-baseline gap-1 mb-2">
-                  <span className="text-4xl font-bold text-white">{plan.price}₽</span>
-                  <span className="text-gray-400">{plan.period}</span>
-                </div>
-                <p className="text-gray-500 text-sm mb-6">{plan.description}</p>
-
-                <ul className="space-y-3 mb-8">
-                  {plan.features.map((feature, fidx) => (
-                    <li key={fidx} className="flex items-center gap-2 text-gray-300 text-sm">
-                      <Check className="h-4 w-4 text-green-400" />
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-
-                <Button
-                  className={`w-full ${plan.popular
-                      ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500'
-                      : 'bg-white/10 hover:bg-white/20'
-                    }`}
-                  onClick={() => router.push("/signup")}
-                >
-                  {plan.cta}
-                </Button>
+            ].map((item, idx) => (
+              <div key={idx} className="bg-white/5 rounded-2xl p-6 border border-white/5">
+                <div className="text-4xl mb-4">{item.icon}</div>
+                <div className="text-lg font-medium text-white mb-2">{item.problem}</div>
+                <div className="text-zinc-500">{item.pain}</div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Testimonials */}
-      <section className="relative z-10 py-24 px-4 border-t border-white/5">
-        <div className="container mx-auto max-w-4xl text-center">
-          <div className="flex items-center justify-center gap-1 mb-6">
-            {[...Array(5)].map((_, i) => (
-              <Star key={i} className="h-6 w-6 text-yellow-400 fill-yellow-400" />
+      {/* ================================================================= */}
+      {/* SOLUTION - How Effecto AI works */}
+      {/* ================================================================= */}
+      <section id="how" className="py-20 px-4 border-t border-white/5">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center gap-2 bg-violet-500/10 border border-violet-500/30 rounded-full px-4 py-2 mb-6">
+              <Sparkles className="h-4 w-4 text-violet-400" />
+              <span className="text-sm text-violet-300">Effecto AI</span>
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-bold mb-4">
+              Один AI. <span className="text-violet-400">Вся реклама.</span>
+            </h2>
+            <p className="text-zinc-400 text-lg max-w-2xl mx-auto">
+              Effecto AI — это не просто инструмент. Это ваш персональный маркетолог, который работает 24/7 и никогда не устаёт.
+            </p>
+          </div>
+
+          {/* Steps */}
+          <div className="grid md:grid-cols-3 gap-8 mb-16">
+            {[
+              {
+                step: "01",
+                title: "Вы даёте URL",
+                description: "Просто вставьте ссылку на сайт или опишите бизнес в двух предложениях",
+                time: "10 сек"
+              },
+              {
+                step: "02",
+                title: "AI создаёт рекламу",
+                description: "Анализирует сайт, конкурентов, генерирует тексты, картинки и стратегию",
+                time: "50 сек"
+              },
+              {
+                step: "03",
+                title: "Клиенты приходят",
+                description: "Реклама работает на всех площадках, AI оптимизирует её каждый час",
+                time: "24/7"
+              }
+            ].map((item, idx) => (
+              <div key={idx} className="relative">
+                <div className="text-6xl font-bold text-white/5 mb-4">{item.step}</div>
+                <h3 className="text-xl font-semibold text-white mb-2">{item.title}</h3>
+                <p className="text-zinc-400 mb-3">{item.description}</p>
+                <div className="inline-flex items-center gap-1.5 text-sm text-violet-400">
+                  <Clock className="h-3.5 w-3.5" />
+                  {item.time}
+                </div>
+                {idx < 2 && (
+                  <div className="hidden md:block absolute top-8 -right-4 text-zinc-700">
+                    <ArrowRight className="h-6 w-6" />
+                  </div>
+                )}
+              </div>
             ))}
           </div>
 
-          <div className="relative h-48">
+          {/* AI Capabilities */}
+          <div className="bg-gradient-to-br from-violet-500/10 to-fuchsia-500/10 rounded-3xl p-8 border border-white/10">
+            <h3 className="text-xl font-semibold text-center mb-8">Что умеет Effecto AI</h3>
+            <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-6">
+              {[
+                { icon: "✍️", title: "Пишет тексты", desc: "Заголовки, объявления, призывы" },
+                { icon: "🎨", title: "Создаёт картинки", desc: "Баннеры и креативы" },
+                { icon: "📊", title: "Оптимизирует", desc: "Ставки, бюджеты, таргетинг" },
+                { icon: "🔄", title: "Работает 24/7", desc: "Без выходных и перерывов" }
+              ].map((cap, idx) => (
+                <div key={idx} className="text-center">
+                  <div className="text-3xl mb-3">{cap.icon}</div>
+                  <div className="font-medium text-white">{cap.title}</div>
+                  <div className="text-sm text-zinc-400">{cap.desc}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ================================================================= */}
+      {/* SOCIAL PROOF */}
+      {/* ================================================================= */}
+      <section className="py-20 px-4 border-t border-white/5">
+        <div className="max-w-5xl mx-auto">
+          {/* Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-20">
+            {[
+              { value: 127, suffix: "+", label: "Бизнесов" },
+              { value: 4.7, suffix: "x", label: "Средний ROAS" },
+              { value: 23, suffix: "%", label: "Экономия бюджета" },
+              { value: 15, suffix: " млн", label: "Показов в месяц" }
+            ].map((stat, idx) => (
+              <div key={idx} className="text-center">
+                <div className="text-4xl md:text-5xl font-bold text-white mb-2">
+                  <AnimatedCounter value={stat.value} suffix={stat.suffix} />
+                </div>
+                <div className="text-zinc-500">{stat.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Testimonials */}
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold mb-4">Что говорят клиенты</h2>
+          </div>
+
+          <div className="relative max-w-2xl mx-auto">
             {testimonials.map((t, idx) => (
               <div
                 key={idx}
-                className={`absolute inset-0 transition-all duration-500 ${idx === activeTestimonial
-                  ? 'opacity-100 translate-y-0'
-                  : 'opacity-0 translate-y-4'
-                  }`}
+                className={`transition-all duration-500 ${
+                  idx === activeTestimonial ? 'opacity-100' : 'opacity-0 absolute inset-0'
+                }`}
               >
-                <p className="text-2xl md:text-3xl font-medium text-white mb-6">
-                  "{t.text}"
-                </p>
-                <div className="flex items-center justify-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-600 flex items-center justify-center text-white font-bold">
-                    {t.avatar}
+                <div className="bg-white/5 rounded-2xl p-8 border border-white/10">
+                  <div className="flex items-center gap-1 mb-4">
+                    {[...Array(5)].map((_, i) => (
+                      <Star key={i} className="h-5 w-5 text-yellow-400 fill-yellow-400" />
+                    ))}
                   </div>
-                  <div className="text-left">
-                    <div className="text-white font-medium">{t.name}</div>
-                    <div className="text-gray-500 text-sm">{t.company}</div>
+                  <p className="text-xl text-white mb-6">"{t.text}"</p>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-lg font-medium">
+                        {t.avatar}
+                      </div>
+                      <div>
+                        <div className="font-medium text-white">{t.name}</div>
+                        <div className="text-sm text-zinc-400">{t.role}</div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-green-400 font-medium">{t.result}</div>
+                    </div>
                   </div>
                 </div>
               </div>
             ))}
+
+            {/* Dots */}
+            <div className="flex justify-center gap-2 mt-6">
+              {testimonials.map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setActiveTestimonial(idx)}
+                  className={`h-2 rounded-full transition-all ${
+                    idx === activeTestimonial ? 'w-8 bg-violet-500' : 'w-2 bg-white/20'
+                  }`}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ================================================================= */}
+      {/* PRICING */}
+      {/* ================================================================= */}
+      <section id="pricing" className="py-20 px-4 border-t border-white/5">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl sm:text-4xl font-bold mb-4">
+              Дешевле агентства в <span className="text-violet-400">10 раз</span>
+            </h2>
+            <p className="text-zinc-400 text-lg">
+              Прозрачные цены. Без скрытых платежей.
+            </p>
           </div>
 
-          <div className="flex justify-center gap-2 mt-8">
-            {testimonials.map((_, idx) => (
-              <button
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* Free */}
+            <div className="bg-white/5 rounded-2xl p-8 border border-white/10">
+              <div className="text-lg font-medium text-white mb-2">Старт</div>
+              <div className="flex items-baseline gap-1 mb-4">
+                <span className="text-4xl font-bold">0₽</span>
+                <span className="text-zinc-400">/мес</span>
+              </div>
+              <p className="text-zinc-400 text-sm mb-6">Для тестирования</p>
+              <ul className="space-y-3 mb-8">
+                {["1 рекламный кабинет", "10 AI-генераций", "Базовая аналитика"].map((f, i) => (
+                  <li key={i} className="flex items-center gap-2 text-sm text-zinc-300">
+                    <Check className="h-4 w-4 text-green-400" />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+              <Button variant="outline" className="w-full" onClick={() => router.push("/signup")}>
+                Начать бесплатно
+              </Button>
+            </div>
+
+            {/* Pro */}
+            <div className="bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20 rounded-2xl p-8 border-2 border-violet-500/50 relative">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white text-xs font-medium px-3 py-1 rounded-full">
+                Популярный
+              </div>
+              <div className="text-lg font-medium text-white mb-2">Бизнес</div>
+              <div className="flex items-baseline gap-1 mb-4">
+                <span className="text-4xl font-bold">2 990₽</span>
+                <span className="text-zinc-400">/мес</span>
+              </div>
+              <p className="text-zinc-400 text-sm mb-6">Полный автопилот</p>
+              <ul className="space-y-3 mb-8">
+                {[
+                  "5 рекламных кабинетов",
+                  "Безлимитные AI-генерации",
+                  "Автопилот 24/7",
+                  "Умные ставки",
+                  "Telegram-уведомления",
+                  "Приоритетная поддержка"
+                ].map((f, i) => (
+                  <li key={i} className="flex items-center gap-2 text-sm text-zinc-300">
+                    <Check className="h-4 w-4 text-green-400" />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+              <Button className="w-full bg-gradient-to-r from-violet-600 to-fuchsia-600" onClick={() => router.push("/signup")}>
+                Выбрать план
+              </Button>
+            </div>
+          </div>
+
+          <p className="text-center text-sm text-zinc-500 mt-8">
+            Нужно больше? <a href="mailto:hello@effecto.ru" className="text-violet-400 hover:underline">Напишите нам</a> — обсудим индивидуальные условия
+          </p>
+        </div>
+      </section>
+
+      {/* ================================================================= */}
+      {/* FAQ */}
+      {/* ================================================================= */}
+      <section id="faq" className="py-20 px-4 border-t border-white/5">
+        <div className="max-w-2xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold mb-4">Частые вопросы</h2>
+          </div>
+
+          <div className="space-y-3">
+            {faqs.map((faq, idx) => (
+              <div
                 key={idx}
-                onClick={() => setActiveTestimonial(idx)}
-                className={`w-2 h-2 rounded-full transition-all ${idx === activeTestimonial
-                  ? 'w-8 bg-violet-500'
-                  : 'bg-white/20'
-                  }`}
-              />
+                className="bg-white/5 rounded-xl border border-white/10 overflow-hidden"
+              >
+                <button
+                  onClick={() => setOpenFaq(openFaq === idx ? null : idx)}
+                  className="w-full px-6 py-4 flex items-center justify-between text-left"
+                >
+                  <span className="font-medium text-white">{faq.q}</span>
+                  <ChevronDown className={`h-5 w-5 text-zinc-400 transition-transform ${openFaq === idx ? 'rotate-180' : ''}`} />
+                </button>
+                {openFaq === idx && (
+                  <div className="px-6 pb-4 text-zinc-400">
+                    {faq.a}
+                  </div>
+                )}
+              </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Final CTA */}
-      <section className="relative z-10 py-24 px-4">
-        <div className="container mx-auto max-w-3xl text-center">
-          <div className="inline-flex items-center gap-2 bg-gradient-to-r from-orange-600/20 to-red-600/20 border border-orange-500/30 rounded-full px-5 py-2.5 mb-6">
-            <Flame className="h-4 w-4 text-orange-400" />
-            <span className="text-orange-300 text-sm font-medium">Присоединяйтесь к 100+ бизнесам</span>
-          </div>
-
-          <h2 className="text-4xl md:text-5xl font-bold mb-6">
-            Готовы к <span className="bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">автопилоту</span>?
+      {/* ================================================================= */}
+      {/* FINAL CTA */}
+      {/* ================================================================= */}
+      <section className="py-20 px-4 border-t border-white/5">
+        <div className="max-w-2xl mx-auto text-center">
+          <h2 className="text-3xl sm:text-4xl font-bold mb-4">
+            Готовы получать клиентов?
           </h2>
-          <p className="text-gray-400 text-lg mb-10">
-            Попробуйте бесплатно — AI создаст объявления за 60 секунд
+          <p className="text-zinc-400 text-lg mb-8">
+            Попробуйте бесплатно. AI создаст рекламу за 60 секунд.
           </p>
           <Button
-            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
             size="lg"
-            className="bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-lg px-10 h-14 rounded-xl shadow-lg shadow-violet-500/25"
+            className="bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-lg h-14 px-8"
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
           >
-            <Sparkles className="mr-3 h-5 w-5" />
-            Попробовать бесплатно
-            <ArrowRight className="ml-3 h-5 w-5" />
+            <Sparkles className="mr-2 h-5 w-5" />
+            Начать бесплатно
           </Button>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="relative z-10 py-8 px-4 border-t border-white/5">
-        <div className="container mx-auto flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-gray-500">
+      {/* ================================================================= */}
+      {/* FOOTER */}
+      {/* ================================================================= */}
+      <footer className="py-8 px-4 border-t border-white/5">
+        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-zinc-500">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-violet-600 to-fuchsia-600 flex items-center justify-center">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center">
               <Sparkles className="h-4 w-4 text-white" />
             </div>
             <span>© 2026 Effecto</span>
@@ -770,25 +739,6 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
-
-      {/* CSS for animations */}
-      <style jsx global>{`
-                @keyframes float {
-                    0%, 100% { transform: translateY(0px) translateX(0px); opacity: 0.3; }
-                    50% { transform: translateY(-20px) translateX(10px); opacity: 0.8; }
-                }
-                .animate-float {
-                    animation: float 8s ease-in-out infinite;
-                }
-                @keyframes gradient {
-                    0%, 100% { background-position: 0% 50%; }
-                    50% { background-position: 100% 50%; }
-                }
-                .animate-gradient {
-                    background-size: 200% 200%;
-                    animation: gradient 4s ease infinite;
-                }
-            `}</style>
     </div>
   );
 }
