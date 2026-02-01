@@ -16,7 +16,11 @@ branch_labels = None
 depends_on = None
 
 def upgrade() -> None:
-    op.add_column('org_utm_settings', sa.Column('auto_update_ads', sa.Boolean(), server_default='0', nullable=False))
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    columns = [c['name'] for c in inspector.get_columns('org_utm_settings')]
+    if 'auto_update_ads' not in columns:
+        op.add_column('org_utm_settings', sa.Column('auto_update_ads', sa.Boolean(), server_default='0', nullable=False))
 
 
 def downgrade() -> None:
