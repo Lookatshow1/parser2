@@ -11,7 +11,7 @@ from datetime import date, timedelta
 from typing import List, Dict, Any, Optional
 import httpx
 
-from app.connectors.base import BaseConnector
+from app.connectors.base import AdsConnector
 from app.services.oauth.base import AvitoOAuth, OAuthToken
 
 logger = logging.getLogger(__name__)
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 AVITO_API_BASE = "https://api.avito.ru"
 
 
-class AvitoConnector(BaseConnector):
+class AvitoConnector(AdsConnector):
     """
     Connector for Avito Promotion API.
     
@@ -78,6 +78,103 @@ class AvitoConnector(BaseConnector):
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
         }
+    
+    # =========================================================================
+    # ABSTRACT METHOD IMPLEMENTATIONS (required by AdsConnector)
+    # =========================================================================
+    
+    def credential_schema(self):
+        """Return credential schema for Avito."""
+        from pydantic import BaseModel
+        
+        class AvitoCredentials(BaseModel):
+            client_id: str
+            client_secret: str
+            user_id: str
+        
+        return AvitoCredentials
+    
+    def validate_connection(self, credentials_json: dict) -> dict:
+        """Validate Avito connection by attempting token fetch."""
+        import asyncio
+        
+        async def _validate():
+            try:
+                oauth = AvitoOAuth(
+                    client_id=credentials_json.get("client_id", ""),
+                    client_secret=credentials_json.get("client_secret", ""),
+                    redirect_uri="",
+                )
+                token = await oauth.exchange_code("")
+                await oauth.close()
+                return {"valid": True, "token": token.access_token[:10] + "..."}
+            except Exception as e:
+                return {"valid": False, "error": str(e)}
+        
+        try:
+            return asyncio.run(_validate())
+        except RuntimeError:
+            loop = asyncio.get_event_loop()
+            return loop.run_until_complete(_validate())
+    
+    def create_campaign_bundle(self, plan, experiment, creatives) -> dict:
+        """Avito doesn't support campaign creation - items must be created manually."""
+        raise NotImplementedError("Avito does not support creating campaigns via API. Create items manually on avito.ru")
+    
+    def sync_status(self, external_ids: dict) -> dict:
+        """Get status of Avito items by their IDs."""
+        import asyncio
+        
+        async def _sync():
+            results = {}
+            for item_id in external_ids.values():
+                try:
+                    info = await self.get_item_info(str(item_id))
+                    results[item_id] = info.get("status", "unknown")
+                except Exception as e:
+                    results[item_id] = f"error: {e}"
+            return results
+        
+        try:
+            return asyncio.run(_sync())
+        except RuntimeError:
+            loop = asyncio.get_event_loop()
+            return loop.run_until_complete(_sync())
+    
+    def stop(self, external_ids: dict) -> None:
+        """Stop/deactivate Avito items."""
+        # Avito API doesn't have direct stop endpoint - items must be managed manually
+        logger.warning("Avito items cannot be stopped via API - manage manually on avito.ru")
+    
+    def list_campaigns(self) -> List[Dict[str, Any]]:
+        """List Avito items as 'campaigns'."""
+        import asyncio
+        
+        async def _list():
+            items = await self.list_items()
+            return [
+                {
+                    "id": str(item.get("id")),
+                    "name": item.get("title", "Untitled"),
+                    "status": item.get("status", "unknown"),
+                }
+                for item in items
+            ]
+        
+        try:
+            return asyncio.run(_list())
+        except RuntimeError:
+            loop = asyncio.get_event_loop()
+            return loop.run_until_complete(_list())
+    
+    def get_daily_stats(self, campaign_ids: List[str], date_from: date, date_to: date) -> List[Dict[str, Any]]:
+        """Get daily statistics for Avito items."""
+        return self.fetch_metrics(date_from, date_to)
+    
+    def update_ad_link(self, ad_id: str, link_href: str) -> Dict[str, Any]:
+        """Update link for an Avito item."""
+        # Avito items are listings with their own URLs, not ad links
+        raise NotImplementedError("Avito items have their own URLs and cannot be updated via API")
     
     # =========================================================================
     # LISTINGS & STATISTICS
