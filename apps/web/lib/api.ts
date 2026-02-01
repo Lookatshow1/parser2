@@ -1490,6 +1490,7 @@ export const BillingApi = {
   invoice: (amount: number) => request<{ url: string }>('/billing/invoice', { method: 'POST', body: JSON.stringify({ amount }) }),
   generateInvoice: (amount: number) => request<{ id: number; number: string; html: string }>('/billing/invoice', { method: 'POST', body: JSON.stringify({ amount }) }),
   getInvoiceHtml: (invoiceNumber: string) => `${apiBase}/billing/invoice/${invoiceNumber}/html`,
+  createPayment: (amount: number) => request<{ confirmation_url?: string; demo_mode?: boolean; error?: string }>('/payments/create', { method: 'POST', body: JSON.stringify({ amount }) }),
 };
 
 
@@ -1501,6 +1502,30 @@ export type BillingTransaction = {
   created_at: string;
 };
 
+// OAuth API for platform connections
+export type OAuthURLResponse = {
+  url: string;
+  state: string;
+};
 
+export type OAuthExchangeResponse = {
+  connection_id: number;
+  platform: string;
+  message: string;
+};
 
+export const OAuthApi = {
+  getOAuthUrl: (platform: string) =>
+    request<OAuthURLResponse>(`/oauth/${platform}/url`),
 
+  exchangeCode: (params: { platform: string; code: string; state?: string; account_id?: string }) =>
+    request<OAuthExchangeResponse>('/oauth/exchange', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    }),
+
+  createOzonConnection: (clientId: string, clientSecret: string) =>
+    request<OAuthExchangeResponse>(`/oauth/ozon/apikey?client_id=${encodeURIComponent(clientId)}&client_secret=${encodeURIComponent(clientSecret)}`, {
+      method: 'POST',
+    }),
+};

@@ -98,16 +98,7 @@ export default function BillingPage() {
                                 className="w-full border-success/50 text-success hover:bg-success/10"
                                 onClick={async () => {
                                     try {
-                                        const token = localStorage.getItem("ads_access_token");
-                                        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/payments/create`, {
-                                            method: "POST",
-                                            headers: {
-                                                "Content-Type": "application/json",
-                                                "Authorization": `Bearer ${token}`
-                                            },
-                                            body: JSON.stringify({ amount: Number(amount) })
-                                        });
-                                        const data = await res.json();
+                                        const data = await BillingApi.createPayment(Number(amount));
 
                                         if (data.confirmation_url) {
                                             window.location.href = data.confirmation_url;
@@ -175,6 +166,6 @@ export default function BillingPage() {
                     </CardContent>
                 </Card>
             </div>
-        </div>
+        </div >
     );
 }

@@ -45,6 +45,7 @@ from app.api.magic_launch import router as magic_launch_router
 from app.api.ai_intelligence import router as ai_intelligence_router
 from app.api.campaign_actions import router as campaign_actions_router
 from app.api.media import media_router
+from app.api.oauth import router as oauth_router
 
 
 
@@ -117,6 +118,7 @@ def create_app() -> FastAPI:
     api_router.include_router(ai_intelligence_router)
     api_router.include_router(campaign_actions_router)
     api_router.include_router(media_router)
+    api_router.include_router(oauth_router)
 
 
 

@@ -891,6 +891,8 @@ class AdAd(Base):
     utm_applied_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     utm_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     url_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    status: Mapped[str | None] = mapped_column(String(50), nullable=True)  # active, paused, archived
+    moderation_status: Mapped[str | None] = mapped_column(String(50), nullable=True)  # approved, rejected, pending
 
     __table_args__ = (
         UniqueConstraint("connection_id", "external_id", name="uq_ad_ads"),

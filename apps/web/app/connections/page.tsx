@@ -14,18 +14,20 @@ import {
   ConnectionResponse,
   listOrgs,
   switchOrg,
+  OAuthApi,
 } from "../../lib/api";
 import { getOrgId, getToken, setOrgId } from "../../lib/session";
 import { STR } from "../../lib/strings";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
-import { EmptyState } from "../../components/ui/empty-state";
 import { PageHeader } from "../../components/ui/page-header";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
-import { Skeleton } from "../../components/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
+
+import { ConnectionList } from "../../components/connections/ConnectionList";
+import { SyncRunsPanel } from "../../components/connections/SyncRunsPanel";
+import { MetricsTable } from "../../components/connections/MetricsTable";
 
 const platforms = ["yandex", "vk", "ozon"];
 
@@ -61,19 +63,16 @@ const credentialsTemplates: Record<string, string> = {
   vk: JSON.stringify({ code: "", account_id: "" }),
 };
 
-const VK_CLIENT_ID = "Xm3G7VoWTh79zWQP"; // Hardcoded for matching backend config
+const VK_CLIENT_ID = "Xm3G7VoWTh79zWQP";
 
-const syncStatusVariant: Record<string, "success" | "danger" | "warning" | "muted"> = {
-  success: "success",
-  failed: "danger",
-  running: "warning",
-  queued: "warning",
-};
-
-const formatStatus = (value?: string | null) => {
-  if (!value) return "—";
-  return STR.statuses[value as keyof typeof STR.statuses] || value;
-};
+interface SyncRun {
+  id: number;
+  status: string;
+  run_type: string;
+  created_at: string;
+  result_json?: Record<string, unknown>;
+  error_text?: string | null;
+}
 
 export default function ConnectionsPage() {
   const router = useRouter();
@@ -91,7 +90,7 @@ export default function ConnectionsPage() {
   const [selectedConnectionId, setSelectedConnectionId] = useState<number | null>(null);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [syncRuns, setSyncRuns] = useState<Array<{ id: number; status: string; run_type: string; created_at: string; result_json?: Record<string, unknown>; error_text?: string | null }>>([]);
+  const [syncRuns, setSyncRuns] = useState<SyncRun[]>([]);
   const [metrics, setMetrics] = useState<Array<Record<string, unknown>>>([]);
   const [loading, setLoading] = useState(false);
   const [loadingRuns, setLoadingRuns] = useState(false);
@@ -283,6 +282,12 @@ export default function ConnectionsPage() {
     }
   };
 
+  const handleSelectConnection = (id: number) => {
+    setSelectedConnectionId(id);
+    refreshSyncRuns(id);
+    refreshMetrics(id);
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -290,12 +295,14 @@ export default function ConnectionsPage() {
         subtitle={STR.pages.connectionsSubtitle}
       />
 
+      {/* Create Connection Form */}
       <Card>
         <CardContent className="space-y-4">
           {!getToken() && <Badge variant="warning">{STR.messages.loginRequired}</Badge>}
           {getToken() && !getOrgId() && <Badge variant="warning">{STR.messages.selectOrg}</Badge>}
           {error && <div className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">{error}</div>}
           {notice && <div className="rounded-md border border-success/40 bg-success/10 px-3 py-2 text-sm text-success">{notice}</div>}
+
           <div className="grid gap-3 md:grid-cols-[1fr_200px]">
             <div className="space-y-2">
               <Label>{STR.labels.activeOrg}</Label>
@@ -353,8 +360,21 @@ export default function ConnectionsPage() {
                 <Button
                   variant="secondary"
                   className="w-full"
-                  onClick={() => {
-                    toast.info(`OAuth для ${platformInfo[platform].name} будет добавлен в следующем релизе`);
+                  onClick={async () => {
+                    try {
+                      setError(null);
+                      toast.loading("Подготовка авторизации...");
+                      const { url } = await OAuthApi.getOAuthUrl(platform);
+                      // Store state in sessionStorage for callback validation
+                      sessionStorage.setItem("oauth_platform", platform);
+                      // Redirect to OAuth provider
+                      window.location.href = url;
+                    } catch (err) {
+                      toast.dismiss();
+                      const message = (err as Error).message;
+                      setError(message);
+                      toast.error(message);
+                    }
                   }}
                 >
                   Войти через {platform === "yandex" ? "Яндекс" : "VK"}
@@ -362,37 +382,117 @@ export default function ConnectionsPage() {
               </div>
             ) : platformInfo[platform]?.method === "oauth-manual" ? (
               <div className="space-y-2">
-                <Label>Код доступа</Label>
+                <Label>Код доступа VK</Label>
                 <div className="flex gap-2 mb-2">
                   <Button
                     variant="outline"
                     size="sm"
-                    className="w-full"
                     onClick={() => {
                       const url = `https://ads.vk.com/hq/settings/access?action=oauth2&response_type=code&client_id=${VK_CLIENT_ID}&redirect_uri=https://ads.vk.com/hq/settings/access&scope=ads_manager,ads_read`;
                       window.open(url, "_blank");
                     }}
                   >
-                    Получить код
+                    1. Получить код
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={async () => {
+                      try {
+                        const parsed = JSON.parse(credentialsJson);
+                        if (!parsed.code) {
+                          toast.error("Введите код авторизации в поле ниже");
+                          return;
+                        }
+                        setError(null);
+                        toast.loading("Подключение VK...");
+                        const result = await OAuthApi.exchangeCode({
+                          platform: "vk",
+                          code: parsed.code,
+                          account_id: parsed.account_id || undefined,
+                        });
+                        toast.dismiss();
+                        toast.success(result.message);
+                        setNotice(`Подключение создано: ${result.message}`);
+                        await load();
+                      } catch (err) {
+                        toast.dismiss();
+                        const message = (err as Error).message;
+                        setError(message);
+                        toast.error(message);
+                      }
+                    }}
+                  >
+                    2. Подключить
                   </Button>
                 </div>
                 <textarea
                   value={credentialsJson}
                   onChange={(event) => setCredentialsJson(event.target.value)}
                   className="h-24 w-full rounded-md border border-border bg-panel-strong px-3 py-2 text-sm text-text font-mono"
-                  placeholder='{"code": "...", "account_id": "optional"}'
+                  placeholder='{"code": "вставьте_код_сюда", "account_id": "опционально"}'
                 />
-                <p className="text-xs text-muted">Скопируйте код из адресной строки после авторизации и вставьте в JSON поле "code".</p>
+                <p className="text-xs text-muted">После нажатия "Получить код" скопируйте код из URL (параметр "code=...") и вставьте выше.</p>
               </div>
             ) : (
               <div className="space-y-2">
-                <Label>{STR.labels.credentials}</Label>
-                <textarea
-                  value={credentialsJson}
-                  onChange={(event) => setCredentialsJson(event.target.value)}
-                  className="h-20 w-full rounded-md border border-border bg-panel-strong px-3 py-2 text-sm text-text font-mono"
-                  placeholder='{"client_id": "...", "client_secret": "..."}'
-                />
+                <Label>Ozon Performance API</Label>
+                <div className="grid gap-2">
+                  <Input
+                    placeholder="Client ID"
+                    value={(() => { try { return JSON.parse(credentialsJson).client_id || ""; } catch { return ""; } })()}
+                    onChange={(event) => {
+                      try {
+                        const parsed = JSON.parse(credentialsJson);
+                        parsed.client_id = event.target.value;
+                        setCredentialsJson(JSON.stringify(parsed, null, 2));
+                      } catch {
+                        setCredentialsJson(JSON.stringify({ client_id: event.target.value, client_secret: "" }));
+                      }
+                    }}
+                  />
+                  <Input
+                    type="password"
+                    placeholder="Client Secret"
+                    value={(() => { try { return JSON.parse(credentialsJson).client_secret || ""; } catch { return ""; } })()}
+                    onChange={(event) => {
+                      try {
+                        const parsed = JSON.parse(credentialsJson);
+                        parsed.client_secret = event.target.value;
+                        setCredentialsJson(JSON.stringify(parsed, null, 2));
+                      } catch {
+                        setCredentialsJson(JSON.stringify({ client_id: "", client_secret: event.target.value }));
+                      }
+                    }}
+                  />
+                  <Button
+                    variant="secondary"
+                    onClick={async () => {
+                      try {
+                        const parsed = JSON.parse(credentialsJson);
+                        if (!parsed.client_id || !parsed.client_secret) {
+                          toast.error("Введите Client ID и Client Secret");
+                          return;
+                        }
+                        setError(null);
+                        toast.loading("Подключение Ozon...");
+                        const result = await OAuthApi.createOzonConnection(parsed.client_id, parsed.client_secret);
+                        toast.dismiss();
+                        toast.success(result.message);
+                        setNotice(`Подключение создано: ${result.message}`);
+                        await load();
+                      } catch (err) {
+                        toast.dismiss();
+                        const message = (err as Error).message;
+                        setError(message);
+                        toast.error(message);
+                      }
+                    }}
+                  >
+                    Подключить Ozon
+                  </Button>
+                </div>
+                <p className="text-xs text-muted">Получите API ключи в <a href="https://seller.ozon.ru/app/settings/api-keys" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">личном кабинете Ozon Seller</a></p>
               </div>
             )}
           </div>
@@ -442,204 +542,55 @@ export default function ConnectionsPage() {
         </CardContent>
       </Card>
 
+      {/* Connection List */}
       <Card>
         <CardHeader>
           <CardTitle>Список подключений</CardTitle>
         </CardHeader>
         <CardContent>
-          {loading && <Skeleton className="h-20 w-full" />}
-          {!loading && items.length === 0 && (
-            <EmptyState
-              title={STR.messages.noConnections}
-              description={STR.pages.connectionsEmptyDesc}
-              action={<Button size="sm" onClick={handleCreate}>{STR.actions.create}</Button>}
-            />
-          )}
-          {!loading && items.length > 0 && (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>ID</TableHead>
-                  <TableHead>{STR.labels.platform}</TableHead>
-                  <TableHead>{STR.labels.status}</TableHead>
-                  <TableHead>Последний синк</TableHead>
-                  <TableHead>Автосинк</TableHead>
-                  <TableHead className="text-right">Действия</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {items.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell>#{item.id}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <span className="capitalize">{item.platform}</span>
-                        {item.name?.toLowerCase().includes("демо") && <Badge variant="info">Демо</Badge>}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={syncStatusVariant[item.last_sync_status || ""] || "muted"}>
-                        {formatStatus(item.last_sync_status)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-muted">
-                      {item.last_sync_finished_at ?? "—"}
-                    </TableCell>
-                    <TableCell className="text-muted">
-                      {item.auto_sync_enabled ? `Да (${item.auto_sync_every_minutes ?? 0}м / ${item.auto_sync_window_days ?? 0}д)` : "Нет"}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex flex-wrap justify-end gap-2">
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedConnectionId(item.id);
-                            refreshSyncRuns(item.id);
-                            refreshMetrics(item.id);
-                          }}
-                        >
-                          {STR.actions.open}
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => handleSync(item.id)}
-                          disabled={syncingId === item.id || item.last_sync_status === "queued" || item.last_sync_status === "running"}
-                        >
-                          {item.platform === "yandex" ? STR.actions.runDemo : STR.actions.sync}
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => toggleAutoSync(item.id, !item.auto_sync_enabled)}
-                        >
-                          {item.auto_sync_enabled ? "Выключить авто" : "Включить авто"}
-                        </Button>
-                        <Button variant="secondary" size="sm" onClick={() => handleTest(item.id)}>
-                          {STR.actions.check}
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => router.push(`/connections/${item.id}`)}>
-                          Детали
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+          <ConnectionList
+            items={items}
+            loading={loading}
+            syncingId={syncingId}
+            selectedConnectionId={selectedConnectionId}
+            onSelect={handleSelectConnection}
+            onSync={handleSync}
+            onTest={handleTest}
+            onToggleAutoSync={toggleAutoSync}
+            onCreate={handleCreate}
+          />
         </CardContent>
       </Card>
 
+      {/* Sync Runs Panel */}
       <Card>
         <CardHeader>
           <CardTitle>{STR.labels.syncRuns}</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-3 md:grid-cols-3">
-            <Input
-              type="number"
-              placeholder="ID подключения"
-              value={selectedConnectionId ?? ""}
-              onChange={(event) => setSelectedConnectionId(Number(event.target.value) || null)}
-            />
-            <Input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
-            <Input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={() => handleSync()}>{STR.actions.sync}</Button>
-            {selectedConnectionId && (
-              <>
-                <Button variant="secondary" onClick={() => refreshSyncRuns(selectedConnectionId)}>
-                  Обновить синки
-                </Button>
-                <Button variant="secondary" onClick={() => refreshMetrics(selectedConnectionId)}>
-                  Обновить метрики
-                </Button>
-              </>
-            )}
-          </div>
-          {loadingRuns ? (
-            <Skeleton className="h-16 w-full" />
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>ID</TableHead>
-                  <TableHead>Тип</TableHead>
-                  <TableHead>{STR.labels.status}</TableHead>
-                  <TableHead>Создан</TableHead>
-                  <TableHead>Результат</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {syncRuns.map((run) => (
-                  <TableRow key={run.id}>
-                    <TableCell>#{run.id}</TableCell>
-                    <TableCell>{run.run_type}</TableCell>
-                    <TableCell>
-                      <Badge variant={syncStatusVariant[run.status] || "muted"}>{formatStatus(run.status)}</Badge>
-                    </TableCell>
-                    <TableCell>{new Date(run.created_at).toLocaleString()}</TableCell>
-                    <TableCell className="text-muted">
-                      {run.result_json && "inserted" in run.result_json
-                        ? `${run.result_json.inserted}/${run.result_json.updated}/${run.result_json.unchanged}`
-                        : run.error_text
-                          ? String(run.error_text).slice(0, 80)
-                          : "—"}
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {syncRuns.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted">
-                      Синхронизаций пока нет.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          )}
+        <CardContent>
+          <SyncRunsPanel
+            syncRuns={syncRuns}
+            loading={loadingRuns}
+            selectedConnectionId={selectedConnectionId}
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+            onConnectionIdChange={setSelectedConnectionId}
+            onDateFromChange={setDateFrom}
+            onDateToChange={setDateTo}
+            onSync={() => handleSync()}
+            onRefreshRuns={() => selectedConnectionId && refreshSyncRuns(selectedConnectionId)}
+            onRefreshMetrics={() => selectedConnectionId && refreshMetrics(selectedConnectionId)}
+          />
         </CardContent>
       </Card>
 
+      {/* Metrics Table */}
       <Card>
         <CardHeader>
           <CardTitle>{STR.labels.metrics}</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {loadingMetrics ? (
-            <Skeleton className="h-16 w-full" />
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Дата</TableHead>
-                  <TableHead>Показы</TableHead>
-                  <TableHead>Клики</TableHead>
-                  <TableHead>Расход</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {metrics.map((row, idx) => (
-                  <TableRow key={idx}>
-                    <TableCell>{String(row.date || "")}</TableCell>
-                    <TableCell>{String(row.impressions || 0)}</TableCell>
-                    <TableCell>{String(row.clicks || 0)}</TableCell>
-                    <TableCell>{String(row.spend || 0)}</TableCell>
-                  </TableRow>
-                ))}
-                {metrics.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted">
-                      {STR.messages.noMetrics}
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          )}
+        <CardContent>
+          <MetricsTable metrics={metrics} loading={loadingMetrics} />
         </CardContent>
       </Card>
     </div>

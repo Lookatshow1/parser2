@@ -10,6 +10,8 @@ import {
     ArrowUpRight, Loader2, Calendar, RefreshCw, Sparkles, AlertCircle, HelpCircle
 } from "lucide-react";
 import Link from "next/link";
+import { toast } from "sonner";
+import { getKpiSummary, getKpiTimeseries, listConnections } from "../../lib/api";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -160,46 +162,29 @@ export default function DashboardPage() {
         setLoading(true);
         try {
             const days = period === "7d" ? 7 : 30;
-            const dateTo = new Date();
-            const dateFrom = new Date();
-            dateFrom.setDate(dateFrom.getDate() - days);
+            const dateTo = new Date().toISOString().split("T")[0];
+            const dateFromObj = new Date();
+            dateFromObj.setDate(dateFromObj.getDate() - days);
+            const dateFrom = dateFromObj.toISOString().split("T")[0];
 
-            const params = new URLSearchParams({
-                date_from: dateFrom.toISOString().split("T")[0],
-                date_to: dateTo.toISOString().split("T")[0],
+            const [summaryData, timeseriesData, connData] = await Promise.all([
+                getKpiSummary({ date_from: dateFrom, date_to: dateTo }),
+                getKpiTimeseries({ date_from: dateFrom, date_to: dateTo, mode: "absolute" }),
+                listConnections()
+            ]);
+
+            setSummary({
+                ...summaryData,
+                ctr: summaryData.ctr,
+                cpc: summaryData.cpc,
+                cpa: summaryData.cpa
             });
-
-            // Load KPI summary
-            const summaryRes = await fetch(`${API_BASE}/api/dashboard/kpi-summary?${params}`, {
-                headers: { Authorization: `Bearer ${localStorage.getItem("ads_access_token")}` }
-            });
-
-            if (summaryRes.ok) {
-                setSummary(await summaryRes.json());
-            }
-
-            // Load timeseries
-            const timeseriesRes = await fetch(`${API_BASE}/api/dashboard/kpi-timeseries?${params}&mode=absolute`, {
-                headers: { Authorization: `Bearer ${localStorage.getItem("ads_access_token")}` }
-            });
-
-            if (timeseriesRes.ok) {
-                const ts = await timeseriesRes.json();
-                setDailyData(ts.items || []);
-            }
-
-            // Check connections
-            const connRes = await fetch(`${API_BASE}/api/connections`, {
-                headers: { Authorization: `Bearer ${localStorage.getItem("ads_access_token")}` }
-            });
-
-            if (connRes.ok) {
-                const conns = await connRes.json();
-                setHasConnections(conns.items?.length > 0);
-            }
+            setDailyData(timeseriesData.items || []);
+            setHasConnections(connData.items?.length > 0);
 
         } catch (err) {
             console.error("Dashboard load error:", err);
+            toast.error("Не удалось загрузить данные дашборда");
         } finally {
             setLoading(false);
         }

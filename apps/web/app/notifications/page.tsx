@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
 import {
     Bell, Send, CheckCircle2, Settings2,
-    Loader2, MessageCircle, AlertTriangle, TrendingUp, Calendar
+    Loader2, MessageCircle, AlertTriangle, TrendingUp, Calendar, FileCheck
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -22,6 +22,7 @@ interface TelegramSettings {
     alert_budget: boolean;
     alert_ctr: boolean;
     alert_conversions: boolean;
+    alert_moderation: boolean;
     daily_report: boolean;
     weekly_report: boolean;
 }
@@ -277,6 +278,22 @@ export default function NotificationsPage() {
                                         disabled={!settings.notifications_enabled}
                                     />
                                 </div>
+
+                                {/* Moderation Alert */}
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <FileCheck className="h-5 w-5 text-blue-500" />
+                                        <div>
+                                            <div className="font-medium text-text">Модерация объявлений</div>
+                                            <div className="text-sm text-muted">При одобрении или отклонении</div>
+                                        </div>
+                                    </div>
+                                    <Switch
+                                        checked={settings.alert_moderation}
+                                        onCheckedChange={v => updateSettings({ alert_moderation: v })}
+                                        disabled={!settings.notifications_enabled}
+                                    />
+                                </div>
                             </div>
                         </CardContent>
                     </Card>
@@ -320,7 +337,7 @@ export default function NotificationsPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="flex flex-wrap gap-3">
-                                {["test", "budget", "ctr", "conversion", "daily"].map(type => (
+                                {["test", "budget", "ctr", "conversion", "moderation", "daily"].map(type => (
                                     <Button
                                         key={type}
                                         variant="outline"
@@ -336,7 +353,8 @@ export default function NotificationsPage() {
                                         {type === "test" ? "Тест" :
                                             type === "budget" ? "Бюджет" :
                                                 type === "ctr" ? "CTR" :
-                                                    type === "conversion" ? "Конверсия" : "Отчёт"}
+                                                    type === "conversion" ? "Конверсия" :
+                                                        type === "moderation" ? "Модерация" : "Отчёт"}
                                     </Button>
                                 ))}
                             </div>

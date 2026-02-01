@@ -33,6 +33,7 @@ class TelegramSettingsResponse(BaseModel):
     alert_budget: bool = True
     alert_ctr: bool = True
     alert_conversions: bool = True
+    alert_moderation: bool = True
     daily_report: bool = False
     weekly_report: bool = True
 
@@ -43,13 +44,14 @@ class TelegramSettingsUpdate(BaseModel):
     alert_budget: bool = True
     alert_ctr: bool = True
     alert_conversions: bool = True
+    alert_moderation: bool = True
     daily_report: bool = False
     weekly_report: bool = True
 
 
 class TestNotificationRequest(BaseModel):
     """Test notification request."""
-    type: str = "test"  # test, budget, ctr, conversion, daily
+    type: str = "test"  # test, budget, ctr, conversion, moderation, daily
 
 
 # =============================================================================
@@ -77,6 +79,7 @@ def get_telegram_settings(
         alert_budget=tg_settings.get("alert_budget", True),
         alert_ctr=tg_settings.get("alert_ctr", True),
         alert_conversions=tg_settings.get("alert_conversions", True),
+        alert_moderation=tg_settings.get("alert_moderation", True),
         daily_report=tg_settings.get("daily_report", False),
         weekly_report=tg_settings.get("weekly_report", True),
     )
@@ -107,6 +110,7 @@ def connect_telegram(
         "alert_budget": True,
         "alert_ctr": True,
         "alert_conversions": True,
+        "alert_moderation": True,
         "daily_report": False,
         "weekly_report": True,
     }
@@ -135,6 +139,7 @@ def update_telegram_settings(
     tg["alert_budget"] = payload.alert_budget
     tg["alert_ctr"] = payload.alert_ctr
     tg["alert_conversions"] = payload.alert_conversions
+    tg["alert_moderation"] = payload.alert_moderation
     tg["daily_report"] = payload.daily_report
     tg["weekly_report"] = payload.weekly_report
     
@@ -187,6 +192,15 @@ async def send_test_notification(
         result = await service.send_ctr_alert(chat_id, "Тестовое объявление", 1.2, 2.5)
     elif payload.type == "conversion":
         result = await service.send_conversion_alert(chat_id, "Покупка", "Тестовая кампания", 5000)
+    elif payload.type == "moderation":
+        result = await service.send_message(
+            chat_id,
+            "📝 <b>Модерация объявления</b>\n\n"
+            "Объявление: <b>Тестовое объявление</b>\n"
+            "Кампания: Тестовая кампания\n"
+            "Статус: ✅ <b>Одобрено</b>\n\n"
+            "Теперь объявление активно и показывается аудитории."
+        )
     elif payload.type == "daily":
         result = await service.send_daily_report(chat_id, 45000, 1200, 35000, 45, 2.67, 29)
     else:

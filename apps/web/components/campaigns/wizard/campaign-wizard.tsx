@@ -30,6 +30,7 @@ export function CampaignWizard() {
     const [formData, setFormData] = useState({
         name: "",
         platform: "yandex",
+        connection_id: null as number | null,
         objective: "",
         budget_daily: "",
         budget_total: "",
@@ -67,6 +68,7 @@ export function CampaignWizard() {
             const payload = {
                 name: formData.name,
                 platform: formData.platform,
+                connection_id: formData.connection_id,
                 objective: formData.objective || null,
                 budget_total: formData.budget_total ? Number(formData.budget_total) : null,
                 budget_daily: formData.budget_daily ? Number(formData.budget_daily) : null,
