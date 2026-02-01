@@ -1,7 +1,7 @@
 """add erid to draft_ads
 
 Revision ID: 0031_add_erid
-Revises: b8b764f7515c
+Revises: 68d5943d632e
 Create Date: 2026-01-31
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = '0031_add_erid'
-down_revision: Union[str, None] = 'b8b764f7515c'
+down_revision: Union[str, None] = '68d5943d632e'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
