@@ -51,7 +51,7 @@ class ConnectionCreateRequest(BaseModel):
     name: str | None = None
     credentials_json: dict
     credentials_mode: str | None = None
-    auto_sync_enabled: bool = False
+    auto_sync_enabled: bool = True
     auto_sync_every_minutes: int = Field(default=1440, ge=1)
     auto_sync_window_days: int = Field(default=3, ge=1)
 

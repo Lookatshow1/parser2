@@ -970,6 +970,7 @@ class OrgAutomationSettings(Base):
     )
     is_enabled: Mapped[bool] = mapped_column(Boolean, server_default=text("true"), nullable=False)
     run_interval_minutes: Mapped[int] = mapped_column(Integer, server_default="1440", nullable=False)
+    auto_apply: Mapped[bool] = mapped_column(Boolean, server_default=text("false"), nullable=False)
     last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(

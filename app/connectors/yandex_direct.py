@@ -139,6 +139,107 @@ class YandexDirectConnector(AdsConnector):
     def stop(self, external_ids: dict) -> None:
         return None
 
+    # =========================================================================
+    # ACTION METHODS - Used by recommendation_applier
+    # =========================================================================
+    
+    def pause_ad(self, ad_id: int | str) -> Dict[str, Any]:
+        """Pause a specific ad in Yandex Direct."""
+        if self.is_mock:
+            return {"success": True, "ad_id": ad_id, "status": "paused", "mock": True}
+        
+        return self._set_ad_status(str(ad_id), "OFF")
+    
+    def enable_ad(self, ad_id: int | str) -> Dict[str, Any]:
+        """Enable a paused ad in Yandex Direct."""
+        if self.is_mock:
+            return {"success": True, "ad_id": ad_id, "status": "active", "mock": True}
+        
+        return self._set_ad_status(str(ad_id), "ON")
+    
+    def pause_campaign(self, campaign_id: int | str) -> Dict[str, Any]:
+        """Pause a campaign in Yandex Direct."""
+        if self.is_mock:
+            return {"success": True, "campaign_id": campaign_id, "status": "paused", "mock": True}
+        
+        return self._set_campaign_status(str(campaign_id), "suspend")
+    
+    def enable_campaign(self, campaign_id: int | str) -> Dict[str, Any]:
+        """Enable a paused campaign in Yandex Direct."""
+        if self.is_mock:
+            return {"success": True, "campaign_id": campaign_id, "status": "active", "mock": True}
+        
+        return self._set_campaign_status(str(campaign_id), "resume")
+    
+    def set_bid(self, ad_id: int | str, bid: float) -> Dict[str, Any]:
+        """Set bid for an ad/keyword in Yandex Direct."""
+        if self.is_mock:
+            return {"success": True, "ad_id": ad_id, "bid": bid, "mock": True}
+        
+        # Yandex Direct uses Bids service for bid management
+        # For now return not implemented for real API
+        return {"success": False, "error": "Bid management requires Bids API integration"}
+    
+    def _set_ad_status(self, ad_id: str, action: str) -> Dict[str, Any]:
+        """Internal method to change ad status via Yandex Direct API."""
+        if not self.token:
+            return {"success": False, "error": "No token configured"}
+        
+        # Yandex Direct API v5 - Ads service
+        url = "https://api.direct.yandex.com/json/v5/ads"
+        payload = {
+            "method": action.lower(),  # "suspend" or "resume" for ads
+            "params": {
+                "SelectionCriteria": {
+                    "Ids": [int(ad_id)]
+                }
+            }
+        }
+        headers = {
+            "Authorization": f"Bearer {self.token}",
+            "Accept-Language": "ru",
+            "Content-Type": "application/json",
+        }
+        
+        try:
+            with httpx.Client(timeout=30) as client:
+                response = client.post(url, json=payload, headers=headers)
+                if response.status_code == 200:
+                    return {"success": True, "ad_id": ad_id, "action": action}
+                return {"success": False, "error": response.text}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    def _set_campaign_status(self, campaign_id: str, action: str) -> Dict[str, Any]:
+        """Internal method to change campaign status via Yandex Direct API."""
+        if not self.token:
+            return {"success": False, "error": "No token configured"}
+        
+        # Yandex Direct API v5 - Campaigns service
+        url = "https://api.direct.yandex.com/json/v5/campaigns"
+        payload = {
+            "method": action,  # "suspend" or "resume"
+            "params": {
+                "SelectionCriteria": {
+                    "Ids": [int(campaign_id)]
+                }
+            }
+        }
+        headers = {
+            "Authorization": f"Bearer {self.token}",
+            "Accept-Language": "ru",
+            "Content-Type": "application/json",
+        }
+        
+        try:
+            with httpx.Client(timeout=30) as client:
+                response = client.post(url, json=payload, headers=headers)
+                if response.status_code == 200:
+                    return {"success": True, "campaign_id": campaign_id, "action": action}
+                return {"success": False, "error": response.text}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
     def list_campaigns(self) -> List[Dict[str, Any]]:
         if self.is_mock:
             campaigns = self._mock_campaign_ids(None)

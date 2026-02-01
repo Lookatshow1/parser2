@@ -43,6 +43,7 @@ from app.api.templates import router as templates_router
 from app.api.payments import router as payments_router
 from app.api.magic_launch import router as magic_launch_router
 from app.api.ai_intelligence import router as ai_intelligence_router
+from app.api.campaign_actions import router as campaign_actions_router
 
 
 
@@ -113,6 +114,7 @@ def create_app() -> FastAPI:
     api_router.include_router(payments_router)
     api_router.include_router(magic_launch_router)
     api_router.include_router(ai_intelligence_router)
+    api_router.include_router(campaign_actions_router)
 
 
 

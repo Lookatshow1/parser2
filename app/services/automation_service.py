@@ -74,17 +74,24 @@ def run_automation_for_org(
 
     try:
         created, updated = compute_recommendations_for_org(db, org.id, date_from, date_to)
+        
+        # Get settings to check if auto_apply is enabled
+        settings = get_or_create_settings(db, org.id)
+        
         recos = (
             db.query(OrgRecommendation)
             .filter(
                 OrgRecommendation.organization_id == org.id,
                 OrgRecommendation.valid_from <= date_to,
                 OrgRecommendation.valid_to >= date_from,
+                OrgRecommendation.resolved_at.is_(None),  # Only unresolved
             )
             .all()
         )
 
         created_actions = 0
+        applied_actions = 0
+        
         for rec in recos:
             exists = (
                 db.query(OrgAutomationAction)
@@ -97,6 +104,16 @@ def run_automation_for_org(
             )
             if exists:
                 continue
+            
+            # If auto_apply is enabled, apply the recommendation
+            if settings.auto_apply:
+                from app.services.recommendation_applier import apply_recommendation
+                result = apply_recommendation(db, rec.id, actor_user_id)
+                if result.get("status") == "success":
+                    applied_actions += 1
+                    continue  # Already created action in applier
+            
+            # Otherwise create draft action
             action = OrgAutomationAction(
                 organization_id=org.id,
                 run_id=run.id,
@@ -122,9 +139,10 @@ def run_automation_for_org(
             "recommendations_created": created,
             "recommendations_updated": updated,
             "actions_created": created_actions,
+            "actions_applied": applied_actions,
+            "auto_apply_enabled": settings.auto_apply,
             "window": {"from": date_from.isoformat(), "to": date_to.isoformat()},
         }
-        settings = get_or_create_settings(db, org.id)
         settings.last_run_at = datetime.utcnow()
         db.commit()
 

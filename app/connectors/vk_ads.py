@@ -45,6 +45,86 @@ class VkAdsConnector(AdsConnector):
         # TODO: Implement status check using new client
         return {"campaign_id": "active"}
 
+    # =========================================================================
+    # ACTION METHODS - Used by recommendation_applier
+    # =========================================================================
+    
+    def pause_ad(self, ad_id: int | str) -> Dict[str, Any]:
+        """Pause a specific ad in VK Ads."""
+        if self.is_mock:
+            return {"success": True, "ad_id": ad_id, "status": "paused", "mock": True}
+        
+        return self._set_ad_status(int(ad_id), "blocked")
+    
+    def enable_ad(self, ad_id: int | str) -> Dict[str, Any]:
+        """Enable a paused ad in VK Ads."""
+        if self.is_mock:
+            return {"success": True, "ad_id": ad_id, "status": "active", "mock": True}
+        
+        return self._set_ad_status(int(ad_id), "active")
+    
+    def pause_campaign(self, campaign_id: int | str) -> Dict[str, Any]:
+        """Pause a campaign in VK Ads."""
+        if self.is_mock:
+            return {"success": True, "campaign_id": campaign_id, "status": "paused", "mock": True}
+        
+        return self._set_campaign_status(int(campaign_id), "blocked")
+    
+    def enable_campaign(self, campaign_id: int | str) -> Dict[str, Any]:
+        """Enable a paused campaign in VK Ads."""
+        if self.is_mock:
+            return {"success": True, "campaign_id": campaign_id, "status": "active", "mock": True}
+        
+        return self._set_campaign_status(int(campaign_id), "active")
+    
+    def set_bid(self, ad_id: int | str, bid: float) -> Dict[str, Any]:
+        """Set bid for an ad in VK Ads."""
+        if self.is_mock:
+            return {"success": True, "ad_id": ad_id, "bid": bid, "mock": True}
+        
+        # VK Ads uses different bid structure
+        return {"success": False, "error": "Bid management not yet implemented for VK Ads"}
+    
+    def _set_ad_status(self, ad_id: int, status: str) -> Dict[str, Any]:
+        """Internal method to change ad status via VK Ads API."""
+        import asyncio
+        return asyncio.run(self._set_ad_status_async(ad_id, status))
+    
+    async def _set_ad_status_async(self, ad_id: int, status: str) -> Dict[str, Any]:
+        """Async method to change ad status."""
+        try:
+            client = self._build_client()
+            # VK Ads API: PATCH /api/v2/ads/{id}.json
+            result = await client._request(
+                "POST",
+                f"ads/{ad_id}.json",
+                json_data={"status": status}
+            )
+            await client.close()
+            return {"success": True, "ad_id": ad_id, "status": status}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    def _set_campaign_status(self, campaign_id: int, status: str) -> Dict[str, Any]:
+        """Internal method to change campaign status via VK Ads API."""
+        import asyncio
+        return asyncio.run(self._set_campaign_status_async(campaign_id, status))
+    
+    async def _set_campaign_status_async(self, campaign_id: int, status: str) -> Dict[str, Any]:
+        """Async method to change campaign status."""
+        try:
+            client = self._build_client()
+            # VK Ads API: PATCH /api/v2/campaigns/{id}.json
+            result = await client._request(
+                "POST",
+                f"campaigns/{campaign_id}.json",
+                json_data={"status": status}
+            )
+            await client.close()
+            return {"success": True, "campaign_id": campaign_id, "status": status}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
     def list_campaigns(self) -> List[Dict[str, Any]]:
         """List all campaigns from VK Ads."""
         if self.is_mock:
