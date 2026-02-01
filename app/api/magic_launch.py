@@ -15,7 +15,16 @@ from typing import Optional, List, Dict, Any
 from app.api.deps import get_db, get_current_user, get_current_org_id
 from app.db.models import User
 from app.services.magic_launch import MagicLaunchService, get_magic_launch_service
-from app.core.ai.orchestrator import get_orchestrator
+from app.core.ai.orchestrator import get_orchestrator, MultiAIOrchestrator
+
+# Global orchestrator instance to avoid re-initialization overhead
+_orchestrator: Optional[MultiAIOrchestrator] = None
+
+def get_global_orchestrator() -> MultiAIOrchestrator:
+    global _orchestrator
+    if _orchestrator is None:
+        _orchestrator = get_orchestrator()
+    return _orchestrator
 
 router = APIRouter(prefix="/magic-launch", tags=["Magic Launch"])
 
@@ -170,13 +179,13 @@ async def magic_launch_stream(
     """
     async def event_generator():
         service = get_magic_launch_service(db)
-        orchestrator = get_orchestrator()
+        orchestrator = get_global_orchestrator()
 
         try:
             # Step 1: Analyzing
             yield f"data: {json_module.dumps({'type': 'step', 'step': 1, 'total': 5, 'message': 'Analyzing your business...'})}\n\n"
             yield f"data: {json_module.dumps({'type': 'progress', 'percent': 10})}\n\n"
-            await asyncio.sleep(0.5)
+            # Removed artificial sleep for speed
 
             # Step 2: Generating creatives
             yield f"data: {json_module.dumps({'type': 'step', 'step': 2, 'total': 5, 'message': 'AI is creating ad creatives...'})}\n\n"

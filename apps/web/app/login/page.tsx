@@ -41,7 +41,7 @@ export default function LoginPage() {
         router.push(`/invite/${encodeURIComponent(inviteToken)}`);
         return;
       }
-      router.push("/dashboard");
+      router.push("/magic-launch");
     } catch (err) {
       const message = (err as Error).message;
       setError(message);

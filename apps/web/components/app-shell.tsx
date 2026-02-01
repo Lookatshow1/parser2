@@ -120,6 +120,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     router.push("/login");
   }, [router]);
 
+  // Effect 3: Force login if not public page
+  useEffect(() => {
+    if (mounted && !isPublicPage && !token) {
+      router.push("/login");
+    }
+  }, [mounted, isPublicPage, token, router]);
+
   // --- CONDITIONAL RETURNS ONLY AFTER ALL HOOKS ---
 
   // 1. Public pages - no shell
@@ -166,12 +173,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     key={item.href}
                     href={item.href}
                     onClick={() => setMobileMenuOpen(false)}
-                    className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
-                      isHighlight
-                        ? "bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-bold shadow-lg shadow-orange-500/20"
-                        : isActive
-                          ? "bg-accent text-text"
-                          : "text-muted hover:bg-panel-strong hover:text-text"
+                    className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${isHighlight
+                      ? "bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-bold shadow-lg shadow-orange-500/20"
+                      : isActive
+                        ? "bg-accent text-text"
+                        : "text-muted hover:bg-panel-strong hover:text-text"
                       }`}
                   >
                     <Icon className="h-4 w-4" />
@@ -201,12 +207,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
-                  isHighlight
-                    ? "bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-bold shadow-lg shadow-orange-500/20 hover:from-yellow-400 hover:to-orange-400"
-                    : isActive
-                      ? "bg-accent text-text"
-                      : "text-muted hover:bg-panel-strong hover:text-text"
+                className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${isHighlight
+                  ? "bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-bold shadow-lg shadow-orange-500/20 hover:from-yellow-400 hover:to-orange-400"
+                  : isActive
+                    ? "bg-accent text-text"
+                    : "text-muted hover:bg-panel-strong hover:text-text"
                   }`}
               >
                 <Icon className="h-4 w-4" />
@@ -280,11 +285,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
         <main className="flex-1 px-6 py-6">
-          {!token && (
-            <div className="mb-6 rounded-lg border border-border bg-panel-strong px-4 py-3 text-sm text-muted">
-              {STR.messages.loginRequired}
-            </div>
-          )}
+          {/* Auth check handled in useEffect, no banner needed */}
           {children}
         </main>
       </div>

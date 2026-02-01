@@ -126,8 +126,14 @@ export default function LandingPage() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setVoiceSupported('webkitSpeechRecognition' in window || 'SpeechRecognition' in window);
+
+      // Redirect if already logged in
+      const token = window.localStorage.getItem("ads_access_token");
+      if (token) {
+        router.push("/magic-launch");
+      }
     }
-  }, []);
+  }, [router]);
 
   // Voice recording handler
   const toggleVoiceRecording = () => {
@@ -373,8 +379,8 @@ export default function LandingPage() {
                   <button
                     onClick={toggleVoiceRecording}
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-all ${inputMode === "voice" || isRecording
-                        ? "bg-gradient-to-r from-red-500 to-orange-500 text-white font-medium"
-                        : "text-zinc-400 hover:text-white"
+                      ? "bg-gradient-to-r from-red-500 to-orange-500 text-white font-medium"
+                      : "text-zinc-400 hover:text-white"
                       }`}
                   >
                     {isRecording ? (
