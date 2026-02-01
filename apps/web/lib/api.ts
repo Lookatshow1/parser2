@@ -547,6 +547,34 @@ export async function createCampaign(payload: {
   });
 }
 
+export async function createCampaignWizard(payload: any) {
+  const orgId = getOrgId();
+  if (!orgId) throw new Error(ru.messages.selectOrg);
+  return request<Campaign>(`/campaigns/wizard`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+    headers: { "X-Org-Id": String(orgId) }
+  });
+}
+
+export async function uploadMedia(file: File) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  // Custom fetch to handle FormData (request helper assumes JSON)
+  const token = getToken();
+  const res = await fetch("/api/media/upload", {
+    method: "POST",
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: formData
+  });
+
+  if (!res.ok) throw new Error("Upload failed");
+  return res.json();
+}
+
 export async function getCampaign(campaignId: number) {
   const orgId = getOrgId();
   if (!orgId) throw new Error(ru.messages.selectOrg);

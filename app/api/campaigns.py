@@ -24,6 +24,7 @@ from app.api.schemas import (
     CampaignTreeAdGroup,
     CampaignTreeAd,
     CampaignEventOut,
+    WizardCampaignCreateRequest,
 )
 from app.db.models import Campaign, CampaignAdGroup, CampaignAd, CampaignEvent, Organization, Platform, User, CampaignStatus
 from app.db.session import get_db
@@ -182,6 +183,68 @@ def create_campaign(
     db.add(campaign)
     db.flush()
     _log_event(db, org.id, "campaign", campaign.id, "created", user.id, {"name": payload.name})
+    db.commit()
+    db.refresh(campaign)
+    return campaign
+
+
+@campaigns_router.post("/wizard", response_model=CampaignOut, status_code=status.HTTP_201_CREATED)
+def create_campaign_wizard(
+    org_id: int,
+    payload: WizardCampaignCreateRequest,
+    db: Session = Depends(get_db),
+    org: Organization = Depends(get_current_org),
+    user: User = Depends(get_current_user),
+    membership=Depends(get_current_membership),
+):
+    _require_write(membership.role)
+    _ensure_org(org_id, org)
+
+    # 1. Create Campaign
+    campaign = Campaign(
+        organization_id=org.id,
+        platform=payload.platform,
+        name=payload.name,
+        objective=payload.objective,
+        status=CampaignStatus.draft,
+        budget_total=payload.budget_total,
+        budget_daily=payload.budget_daily,
+        start_date=payload.start_date,
+        end_date=payload.end_date,
+        created_by_user_id=user.id,
+    )
+    db.add(campaign)
+    db.flush()
+
+    # 2. Create Ad Groups
+    for group_data in payload.ad_groups:
+        group = CampaignAdGroup(
+            campaign_id=campaign.id,
+            name=group_data.name,
+            status=CampaignStatus.draft,
+            budget_daily=group_data.budget_daily,
+            bid_strategy=group_data.bid_strategy,
+            targeting_json=group_data.targeting_json,
+        )
+        db.add(group)
+        db.flush()
+
+        # 3. Create Ads
+        for ad_data in group_data.ads:
+            ad = CampaignAd(
+                ad_group_id=group.id,
+                name=ad_data.name,
+                status=CampaignStatus.draft,
+                landing_url=ad_data.landing_url,
+                creative_json={
+                    "title": ad_data.title,
+                    "text": ad_data.text,
+                    **(ad_data.creative_json or {})
+                }
+            )
+            db.add(ad)
+
+    _log_event(db, org.id, "campaign", campaign.id, "created_wizard", user.id, {"name": payload.name})
     db.commit()
     db.refresh(campaign)
     return campaign

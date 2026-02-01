@@ -800,6 +800,34 @@ class BuilderTreeAdGroup(BuilderAdGroupOut):
     ads: list[BuilderTreeAd] = []
 
 
+# --- Wizard Schemas ---
+
+class WizardAdCreateRequest(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255)
+    title: str | None = Field(None, max_length=255)
+    text: str | None = None
+    landing_url: str | None = None
+    creative_json: dict | None = None  # For image_url etc.
+
+class WizardAdGroupCreateRequest(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255)
+    budget_daily: Decimal | None = Field(None, ge=0)
+    bid_strategy: str | None = None
+    targeting_json: dict = Field(default_factory=dict)
+    ads: list[WizardAdCreateRequest] = []
+
+class WizardCampaignCreateRequest(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255)
+    platform: Platform
+    objective: str | None = None
+    budget_total: Decimal | None = Field(None, ge=0)
+    budget_daily: Decimal | None = Field(None, ge=0)
+    start_date: dt_date | None = None
+    end_date: dt_date | None = None
+    ad_groups: list[WizardAdGroupCreateRequest] = []
+
+
+
 class BuilderTreeCampaign(BuilderCampaignOut):
     ad_groups: list[BuilderTreeAdGroup] = []
 

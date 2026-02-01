@@ -44,6 +44,7 @@ from app.api.payments import router as payments_router
 from app.api.magic_launch import router as magic_launch_router
 from app.api.ai_intelligence import router as ai_intelligence_router
 from app.api.campaign_actions import router as campaign_actions_router
+from app.api.media import media_router
 
 
 
@@ -115,6 +116,7 @@ def create_app() -> FastAPI:
     api_router.include_router(magic_launch_router)
     api_router.include_router(ai_intelligence_router)
     api_router.include_router(campaign_actions_router)
+    api_router.include_router(media_router)
 
 
 
@@ -137,6 +139,12 @@ def create_app() -> FastAPI:
         )
     
     app.include_router(api_router)
+    
+    # Mount static files for media
+    from fastapi.staticfiles import StaticFiles
+    import os
+    os.makedirs("static/uploads", exist_ok=True)
+    app.mount("/static", StaticFiles(directory="static"), name="static")
 
     @app.post("/connectors/yandex/sync_metrics", deprecated=True)
     def sync_metrics_alias(payload: YandexSyncMetricsRequest):
