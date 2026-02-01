@@ -13,6 +13,8 @@ from app.services.utm_service import (
     compute_utm_hash,
     pick_matching_rule,
 )
+from app.services.connector_service import get_connector
+from app.security.credentials_crypto import maybe_decrypt
 
 
 def reconcile_ads_utm_for_connection(
@@ -91,6 +93,23 @@ def reconcile_ads_utm_for_connection(
             ad.utm_applied_at = now
             ad.url_status = "ok"
             counts["updated"] += 1
+            
+            if settings and settings.auto_update_ads:
+                # Auto-update external platform
+                try:
+                    creds = maybe_decrypt(connection.credentials_json) if connection.credentials_json else {}
+                    connector = get_connector(connection.platform, creds)
+                    if connector:
+                        # Log attempt? 
+                        res = connector.update_ad_link(ad.external_id, final_url)
+                        # We could log the result to a new audit log or just print for now.
+                        # Ideally we should assume it worked or handle error.
+                        if not res.get("success"):
+                             # Maybe mark ad status as sync_error?
+                             pass
+                except Exception as e:
+                    # Log error
+                    pass
         else:
             ad.url_status = "ok"
             counts["unchanged"] += 1

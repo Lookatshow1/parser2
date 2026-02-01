@@ -179,6 +179,56 @@ class YandexDirectConnector(AdsConnector):
         # Yandex Direct uses Bids service for bid management
         # For now return not implemented for real API
         return {"success": False, "error": "Bid management requires Bids API integration"}
+
+    def update_ad_link(self, ad_id: str | int, link_href: str) -> Dict[str, Any]:
+        """Update ad link in Yandex Direct."""
+        if self.is_mock:
+             return {"success": True, "ad_id": ad_id, "href": link_href, "mock": True}
+
+        if not self.token:
+             return {"success": False, "error": "No token configured"}
+
+        url = "https://api.direct.yandex.com/json/v5/ads"
+        
+        # We assume TextAd for now. If we need to support other types, we'd need to fetch type first.
+        # But usually Href is customizable for TextAd, TextImageAd etc via specific blocks.
+        # DynamicTextAd doesn't have Href in the same way (generated).
+        # Let's try updating TextAd.Href.
+        payload = {
+            "method": "update",
+            "params": {
+                "Ads": [{
+                    "Id": int(ad_id),
+                    "TextAd": {
+                        "Href": link_href
+                    }
+                }]
+            }
+        }
+        
+        headers = {
+            "Authorization": f"Bearer {self.token}",
+            "Accept-Language": "ru",
+            "Content-Type": "application/json",
+        }
+        
+        try:
+            with httpx.Client(timeout=30) as client:
+                response = client.post(url, json=payload, headers=headers)
+                if response.status_code == 200:
+                    data = response.json()
+                    if "error" in data:
+                         return {"success": False, "error": str(data["error"])}
+                    # Check partial errors in Result?
+                    # API v5 returns result or error. Inside result there might be Errors array for items.
+                    result = data.get("result", {})
+                    if result.get("UpdateResults", []) and result["UpdateResults"][0].get("Errors"):
+                        return {"success": False, "error": str(result["UpdateResults"][0]["Errors"])}
+                    
+                    return {"success": True, "ad_id": ad_id, "href": link_href}
+                return {"success": False, "error": f"{response.status_code} {response.text}"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
     
     def _set_ad_status(self, ad_id: str, action: str) -> Dict[str, Any]:
         """Internal method to change ad status via Yandex Direct API."""

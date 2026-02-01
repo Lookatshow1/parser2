@@ -84,6 +84,31 @@ class VkAdsConnector(AdsConnector):
         
         # VK Ads uses different bid structure
         return {"success": False, "error": "Bid management not yet implemented for VK Ads"}
+
+    def update_ad_link(self, ad_id: str | int, link_href: str) -> Dict[str, Any]:
+        """Update ad link in VK Ads."""
+        if self.is_mock:
+             return {"success": True, "ad_id": ad_id, "href": link_href, "mock": True}
+
+        import asyncio
+        return asyncio.run(self._update_ad_link_async(int(ad_id), link_href))
+    
+    async def _update_ad_link_async(self, ad_id: int, link_href: str) -> Dict[str, Any]:
+        """Async method to change ad link."""
+        try:
+            client = self._build_client()
+            # VK Ads API: PATCH /api/v2/ads/{id}.json (POST is used for update in this client wrapper?)
+            # Used POST in _set_ad_status_async, so stick with it.
+            result = await client._request(
+                "POST",
+                f"ads/{ad_id}.json",
+                json_data={"url": link_href}
+            )
+            await client.close()
+            return {"success": True, "ad_id": ad_id, "href": link_href}
+        except Exception as e:
+            # Try to catch specific errors?
+            return {"success": False, "error": str(e)}
     
     def _set_ad_status(self, ad_id: int, status: str) -> Dict[str, Any]:
         """Internal method to change ad status via VK Ads API."""

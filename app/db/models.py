@@ -908,6 +908,7 @@ class OrgUtmSettings(Base):
     utm_campaign_tpl: Mapped[str] = mapped_column(String(255), server_default="{campaign_id}", nullable=False)
     utm_content_tpl: Mapped[str] = mapped_column(String(255), server_default="{ad_id}", nullable=False)
     utm_term_tpl: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    auto_update_ads: Mapped[bool] = mapped_column(Boolean, server_default="0", nullable=False)
 
     __table_args__ = (
         UniqueConstraint("organization_id", name="uq_org_utm_settings"),

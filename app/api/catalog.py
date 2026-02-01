@@ -100,7 +100,9 @@ def get_utm_settings(
             utm_medium="cpc",
             utm_campaign_tpl="{campaign_id}",
             utm_content_tpl="{ad_id}",
-            utm_term_tpl=None
+            utm_content_tpl="{ad_id}",
+            utm_term_tpl=None,
+            auto_update_ads=False
         )
     return settings
 
@@ -120,6 +122,7 @@ def update_utm_settings(
     if item.utm_campaign_tpl is not None: settings.utm_campaign_tpl = item.utm_campaign_tpl
     if item.utm_content_tpl is not None: settings.utm_content_tpl = item.utm_content_tpl
     if item.utm_term_tpl is not None: settings.utm_term_tpl = item.utm_term_tpl
+    if item.auto_update_ads is not None: settings.auto_update_ads = item.auto_update_ads
 
     db.commit()
     db.refresh(settings)

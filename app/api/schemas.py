@@ -1010,6 +1010,7 @@ class UtmSettingsOut(BaseModel):
     utm_campaign_tpl: str
     utm_content_tpl: str
     utm_term_tpl: str | None = None
+    auto_update_ads: bool = False
 
     class Config:
         from_attributes = True
@@ -1053,6 +1054,7 @@ class UtmSettingsUpdate(BaseModel):
     utm_campaign_tpl: str | None = None
     utm_content_tpl: str | None = None
     utm_term_tpl: str | None = None
+    auto_update_ads: bool | None = None
 
 class UtmBuildRequest(BaseModel):
     url: str

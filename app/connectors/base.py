@@ -68,3 +68,10 @@ class AdsConnector(ABC):
         [{"Date": "YYYY-MM-DD", "CampaignId": "...", "Impressions": int, "Clicks": int, "Cost": float}]
         """
         raise NotImplementedError
+
+    @abstractmethod
+    def update_ad_link(self, ad_id: str | int, link_href: str) -> Dict[str, Any]:
+        """
+        Updates the link (href) of the ad in the external platform.
+        """
+        raise NotImplementedError
