@@ -13,7 +13,7 @@ from typing import Optional
 
 from app.db.session import get_db
 from app.db.models import Connection, Platform, AdCampaign
-from app.security.auth import verify_password
+from app.services.auth_service import verify_password
 from app.api.deps import get_current_user_id
 from app.security.org_context import validate_org_access
 from app.services.connector_service import get_connector
