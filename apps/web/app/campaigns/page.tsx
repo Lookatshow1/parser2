@@ -15,7 +15,9 @@ import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Skeleton } from "../../components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
-import { BadgePercent, Beaker, Send, Store } from "lucide-react";
+import { BadgePercent, Beaker, Send, Store, Sparkles } from "lucide-react";
+import { cn } from "../../lib/utils";
+import { CampaignGrid } from "../../components/campaigns/campaign-grid";
 
 const statusVariant: Record<string, "success" | "danger" | "warning" | "muted"> = {
   draft: "muted",
@@ -69,113 +71,100 @@ export default function CampaignsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Кампании"
-        subtitle="Создавайте кампании, группы и объявления в одном месте."
-        actions={<Button onClick={() => router.push("/campaigns/new")}>Создать кампанию</Button>}
-      />
+      {/* Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-text mb-1">Кампании</h1>
+          <p className="text-muted text-sm">Управляйте вашими рекламными активами в одном месте</p>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            onClick={() => router.push("/magic-launch")}
+            className="bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white font-medium shadow-lg shadow-violet-500/20"
+          >
+            <Sparkles className="w-4 h-4 mr-2" />
+            Magic Launch
+          </Button>
+          <Button variant="outline" onClick={() => router.push("/campaigns/new")}>
+            Ручной режим
+          </Button>
+        </div>
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Фильтры</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-3">
-          <div className="space-y-2">
-            <Label>Платформа</Label>
-            <select
-              className="w-full rounded-md border border-border bg-panel-strong px-3 py-2 text-sm text-text"
-              value={platform}
-              onChange={(event) => setPlatform(event.target.value)}
-            >
-              <option value="">Все</option>
-              <option value="yandex">Яндекс</option>
-              <option value="ozon">Ozon</option>
-              <option value="vk">VK</option>
-              <option value="stub">Stub</option>
-            </select>
-          </div>
-          <div className="space-y-2">
-            <Label>Статус</Label>
-            <select
-              className="w-full rounded-md border border-border bg-panel-strong px-3 py-2 text-sm text-text"
-              value={status}
-              onChange={(event) => setStatus(event.target.value)}
-            >
-              <option value="">Все</option>
-              <option value="draft">Черновик</option>
-              <option value="active">Активно</option>
-              <option value="paused">Пауза</option>
-              <option value="archived">Архив</option>
-            </select>
-          </div>
-          <div className="space-y-2">
-            <Label>Поиск</Label>
-            <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Название кампании" />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Список кампаний</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading && (
-            <div className="space-y-2">
-              <Skeleton className="h-8 w-full" />
-              <Skeleton className="h-8 w-full" />
-              <Skeleton className="h-8 w-full" />
+      {/* Magic Stats - Optional summary */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="bg-panel border-border">
+          <CardContent className="p-4 flex items-center gap-4">
+            <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center">
+              <BadgePercent className="w-5 h-5 text-green-400" />
             </div>
-          )}
-          {!loading && filtered.length === 0 && (
-            <EmptyState
-              title="Кампаний пока нет"
-              description="Создайте первую кампанию и начните наполнять структуру."
-              action={<Button size="sm" onClick={() => router.push("/campaigns/new")}>Создать кампанию</Button>}
+            <div>
+              <div className="text-2xl font-bold text-text">0 ₽</div>
+              <div className="text-xs text-muted">Расход сегодня</div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Smart Filters (Pills) */}
+      <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-panel p-2 rounded-xl border border-border">
+        <div className="flex gap-2 p-1 overflow-x-auto w-full md:w-auto scrollbar-hide">
+          {['all', 'active', 'paused', 'archived', 'draft'].map((s) => (
+            <button
+              key={s}
+              onClick={() => setStatus(s === 'all' ? '' : s)}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
+                (status === s || (status === '' && s === 'all'))
+                  ? "bg-violet-500/20 text-violet-300 shadow-sm border border-violet-500/20"
+                  : "text-muted hover:text-text hover:bg-white/5"
+              )}
+            >
+              {s === 'all' ? 'Все' : statusLabel(s)}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex gap-2 w-full md:w-auto">
+          <div className="relative w-full md:w-64">
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Поиск кампаний..."
+              className="pl-9 bg-black/20 border-white/5 focus:border-violet-500/50"
             />
-          )}
-          {!loading && filtered.length > 0 && (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Название</TableHead>
-                  <TableHead>Платформа</TableHead>
-                  <TableHead>Статус</TableHead>
-                  <TableHead>Бюджет</TableHead>
-                  <TableHead>Обновлено</TableHead>
-                  <TableHead className="text-right">Действия</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell className="font-medium text-text">{item.name}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2 text-text">
-                        {(() => {
-                          const Icon = platformMeta[item.platform]?.Icon;
-                          return Icon ? <Icon className="h-4 w-4 text-muted" /> : null;
-                        })()}
-                        <span>{platformMeta[item.platform]?.label || item.platform}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={statusVariant[item.status] || "muted"}>{statusLabel(item.status)}</Badge>
-                    </TableCell>
-                    <TableCell>{item.budget_total ? `${item.budget_total} ₽` : item.budget_daily ? `${item.budget_daily} ₽/день` : "—"}</TableCell>
-                    <TableCell>{new Date(item.updated_at).toLocaleDateString("ru-RU")}</TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="secondary" size="sm" onClick={() => router.push(`/campaigns/${item.id}`)}>
-                        Открыть
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+            <Store className="w-4 h-4 text-muted absolute left-3 top-3 opacity-50" />
+          </div>
+        </div>
+      </div>
+
+      {/* Grid Content */}
+      <div className="min-h-[400px]">
+        {loading && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[1, 2, 3].map(i => <Skeleton key={i} className="h-[200px] w-full rounded-xl" />)}
+          </div>
+        )}
+
+        {!loading && filtered.length === 0 && (
+          <EmptyState
+            title="Кампаний не найдено"
+            description={query ? "Попробуйте изменить параметры поиска" : "Запустите вашу первую кампанию через Magic Launch"}
+            action={
+              !query ? (
+                <Button onClick={() => router.push("/magic-launch")} className="bg-gradient-to-r from-violet-600 to-fuchsia-600">
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Запустить рекламу
+                </Button>
+              ) : undefined
+            }
+          />
+        )}
+
+        {!loading && filtered.length > 0 && (
+          <CampaignGrid campaigns={filtered} onUpdate={load} />
+        )}
+      </div>
     </div>
   );
 }
