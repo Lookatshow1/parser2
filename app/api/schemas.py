@@ -834,6 +834,7 @@ class CampaignUpdateRequest(BaseModel):
 class CampaignOut(BaseModel):
     id: int
     organization_id: int
+    connection_id: int
     platform: Platform
     name: str
     objective: str | None
@@ -915,6 +916,7 @@ class CampaignAdUpdateRequest(BaseModel):
 class CampaignAdOut(BaseModel):
     id: int
     ad_group_id: int
+    connection_id: int
     name: str
     status: str
     creative_json: dict

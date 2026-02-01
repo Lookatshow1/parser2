@@ -128,3 +128,9 @@ def get_current_org_id(
     org_id, _membership = _resolve_org_membership(user, db, x_org_id)
     return org_id
 
+
+def get_current_user_id(
+    user: User = Depends(get_current_user),
+) -> int:
+    return user.id
+

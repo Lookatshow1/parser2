@@ -13,6 +13,11 @@ import {
   getCampaignTree,
   listCampaignEvents,
   publishCampaign,
+  pauseCampaign,
+  enableCampaign,
+  pauseAd,
+  enableAd,
+  setAdBid,
 } from "../../../lib/api";
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
@@ -123,10 +128,34 @@ export default function CampaignDetailPage() {
   };
 
   const handleStatusChange = async (action: "publish" | "pause" | "archive") => {
+    if (!tree) return;
     try {
-      await publishCampaign(campaignId, action);
+      if (action === "pause") {
+        await pauseCampaign(campaignId, tree.connection_id);
+        toast.success("Кампания приостановлена");
+      } else if (action === "publish") {
+        await enableCampaign(campaignId, tree.connection_id);
+        toast.success("Кампания активирована");
+      } else {
+        await publishCampaign(campaignId, action);
+        toast.success("Статус кампании обновлён");
+      }
       await load();
-      toast.success("Статус кампании обновлён");
+    } catch (err) {
+      toast.error((err as Error).message);
+    }
+  };
+
+  const handleAdStatusChange = async (adId: number, action: "pause" | "enable") => {
+    if (!tree) return;
+    try {
+      if (action === "pause") {
+        await pauseAd(campaignId, adId, tree.connection_id);
+      } else {
+        await enableAd(campaignId, adId, tree.connection_id);
+      }
+      await load();
+      toast.success(action === "pause" ? "Объявление остановлено" : "Объявление запущено");
     } catch (err) {
       toast.error((err as Error).message);
     }
@@ -294,6 +323,47 @@ export default function CampaignDetailPage() {
                     <div className="text-xs text-accent">{adForm.call_to_action}</div>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Список объявлений</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Название</TableHead>
+                      <TableHead>Группа</TableHead>
+                      <TableHead>Статус</TableHead>
+                      <TableHead>Действия</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {tree?.ad_groups.flatMap(g => g.ads.map(ad => ({ ...ad, groupName: g.name }))).map((ad) => (
+                      <TableRow key={ad.id}>
+                        <TableCell className="font-medium text-text">{ad.name}</TableCell>
+                        <TableCell className="text-muted text-sm">{ad.groupName}</TableCell>
+                        <TableCell>
+                          <Badge variant={statusVariant[ad.status] || "muted"}>{statusLabel(ad.status)}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {ad.status === 'active' && (
+                              <Button size="sm" variant="secondary" onClick={() => handleAdStatusChange(ad.id, "pause")}>Пауза</Button>
+                            )}
+                            {ad.status === 'paused' && (
+                              <Button size="sm" variant="outline" onClick={() => handleAdStatusChange(ad.id, "enable")}>Запустить</Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </CardContent>
             </Card>
           </div>

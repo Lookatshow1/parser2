@@ -105,6 +105,7 @@ export type ConnectionResponse = {
 export type Campaign = {
   id: number;
   organization_id: number;
+  connection_id: number;
   platform: string;
   name: string;
   status: string;
@@ -138,6 +139,7 @@ export type CampaignAdGroup = {
 export type CampaignAd = {
   id: number;
   ad_group_id: number;
+  connection_id: number;
   name: string;
   status: string;
   creative_json: Record<string, unknown>;
@@ -579,6 +581,41 @@ export async function publishCampaign(campaignId: number, action: "publish" | "p
   if (!orgId) throw new Error(ru.messages.selectOrg);
   return request<Campaign>(`/orgs/${orgId}/campaigns/${campaignId}/${action}`, {
     method: "POST",
+  });
+}
+
+export async function pauseCampaign(campaignId: number, connectionId: number) {
+  return request<{ success: boolean; message: string }>(`/campaigns/${campaignId}/pause`, {
+    method: "POST",
+    body: JSON.stringify({ connection_id: connectionId }),
+  });
+}
+
+export async function enableCampaign(campaignId: number, connectionId: number) {
+  return request<{ success: boolean; message: string }>(`/campaigns/${campaignId}/enable`, {
+    method: "POST",
+    body: JSON.stringify({ connection_id: connectionId }),
+  });
+}
+
+export async function pauseAd(campaignId: number, adId: number | string, connectionId: number) {
+  return request<{ success: boolean; message: string }>(`/campaigns/${campaignId}/ads/${adId}/pause`, {
+    method: "POST",
+    body: JSON.stringify({ connection_id: connectionId, ad_id: adId }),
+  });
+}
+
+export async function enableAd(campaignId: number, adId: number | string, connectionId: number) {
+  return request<{ success: boolean; message: string }>(`/campaigns/${campaignId}/ads/${adId}/enable`, {
+    method: "POST",
+    body: JSON.stringify({ connection_id: connectionId, ad_id: adId }),
+  });
+}
+
+export async function setAdBid(campaignId: number, adId: number | string, connectionId: number, bid: number) {
+  return request<{ success: boolean; message: string }>(`/campaigns/${campaignId}/ads/${adId}/set-bid`, {
+    method: "POST",
+    body: JSON.stringify({ connection_id: connectionId, ad_id: adId, bid }),
   });
 }
 
