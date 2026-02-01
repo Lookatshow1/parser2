@@ -251,11 +251,54 @@ class OzonOAuth(OAuthProvider):
         return await self.exchange_code("")
 
 
+class AvitoOAuth(OAuthProvider):
+    """
+    Avito OAuth2 Provider.
+    
+    Docs: https://developers.avito.ru/api-catalog
+    Uses OAuth2 Client Credentials flow for API access.
+    Requires paid business tariff (Basic/Extended/Maximum).
+    """
+    
+    platform_name = "avito"
+    authorize_url = "https://www.avito.ru/oauth"
+    token_url = "https://api.avito.ru/token/"
+    
+    async def exchange_code(self, code: str) -> OAuthToken:
+        """
+        Avito uses client credentials grant.
+        The 'code' parameter is not used - we use client_id/client_secret.
+        """
+        response = await self._http_client.post(
+            self.token_url,
+            data={
+                "client_id": self.client_id,
+                "client_secret": self.client_secret,
+                "grant_type": "client_credentials",
+            },
+        )
+        response.raise_for_status()
+        data = response.json()
+        
+        # Avito tokens are valid for 24 hours
+        expires_in = data.get("expires_in", 86400)
+        return OAuthToken(
+            access_token=data["access_token"],
+            token_type=data.get("token_type", "Bearer"),
+            expires_at=datetime.utcnow() + timedelta(seconds=expires_in),
+        )
+    
+    async def refresh_token(self, token: OAuthToken) -> OAuthToken:
+        """Refresh Avito token (get new one via client credentials)."""
+        return await self.exchange_code("")
+
+
 # Provider registry
 OAUTH_PROVIDERS = {
     "yandex": YandexOAuth,
     "vk": VKAdsOAuth,
     "ozon": OzonOAuth,
+    "avito": AvitoOAuth,
 }
 
 

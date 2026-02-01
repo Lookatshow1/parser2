@@ -171,6 +171,16 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("VK_ADS_REDIRECT_URI"),
     )
 
+    # Avito API
+    avito_client_id: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("AVITO_CLIENT_ID"),
+    )
+    avito_client_secret: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("AVITO_CLIENT_SECRET"),
+    )
+
 
     # YooKassa Payments
     yookassa_shop_id: str | None = Field(

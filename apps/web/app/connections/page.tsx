@@ -55,12 +55,19 @@ const platformInfo: Record<string, {
     description: "Введите API-ключи из личного кабинета Ozon Seller.",
     fields: ["client_id", "client_secret"],
   },
+  avito: {
+    name: "Авито",
+    method: "apikey",
+    description: "Введите Client ID и Secret из раздела API на Авито Pro.",
+    fields: ["client_id", "client_secret", "user_id"],
+  },
 };
 
 const credentialsTemplates: Record<string, string> = {
   yandex: JSON.stringify({ mock: true }),
   ozon: JSON.stringify({ client_id: "", client_secret: "" }),
   vk: JSON.stringify({ code: "", account_id: "" }),
+  avito: JSON.stringify({ client_id: "", client_secret: "", user_id: "" }),
 };
 
 const VK_CLIENT_ID = "Xm3G7VoWTh79zWQP";

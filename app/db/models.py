@@ -16,6 +16,7 @@ class Platform(str, enum.Enum):
     yandex = "yandex"
     ozon = "ozon"
     vk = "vk"
+    avito = "avito"
     stub = "stub"
 
 
