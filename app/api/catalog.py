@@ -100,7 +100,6 @@ def get_utm_settings(
             utm_medium="cpc",
             utm_campaign_tpl="{campaign_id}",
             utm_content_tpl="{ad_id}",
-            utm_content_tpl="{ad_id}",
             utm_term_tpl=None,
             auto_update_ads=False
         )
