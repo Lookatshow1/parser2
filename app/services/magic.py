@@ -228,7 +228,13 @@ class MagicService:
                 try:
                     result = json.loads(result)
                 except:
-                    result = self._generate_fallback_ads(business_info)
+                    logger.warning("Failed to parse AI response as JSON, using fallback")
+                    return self._generate_fallback_ads(business_info)
+            
+            # Validate result has ads
+            if not result or not isinstance(result, dict) or not result.get("ads"):
+                logger.warning(f"AI returned empty or invalid result: {result}, using fallback")
+                return self._generate_fallback_ads(business_info)
             
             return result
             
