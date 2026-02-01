@@ -17,7 +17,7 @@ import logging
 from app.db.session import get_db
 from app.db.models import Connection, Platform
 from app.core.config import get_settings
-from app.security.auth import get_current_user, get_current_org
+from app.api.deps import get_current_user, get_current_org
 from app.db.models import User, Organization
 from app.services.oauth.base import get_oauth_provider, OAuthToken
 from app.security.credentials_crypto import maybe_encrypt
