@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import { getToken, getOrgId } from "@/lib/session";
 
 // Types
 interface LaunchResult {
@@ -83,9 +84,15 @@ const api = {
         generate_voice: boolean;
         generate_video: boolean;
     }): Promise<LaunchResult> {
+        const token = getToken();
+        const orgId = getOrgId();
         const res = await fetch('/api/magic-launch/launch', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+                ...(orgId ? { 'X-Org-Id': orgId } : {})
+            },
             body: JSON.stringify(data),
             credentials: 'include'
         });
@@ -101,9 +108,15 @@ const api = {
         platforms: string[];
         business_type?: string;
     }): Promise<EstimateResult> {
+        const token = getToken();
+        const orgId = getOrgId();
         const res = await fetch('/api/magic-launch/estimate', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+                ...(orgId ? { 'X-Org-Id': orgId } : {})
+            },
             body: JSON.stringify(data),
             credentials: 'include'
         });
@@ -112,7 +125,13 @@ const api = {
     },
 
     async getPlatforms(): Promise<{ platforms: Array<{ platform: string; name: string; status: string }> }> {
+        const token = getToken();
+        const orgId = getOrgId();
         const res = await fetch('/api/magic-launch/platforms', {
+            headers: {
+                ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+                ...(orgId ? { 'X-Org-Id': orgId } : {})
+            },
             credentials: 'include'
         });
         if (!res.ok) throw new Error('Failed to get platforms');
@@ -628,9 +647,15 @@ export function MagicLaunchButton() {
 
         try {
             // Use SSE for real-time progress
+            const token = getToken();
+            const orgId = getOrgId();
             const response = await fetch('/api/magic-launch/launch-stream', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+                    ...(orgId ? { 'X-Org-Id': orgId } : {})
+                },
                 body: JSON.stringify(data),
                 credentials: 'include'
             });
