@@ -12,10 +12,9 @@ from pydantic import BaseModel
 from typing import Optional
 
 from app.db.session import get_db
-from app.db.models import Connection, Platform, AdCampaign
+from app.db.models import Connection, Platform, AdCampaign, Organization
 from app.services.auth_service import verify_password
-from app.api.deps import get_current_user_id
-from app.security.org_context import validate_org_access
+from app.api.deps import get_current_user_id, get_current_org
 from app.services.connector_service import get_connector
 from app.security.credentials_crypto import maybe_decrypt
 from app.services.audit import log_org_event
@@ -65,10 +64,10 @@ def pause_campaign(
     payload: CampaignActionRequest,
     db: Session = Depends(get_db),
     current_user_id: int = Depends(get_current_user_id),
+    org: Organization = Depends(get_current_org),
 ):
     """Pause a campaign in the advertising platform."""
-    org_id = validate_org_access(db, current_user_id)
-    connection, connector = _get_connection_and_connector(db, payload.connection_id, org_id)
+    connection, connector = _get_connection_and_connector(db, payload.connection_id, org.id)
     
     # Get external campaign ID
     campaign = db.query(AdCampaign).filter(AdCampaign.id == campaign_id).first()
@@ -84,7 +83,7 @@ def pause_campaign(
     
     log_org_event(
         db,
-        organization_id=org_id,
+        organization_id=org.id,
         actor_user_id=current_user_id,
         action="campaign_paused",
         subject_type="campaign",
@@ -106,10 +105,10 @@ def enable_campaign(
     payload: CampaignActionRequest,
     db: Session = Depends(get_db),
     current_user_id: int = Depends(get_current_user_id),
+    org: Organization = Depends(get_current_org),
 ):
     """Enable a paused campaign in the advertising platform."""
-    org_id = validate_org_access(db, current_user_id)
-    connection, connector = _get_connection_and_connector(db, payload.connection_id, org_id)
+    connection, connector = _get_connection_and_connector(db, payload.connection_id, org.id)
     
     campaign = db.query(AdCampaign).filter(AdCampaign.id == campaign_id).first()
     if not campaign:
@@ -124,7 +123,7 @@ def enable_campaign(
     
     log_org_event(
         db,
-        organization_id=org_id,
+        organization_id=org.id,
         actor_user_id=current_user_id,
         action="campaign_enabled",
         subject_type="campaign",
@@ -147,10 +146,10 @@ def pause_ad(
     payload: CampaignActionRequest,
     db: Session = Depends(get_db),
     current_user_id: int = Depends(get_current_user_id),
+    org: Organization = Depends(get_current_org),
 ):
     """Pause a specific ad in the advertising platform."""
-    org_id = validate_org_access(db, current_user_id)
-    connection, connector = _get_connection_and_connector(db, payload.connection_id, org_id)
+    connection, connector = _get_connection_and_connector(db, payload.connection_id, org.id)
     
     if not hasattr(connector, "pause_ad"):
         raise HTTPException(status_code=400, detail="Platform doesn't support pause_ad")
@@ -159,7 +158,7 @@ def pause_ad(
     
     log_org_event(
         db,
-        organization_id=org_id,
+        organization_id=org.id,
         actor_user_id=current_user_id,
         action="ad_paused",
         subject_type="ad",
@@ -182,10 +181,10 @@ def enable_ad(
     payload: CampaignActionRequest,
     db: Session = Depends(get_db),
     current_user_id: int = Depends(get_current_user_id),
+    org: Organization = Depends(get_current_org),
 ):
     """Enable a paused ad in the advertising platform."""
-    org_id = validate_org_access(db, current_user_id)
-    connection, connector = _get_connection_and_connector(db, payload.connection_id, org_id)
+    connection, connector = _get_connection_and_connector(db, payload.connection_id, org.id)
     
     if not hasattr(connector, "enable_ad"):
         raise HTTPException(status_code=400, detail="Platform doesn't support enable_ad")
@@ -194,7 +193,7 @@ def enable_ad(
     
     log_org_event(
         db,
-        organization_id=org_id,
+        organization_id=org.id,
         actor_user_id=current_user_id,
         action="ad_enabled",
         subject_type="ad",
@@ -217,10 +216,10 @@ def set_ad_bid(
     payload: BidActionRequest,
     db: Session = Depends(get_db),
     current_user_id: int = Depends(get_current_user_id),
+    org: Organization = Depends(get_current_org),
 ):
     """Set bid for an ad in the advertising platform."""
-    org_id = validate_org_access(db, current_user_id)
-    connection, connector = _get_connection_and_connector(db, payload.connection_id, org_id)
+    connection, connector = _get_connection_and_connector(db, payload.connection_id, org.id)
     
     if not hasattr(connector, "set_bid"):
         raise HTTPException(status_code=400, detail="Platform doesn't support set_bid")
@@ -229,7 +228,7 @@ def set_ad_bid(
     
     log_org_event(
         db,
-        organization_id=org_id,
+        organization_id=org.id,
         actor_user_id=current_user_id,
         action="ad_bid_changed",
         subject_type="ad",
