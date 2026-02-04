@@ -2,11 +2,12 @@
 Admin API Endpoints
 
 Protected endpoints for admin panel.
-Credentials: admin / admin
+SECURITY: Credentials MUST be set via environment variables in production.
 """
 import os
 import hashlib
 import secrets
+import logging
 from datetime import datetime, timedelta
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Header
@@ -19,11 +20,28 @@ from app.db.models import User, Organization, Membership
 from app.db.models_drafts import DraftCampaign, DraftAd
 from app.db.models_billing import BillingAccount, BillingTransaction
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
-# Admin credentials (in production, use env vars)
-ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin")
+# Admin credentials - MUST be set in production
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
+ENV = os.getenv("ENV", "dev")
+
+# Security: Require strong credentials in production
+if ENV == "production":
+    if not ADMIN_USERNAME or not ADMIN_PASSWORD:
+        raise RuntimeError("ADMIN_USERNAME and ADMIN_PASSWORD must be set in production")
+    if len(ADMIN_PASSWORD) < 16:
+        raise RuntimeError("ADMIN_PASSWORD must be at least 16 characters in production")
+else:
+    # Dev defaults (will log warning)
+    if not ADMIN_USERNAME:
+        ADMIN_USERNAME = "admin"
+        logger.warning("ADMIN_USERNAME not set, using default 'admin' (DEV ONLY)")
+    if not ADMIN_PASSWORD:
+        ADMIN_PASSWORD = "admin"
+        logger.warning("ADMIN_PASSWORD not set, using default 'admin' (DEV ONLY)")
 
 # Simple token storage (in production, use Redis or DB)
 _admin_tokens = {}

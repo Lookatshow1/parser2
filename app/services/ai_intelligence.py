@@ -104,7 +104,7 @@ Be specific and actionable. Focus on Russian market specifics.
         if isinstance(analysis, str):
             try:
                 analysis = json.loads(analysis)
-            except:
+            except (json.JSONDecodeError, ValueError):
                 analysis = {"raw_analysis": analysis}
 
         analysis["analyzed_at"] = datetime.utcnow().isoformat()
@@ -478,7 +478,7 @@ Be specific to Russian advertising market and {platform} platform requirements.
         if isinstance(score, str):
             try:
                 score = json.loads(score)
-            except:
+            except (json.JSONDecodeError, ValueError):
                 score = {"overall_score": 5, "error": "Failed to parse"}
 
         score["scored_at"] = datetime.utcnow().isoformat()
@@ -632,7 +632,7 @@ Focus on Russian market and platform-specific features.
         if isinstance(audiences, str):
             try:
                 audiences = json.loads(audiences)
-            except:
+            except (json.JSONDecodeError, ValueError):
                 audiences = {"error": "Failed to parse"}
 
         return audiences
@@ -729,7 +729,7 @@ Return JSON:
         if isinstance(intent, str):
             try:
                 intent = json.loads(intent)
-            except:
+            except (json.JSONDecodeError, ValueError):
                 intent = {"intent": "unknown", "confidence": 0}
 
         return intent

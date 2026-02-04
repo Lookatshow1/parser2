@@ -2,11 +2,18 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from app.api.deps import get_db, get_current_user
-from app.db.models import User
+from app.db.models import User, Membership
 from app.db.models_drafts import DraftCampaign, DraftAdGroup, DraftAd
 from app.api.drafts_schemas import DraftCampaignResponse, DraftCampaignCreate
 
 router = APIRouter(prefix="/drafts", tags=["Drafts"])
+
+
+def get_user_org_ids(db: Session, user: User) -> List[int]:
+    """Get organization IDs the user belongs to."""
+    memberships = db.query(Membership).filter(Membership.user_id == user.id).all()
+    return [m.organization_id for m in memberships]
+
 
 @router.get("/", response_model=List[DraftCampaignResponse])
 def list_drafts(
@@ -15,10 +22,14 @@ def list_drafts(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # TODO: Filter by organization_id
-    # Assuming user has org context or we fetch all for their orgs
-    # Simplified: Get all drafts for now
-    return db.query(DraftCampaign).offset(skip).limit(limit).all()
+    """List drafts filtered by user's organizations."""
+    org_ids = get_user_org_ids(db, current_user)
+    if not org_ids:
+        return []
+    return db.query(DraftCampaign).filter(
+        DraftCampaign.organization_id.in_(org_ids)
+    ).offset(skip).limit(limit).all()
+
 
 @router.get("/{id}", response_model=DraftCampaignResponse)
 def get_draft(
@@ -26,10 +37,16 @@ def get_draft(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    draft = db.query(DraftCampaign).filter(DraftCampaign.id == id).first()
+    """Get draft with authorization check."""
+    org_ids = get_user_org_ids(db, current_user)
+    draft = db.query(DraftCampaign).filter(
+        DraftCampaign.id == id,
+        DraftCampaign.organization_id.in_(org_ids)
+    ).first()
     if not draft:
         raise HTTPException(status_code=404, detail="Draft not found")
     return draft
+
 
 @router.delete("/{id}")
 def delete_draft(
@@ -37,7 +54,12 @@ def delete_draft(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    draft = db.query(DraftCampaign).filter(DraftCampaign.id == id).first()
+    """Delete draft with authorization check."""
+    org_ids = get_user_org_ids(db, current_user)
+    draft = db.query(DraftCampaign).filter(
+        DraftCampaign.id == id,
+        DraftCampaign.organization_id.in_(org_ids)
+    ).first()
     if not draft:
         raise HTTPException(status_code=404, detail="Draft not found")
     db.delete(draft)
