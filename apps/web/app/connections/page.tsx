@@ -29,7 +29,7 @@ import { ConnectionList } from "../../components/connections/ConnectionList";
 import { SyncRunsPanel } from "../../components/connections/SyncRunsPanel";
 import { MetricsTable } from "../../components/connections/MetricsTable";
 
-const platforms = ["yandex", "vk", "ozon"];
+const platforms = ["yandex", "vk", "ozon", "avito"];
 
 const platformInfo: Record<string, {
   name: string;

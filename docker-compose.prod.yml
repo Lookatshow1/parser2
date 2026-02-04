@@ -1,0 +1,174 @@
+# =============================================================================
+# Reklai Production Docker Compose
+# Usage: docker-compose -f docker-compose.prod.yml up -d
+# =============================================================================
+
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-reklai}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-reklai}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-reklai}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: always
+    networks:
+      - internal
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: always
+    networks:
+      - internal
+
+  api:
+    build:
+      context: .
+      target: production
+    environment:
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-reklai}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-reklai}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
+      JWT_ALG: HS256
+      ACCESS_TTL_MIN: ${ACCESS_TTL_MIN:-60}
+      REFRESH_TTL_DAYS: ${REFRESH_TTL_DAYS:-7}
+      WEB_BASE_URL: ${WEB_BASE_URL:-https://reklai.ru}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://reklai.ru,https://www.reklai.ru}
+      ENV: production
+      ENABLE_DEV_ENDPOINTS: "false"
+      CREDENTIALS_ENC_KEYS: ${CREDENTIALS_ENC_KEYS:?CREDENTIALS_ENC_KEYS is required}
+      CREDENTIALS_ENC_ACTIVE_KID: ${CREDENTIALS_ENC_ACTIVE_KID:-prod}
+      # AI Providers
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      GIGACHAT_AUTH_KEY: ${GIGACHAT_AUTH_KEY}
+      # Telegram
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      # Admin
+      ADMIN_USERNAME: ${ADMIN_USERNAME:?ADMIN_USERNAME is required}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: always
+    networks:
+      - internal
+      - web
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api.rule=Host(`api.reklai.ru`)"
+      - "traefik.http.routers.api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.api.loadbalancer.server.port=8000"
+
+  worker:
+    build:
+      context: .
+      target: production
+    command: celery -A app.workers.celery_app.celery_app worker --loglevel=info -Q main-queue,celery --concurrency=4
+    environment:
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-reklai}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-reklai}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      SECRET_KEY: ${SECRET_KEY}
+      CREDENTIALS_ENC_KEYS: ${CREDENTIALS_ENC_KEYS}
+      CREDENTIALS_ENC_ACTIVE_KID: ${CREDENTIALS_ENC_ACTIVE_KID:-prod}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      GIGACHAT_AUTH_KEY: ${GIGACHAT_AUTH_KEY}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: always
+    networks:
+      - internal
+
+  beat:
+    build:
+      context: .
+      target: production
+    command: celery -A app.workers.celery_app.celery_app beat --loglevel=info
+    environment:
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-reklai}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-reklai}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      SECRET_KEY: ${SECRET_KEY}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: always
+    networks:
+      - internal
+
+  web:
+    build:
+      context: ./apps/web
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://api.reklai.ru}
+      NODE_ENV: production
+    restart: always
+    networks:
+      - web
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.web.rule=Host(`reklai.ru`) || Host(`www.reklai.ru`)"
+      - "traefik.http.routers.web.tls.certresolver=letsencrypt"
+      - "traefik.http.services.web.loadbalancer.server.port=3000"
+
+  # Optional: Traefik reverse proxy with automatic HTTPS
+  traefik:
+    image: traefik:v2.10
+    command:
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:-admin@reklai.ru}"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik_certs:/letsencrypt
+    restart: always
+    networks:
+      - web
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.reklai.ru`)"
+      - "traefik.http.routers.dashboard.service=api@internal"
+      - "traefik.http.routers.dashboard.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.dashboard.middlewares=auth"
+      - "traefik.http.middlewares.auth.basicauth.users=${TRAEFIK_AUTH}"
+
+volumes:
+  db_data:
+  redis_data:
+  traefik_certs:
+
+networks:
+  internal:
+    driver: bridge
+  web:
+    driver: bridge

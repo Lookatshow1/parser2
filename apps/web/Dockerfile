@@ -1,4 +1,8 @@
-FROM node:18-alpine AS base
+# =============================================================================
+# Reklai Frontend Dockerfile
+# =============================================================================
+
+FROM node:20-alpine AS base
 
 # Install dependencies only when needed
 FROM base AS deps
@@ -51,5 +55,9 @@ EXPOSE 3000
 ENV PORT 3000
 # set hostname to localhost
 ENV HOSTNAME "0.0.0.0"
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD wget -q --spider http://localhost:3000 || exit 1
 
 CMD ["node", "server.js"]
