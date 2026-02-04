@@ -187,7 +187,7 @@ export default function NotificationsPage() {
                     ) : (
                         <div className="space-y-4">
                             <ol className="text-sm text-muted space-y-2 list-decimal list-inside">
-                                <li>Найдите бота <code>@EffectoBot</code> в Telegram</li>
+                                <li>Найдите бота <code>@ReklaiBot</code> в Telegram</li>
                                 <li>Отправьте команду <code>/start</code></li>
                                 <li>Скопируйте полученный Chat ID и вставьте ниже</li>
                             </ol>

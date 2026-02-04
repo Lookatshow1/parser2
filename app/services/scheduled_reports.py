@@ -189,7 +189,7 @@ class ReportTemplates:
                 lines.append(f"  • {item['label']}: `{item['value']}`")
             lines.append("")
         
-        lines.append("_Сгенерировано Effecto_")
+        lines.append("_Сгенерировано Reklai_")
         return "\n".join(lines)
     
     @staticmethod
@@ -274,7 +274,7 @@ class ReportTemplates:
         html += """
         </div>
         <div class="footer">
-            Сгенерировано Effecto • effecto.ai
+            Сгенерировано Reklai • reklai.ru
         </div>
     </div>
 </body>

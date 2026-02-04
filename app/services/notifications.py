@@ -153,7 +153,7 @@ class NotificationService:
                         "type": "context",
                         "elements": [{
                             "type": "mrkdwn",
-                            "text": f"Effecto • {datetime.now().strftime('%H:%M')}"
+                            "text": f"Reklai • {datetime.now().strftime('%H:%M')}"
                         }],
                     },
                 ],

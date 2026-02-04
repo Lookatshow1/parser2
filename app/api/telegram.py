@@ -206,7 +206,7 @@ async def send_test_notification(
     else:
         result = await service.send_message(
             chat_id, 
-            "✅ <b>Тестовое уведомление</b>\n\nEffecto подключён и работает!"
+            "✅ <b>Тестовое уведомление</b>\n\nReklai подключён и работает!"
         )
     
     await service.close()

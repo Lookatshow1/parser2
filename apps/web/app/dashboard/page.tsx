@@ -205,7 +205,7 @@ export default function DashboardPage() {
     if (!hasConnections) {
         return (
             <div className="space-y-6">
-                <PageHeader title="Добро пожаловать в Effecto!" />
+                <PageHeader title="Добро пожаловать в Reklai!" />
 
                 <Card className="border-accent/30 bg-accent/5">
                     <CardContent className="py-12 text-center">

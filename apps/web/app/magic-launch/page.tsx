@@ -11,7 +11,7 @@ export default function MagicLaunchPage() {
             <div className="text-center mb-10">
                 <div className="inline-flex items-center gap-2 bg-violet-500/10 border border-violet-500/30 rounded-full px-4 py-2 mb-6">
                     <Sparkles className="w-4 h-4 text-violet-400" />
-                    <span className="text-violet-400 text-sm font-medium">Effecto AI</span>
+                    <span className="text-violet-400 text-sm font-medium">Reklai AI</span>
                 </div>
 
                 <h1 className="text-4xl md:text-5xl font-bold text-text mb-4">

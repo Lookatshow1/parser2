@@ -79,10 +79,10 @@ export default function Error({
                     <p className="text-sm text-gray-500">
                         Если проблема повторяется, напишите в поддержку:{" "}
                         <a
-                            href="mailto:support@effecto.ai"
+                            href="mailto:support@reklai.ai"
                             className="text-violet-400 hover:text-violet-300"
                         >
-                            support@effecto.ai
+                            support@reklai.ai
                         </a>
                     </p>
                 </div>

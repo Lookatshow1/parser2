@@ -1,5 +1,5 @@
 export const ru = {
-  appName: "Рекламный кабинет",
+  appName: "Reklai",
   nav: {
     dashboard: "Дашборд",
     connections: "Подключения",

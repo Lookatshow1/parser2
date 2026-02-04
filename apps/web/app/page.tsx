@@ -228,7 +228,7 @@ export default function LandingPage() {
     {
       name: "Алексей Морозов",
       role: "Основатель интернет-магазина",
-      text: "Раньше тратил 20 часов в неделю на рекламу. Теперь — 20 минут. Effecto делает всё сам.",
+      text: "Раньше тратил 20 часов в неделю на рекламу. Теперь — 20 минут. Reklai делает всё сам.",
       result: "ROAS вырос с 2x до 5x",
       avatar: "А"
     },
@@ -242,7 +242,7 @@ export default function LandingPage() {
     {
       name: "Дмитрий Соколов",
       role: "Руководитель B2B компании",
-      text: "Уволил агентство. Effecto работает лучше и стоит в 10 раз дешевле.",
+      text: "Уволил агентство. Reklai работает лучше и стоит в 10 раз дешевле.",
       result: "Экономия 150 000₽/мес",
       avatar: "Д"
     }
@@ -251,7 +251,7 @@ export default function LandingPage() {
   const faqs = [
     {
       q: "Как это работает без моего участия?",
-      a: "Effecto AI анализирует ваш сайт, создаёт рекламные объявления, запускает их на Яндекс.Директ, VK и Ozon, а затем автоматически оптимизирует: отключает неэффективные, усиливает работающие, корректирует ставки 24/7."
+      a: "Reklai AI анализирует ваш сайт, создаёт рекламные объявления, запускает их на Яндекс.Директ, VK и Ozon, а затем автоматически оптимизирует: отключает неэффективные, усиливает работающие, корректирует ставки 24/7."
     },
     {
       q: "Нужно ли разбираться в рекламе?",
@@ -289,7 +289,7 @@ export default function LandingPage() {
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-lg shadow-violet-500/20">
               <Sparkles className="h-5 w-5 text-white" />
             </div>
-            <span className="text-xl font-bold">Effecto</span>
+            <span className="text-xl font-bold">Reklai</span>
           </Link>
 
           <nav className="hidden md:flex items-center gap-8 text-sm text-zinc-400">
@@ -346,7 +346,7 @@ export default function LandingPage() {
 
           {/* Value proposition - clear JTBD */}
           <p className="text-lg sm:text-xl text-zinc-400 max-w-2xl mx-auto mb-10 leading-relaxed">
-            <span className="text-white">Effecto AI</span> создаёт рекламу, запускает на всех площадках
+            <span className="text-white">Reklai AI</span> создаёт рекламу, запускает на всех площадках
             и оптимизирует 24/7. <span className="text-white">Вы получаете клиентов — без маркетолога и агентства.</span>
           </p>
 
@@ -566,20 +566,20 @@ export default function LandingPage() {
       </section>
 
       {/* ================================================================= */}
-      {/* SOLUTION - How Effecto AI works */}
+      {/* SOLUTION - How Reklai AI works */}
       {/* ================================================================= */}
       <section id="how" className="py-20 px-4 border-t border-white/5">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16">
             <div className="inline-flex items-center gap-2 bg-violet-500/10 border border-violet-500/30 rounded-full px-4 py-2 mb-6">
               <Sparkles className="h-4 w-4 text-violet-400" />
-              <span className="text-sm text-violet-300">Effecto AI</span>
+              <span className="text-sm text-violet-300">Reklai AI</span>
             </div>
             <h2 className="text-3xl sm:text-4xl font-bold mb-4">
               Один AI. <span className="text-violet-400">Вся реклама.</span>
             </h2>
             <p className="text-zinc-400 text-lg max-w-2xl mx-auto">
-              Effecto AI — это не просто инструмент. Это ваш персональный маркетолог, который работает 24/7 и никогда не устаёт.
+              Reklai AI — это не просто инструмент. Это ваш персональный маркетолог, который работает 24/7 и никогда не устаёт.
             </p>
           </div>
 
@@ -624,7 +624,7 @@ export default function LandingPage() {
 
           {/* AI Capabilities */}
           <div className="bg-gradient-to-br from-violet-500/10 to-fuchsia-500/10 rounded-3xl p-8 border border-white/10">
-            <h3 className="text-xl font-semibold text-center mb-8">Что умеет Effecto AI</h3>
+            <h3 className="text-xl font-semibold text-center mb-8">Что умеет Reklai AI</h3>
             <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-6">
               {[
                 { icon: "✍️", title: "Пишет тексты", desc: "Заголовки, объявления, призывы" },
@@ -786,7 +786,7 @@ export default function LandingPage() {
           </div>
 
           <p className="text-center text-sm text-zinc-500 mt-8">
-            Нужно больше? <a href="mailto:hello@effecto.ru" className="text-violet-400 hover:underline">Напишите нам</a> — обсудим индивидуальные условия
+            Нужно больше? <a href="mailto:hello@reklai.ru" className="text-violet-400 hover:underline">Напишите нам</a> — обсудим индивидуальные условия
           </p>
         </div>
       </section>
@@ -855,7 +855,7 @@ export default function LandingPage() {
             <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center">
               <Sparkles className="h-4 w-4 text-white" />
             </div>
-            <span>© 2026 Effecto</span>
+            <span>© 2026 Reklai</span>
           </div>
           <div className="flex gap-6">
             <a href="#" className="hover:text-white transition-colors">Политика конфиденциальности</a>

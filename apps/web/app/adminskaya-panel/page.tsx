@@ -101,7 +101,7 @@ export default function AdminDashboardPage() {
             {/* Header */}
             <div>
                 <h1 className="text-3xl font-bold text-white">Обзор</h1>
-                <p className="text-gray-400 mt-1">Статистика платформы Effecto</p>
+                <p className="text-gray-400 mt-1">Статистика платформы Reklai</p>
             </div>
 
             {/* Today's Stats Banner */}

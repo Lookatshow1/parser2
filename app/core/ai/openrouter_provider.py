@@ -75,8 +75,8 @@ class OpenRouterProvider(TextProvider):
         api_key: Optional[str] = None,
         model: str = "gpt-4o-mini",
         proxy_url: Optional[str] = None,
-        site_url: str = "https://effecto.ru",
-        site_name: str = "Effecto AI Ads"
+        site_url: str = "https://reklai.ru",
+        site_name: str = "Reklai AI Ads"
     ):
         self.api_key = api_key or os.getenv("OPENROUTER_API_KEY")
         self.model = OPENROUTER_MODELS.get(model, model)

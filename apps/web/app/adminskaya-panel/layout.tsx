@@ -94,7 +94,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                             </div>
                             <div>
                                 <div className="font-bold text-white">Admin Panel</div>
-                                <div className="text-xs text-gray-500">Effecto</div>
+                                <div className="text-xs text-gray-500">Reklai</div>
                             </div>
                         </Link>
                     </div>

@@ -341,7 +341,7 @@ export function CommandPalette() {
                             выбрать
                         </span>
                     </div>
-                    <span className="text-violet-400">Effecto</span>
+                    <span className="text-violet-400">Reklai</span>
                 </div>
             </div>
         </div>

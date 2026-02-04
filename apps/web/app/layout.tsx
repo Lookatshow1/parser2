@@ -7,7 +7,7 @@ import { CommandPalette } from "../components/command-palette";
 import { cn } from "../lib/utils";
 
 export const metadata = {
-  title: "Effecto — AI-рекламный кабинет",
+  title: "Reklai — AI-рекламный кабинет",
   description: "Умная платформа для создания и управления рекламой с помощью AI",
   icons: {
     icon: "/favicon.png",
@@ -15,9 +15,9 @@ export const metadata = {
     apple: "/favicon.png",
   },
   openGraph: {
-    title: "Effecto — AI-рекламный кабинет",
+    title: "Reklai — AI-рекламный кабинет",
     description: "Умная платформа для создания и управления рекламой с помощью AI",
-    siteName: "Effecto",
+    siteName: "Reklai",
     locale: "ru_RU",
     type: "website",
   },

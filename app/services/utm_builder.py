@@ -169,21 +169,21 @@ class UTMBuilder:
     @classmethod
     def generate_tracking_id(cls) -> str:
         """Generate unique tracking ID for custom attribution."""
-        return f"eff_{uuid.uuid4().hex[:12]}"
+        return f"rek_{uuid.uuid4().hex[:12]}"
     
     @classmethod
-    def add_effecto_tracking(cls, url: str, organization_id: int, campaign_id: int) -> str:
-        """Add Effecto-specific tracking parameters."""
+    def add_reklai_tracking(cls, url: str, organization_id: int, campaign_id: int) -> str:
+        """Add Reklai-specific tracking parameters."""
         tracking_id = cls.generate_tracking_id()
         
         return cls.build_url(
             url,
-            utm_source="effecto",
+            utm_source="reklai",
             utm_medium="platform",
             utm_campaign=str(campaign_id),
             extra_params={
-                "eff_org": str(organization_id),
-                "eff_cid": str(campaign_id),
-                "eff_tid": tracking_id,
+                "rek_org": str(organization_id),
+                "rek_cid": str(campaign_id),
+                "rek_tid": tracking_id,
             },
         )
